@@ -133,6 +133,18 @@
     .toast.success { background: var(--success); }
     .toast.info    { background: var(--purple); }
 
+    /* Extract progress overlay */
+    .progress-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .progress-overlay.show { opacity: 1; pointer-events: auto; }
+    .progress-modal { background: var(--card); border-radius: 14px; padding: 32px 36px; width: 480px; max-width: 90vw; box-shadow: 0 8px 40px rgba(0,0,0,.18); }
+    .progress-modal-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .progress-modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 22px; }
+    .progress-track { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
+    .progress-track-fill { height: 100%; background: var(--primary); border-radius: 5px; transition: width .4s ease; width: 0%; }
+    .progress-stats { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+    .progress-percent { font-size: 28px; font-weight: 800; color: var(--primary); text-align: center; margin-bottom: 8px; }
+    .progress-file { font-size: 11px; color: var(--text-muted); background: var(--bg); border-radius: 6px; padding: 7px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
+
     /* Whatap progress */
     .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
     .progress-fill { height: 100%; background: var(--purple); border-radius: 2px; animation: progress 2s ease-in-out infinite; }
@@ -140,6 +152,26 @@
   </style>
 </head>
 <body>
+
+<!-- 추출 진행 오버레이 -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-modal">
+    <div class="progress-modal-title">
+      <div class="spinner" style="width:18px;height:18px;border-width:2px;margin-bottom:0;"></div>
+      API 추출 중
+    </div>
+    <div class="progress-modal-sub">Controller 파일을 분석하고 있습니다. 잠시만 기다려 주세요.</div>
+    <div class="progress-percent" id="overlayPercent">0%</div>
+    <div class="progress-track">
+      <div class="progress-track-fill" id="overlayFill"></div>
+    </div>
+    <div class="progress-stats">
+      <span id="overlayCount">파일 탐색 중...</span>
+      <span id="overlayCountRight"></span>
+    </div>
+    <div class="progress-file" id="overlayFile">준비 중...</div>
+  </div>
+</div>
 
 <div class="header">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -299,12 +331,16 @@
   }
 
   // ── API 추출 ─────────────────────────────────────────────
+  let progressTimer = null;
+
   async function doExtract() {
     const rootPath = document.getElementById('rootPath').value.trim();
     if (!rootPath) { showToast('소스 경로를 입력하세요.', 'error'); return; }
 
     setExtracting(true);
+    showProgress(true);
     showLoading('소스 파일 분석 중...');
+
     try {
       const res = await fetch('/api/extract', {
         method: 'POST',
@@ -320,20 +356,74 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '서버 오류');
 
-      allApis = data.apis || [];
-      whatapLoaded = false; // 새 추출 시 Whatap 상태 초기화
-      document.getElementById('statApmPill').style.display = 'none';
-      document.getElementById('whatapBadge').style.display = 'none';
-      renderStats();
-      filterTable();
-      showStats(true);
-      showToast(`추출 완료 — ${allApis.length}개 API`, 'success');
+      // 폴링 시작
+      progressTimer = setInterval(pollProgress, 500);
     } catch(e) {
       showToast(e.message, 'error');
       showEmpty('추출 오류: ' + e.message);
-    } finally {
       setExtracting(false);
+      showProgress(false);
     }
+  }
+
+  async function pollProgress() {
+    try {
+      const res = await fetch('/api/progress');
+      const p = await res.json();
+
+      updateProgressBar(p.percent, p.processed, p.total, p.currentFile);
+
+      if (!p.extracting) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+
+        if (p.error) {
+          showToast('추출 오류: ' + p.error, 'error');
+          showEmpty('추출 오류: ' + p.error);
+          setExtracting(false);
+          showProgress(false);
+          return;
+        }
+
+        // 완료 → 결과 조회
+        const listRes = await fetch('/api/list');
+        const data = await listRes.json();
+        allApis = data.apis || [];
+        whatapLoaded = false;
+        document.getElementById('statApmPill').style.display = 'none';
+        document.getElementById('whatapBadge').style.display = 'none';
+        renderStats();
+        filterTable();
+        showStats(true);
+        showToast(`추출 완료 — ${allApis.length}개 API`, 'success');
+        setExtracting(false);
+        showProgress(false);
+      }
+    } catch(e) {
+      clearInterval(progressTimer);
+      progressTimer = null;
+      showToast('진행상황 조회 실패', 'error');
+      setExtracting(false);
+      showProgress(false);
+    }
+  }
+
+  function updateProgressBar(percent, processed, total, file) {
+    document.getElementById('overlayFill').style.width = percent + '%';
+    document.getElementById('overlayPercent').textContent = percent + '%';
+    document.getElementById('overlayFile').textContent = file || '분석 중...';
+    if (total > 0) {
+      document.getElementById('overlayCount').textContent = `${processed} / ${total} 파일 완료`;
+      document.getElementById('overlayCountRight').textContent = '';
+    } else {
+      document.getElementById('overlayCount').textContent = '파일 목록 탐색 중...';
+      document.getElementById('overlayCountRight').textContent = '';
+    }
+  }
+
+  function showProgress(v) {
+    document.getElementById('progressOverlay').classList.toggle('show', v);
+    if (v) updateProgressBar(0, 0, 0, '준비 중...');
   }
 
   // ── Whatap 통계 가져오기 ─────────────────────────────────

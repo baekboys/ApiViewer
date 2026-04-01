@@ -25,21 +25,23 @@ public class ApiViewController {
         this.whatapService = whatapService;
     }
 
-    /** 추출 실행 */
+    /** 추출 실행 (비동기) */
     @PostMapping("/extract")
     public ResponseEntity<?> extract(@RequestBody ExtractRequest request) {
         try {
-            List<ApiInfo> result = extractorService.extract(request);
-            Map<String, Object> response = new HashMap<>();
-            response.put("total", result.size());
-            response.put("deprecated", result.stream().filter(a -> "Y".equals(a.getIsDeprecated())).count());
-            response.put("apis", result);
-            return ResponseEntity.ok(response);
+            extractorService.startExtractAsync(request);
+            return ResponseEntity.accepted().body(Map.of("message", "추출 시작됨"));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /** 추출 진행상황 조회 */
+    @GetMapping("/progress")
+    public ResponseEntity<?> progress() {
+        return ResponseEntity.ok(extractorService.getProgress());
     }
 
     /** 캐시된 결과 조회 */

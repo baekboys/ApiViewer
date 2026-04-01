@@ -29,13 +29,27 @@ public class ApiExtractorService {
 
     private volatile List<ApiInfo> cachedApis = new ArrayList<>();
     private volatile boolean extracting = false;
+    private volatile int totalFiles = 0;
+    private volatile int processedFiles = 0;
+    private volatile String currentFile = "";
+    private volatile String lastError = null;
 
-    public boolean isExtracting() {
-        return extracting;
+    public boolean isExtracting() { return extracting; }
+    public List<ApiInfo> getCached() { return cachedApis; }
+
+    public Map<String, Object> getProgress() {
+        Map<String, Object> p = new HashMap<>();
+        p.put("extracting", extracting);
+        p.put("total", totalFiles);
+        p.put("processed", processedFiles);
+        p.put("currentFile", currentFile);
+        p.put("percent", totalFiles > 0 ? (processedFiles * 100 / totalFiles) : 0);
+        p.put("error", lastError);
+        return p;
     }
 
-    public List<ApiInfo> getCached() {
-        return cachedApis;
+    public void startExtractAsync(ExtractRequest req) {
+        new Thread(() -> extract(req)).start();
     }
 
     // ======================================================
@@ -54,6 +68,7 @@ public class ApiExtractorService {
         Map<String, String> pathConstantsMap = parsePathConstants(req.getPathConstants());
 
         List<ApiInfo> apis = new CopyOnWriteArrayList<>();
+        lastError = null;
 
         try {
             Path root = Paths.get(rootPath);
@@ -64,13 +79,19 @@ public class ApiExtractorService {
                             (p.toString().contains("Controller") || p.toString().contains("Conrtoller")))
                     .collect(Collectors.toList());
 
+            totalFiles = controllerFiles.size();
+            processedFiles = 0;
+
             controllerFiles.parallelStream().forEach(file -> {
                 String rel = root.relativize(file).toString();
+                currentFile = file.getFileName().toString();
                 List<String[]> git = getRecentGitHistories(rel, rootPath, gitBin, 3);
                 apis.addAll(extractApisHybrid(file, rel, git, apiPathPrefix, pathConstantsMap));
+                processedFiles++;
             });
 
         } catch (Exception e) {
+            lastError = e.getMessage();
             extracting = false;
             throw new RuntimeException("추출 실패: " + e.getMessage(), e);
         }

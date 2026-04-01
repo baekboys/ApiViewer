@@ -463,7 +463,7 @@
           ? '<span class="badge badge-dep">Deprecated</span>'
           : '<span class="badge badge-ok">Active</span>'}</td>
         <td style="text-align:right;">${callCountCell(a)}</td>
-        <td class="git-info">${gitCell(a.git1)}</td>
+        <td class="git-info">${gitCell(a.git1)}${gitCell(a.git2, true)}${gitCell(a.git3, true)}</td>
       </tr>`).join('');
   }
 
@@ -482,9 +482,10 @@
     return '';
   }
 
-  function gitCell(g) {
-    if (!g || g[0] === '-') return '<span style="color:#cbd5e1;font-size:11px;">이력 없음</span>';
-    return `<span class="git-date">${esc(g[0])}</span> ${esc(g[1])}<br><span style="font-size:10px;">${esc(g[2])}</span>`;
+  function gitCell(g, secondary = false) {
+    if (!g || g[0] === '-') return secondary ? '' : '<span style="color:#cbd5e1;font-size:11px;">이력 없음</span>';
+    const prefix = secondary ? '<hr style="border:none;border-top:1px solid var(--border);margin:3px 0;">' : '';
+    return `${prefix}<span class="git-date">${esc(g[0])}</span> ${esc(g[1])}<br><span style="font-size:10px;">${esc(g[2])}</span>`;
   }
 
   // ── 정렬 ─────────────────────────────────────────────────

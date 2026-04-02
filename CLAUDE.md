@@ -188,11 +188,13 @@ src/main/resources/static/
 - **GET `/api/db/stats`**: byRepo 항목에 `businessName` 포함, byManager 항목에 `team` 포함
 
 ## 추출 페이지 (extract.html) 구조
-- 추출 전용 페이지 — 결과 테이블 없음 (추출 완료 시 자동으로 viewer.html로 이동)
+- 추출 전용 페이지 — 결과 테이블 없음
 - **전체 레포 추출**: 드롭다운에서 "🔄 전체 레포 추출" 선택 → 설정된 모든 레포를 순차 추출
 - **개별 레포 추출**: 드롭다운에서 특정 레포 선택 → 해당 레포만 추출
-- 진행 오버레이에 "레포 X/N: 레포명" 표시 (전체 추출 모드)
-- 추출 완료 후 자동 리다이렉트: 전체→`/viewer.html`, 개별→`/viewer.html?repo=레포명`
+- **인라인 진행 카드**: 프로그레스바 + 파일 처리 현황 (팝업 아님, 하단에 표시)
+- **로그 패널**: 터미널 스타일, 서버에서 실시간 로그 수신 (파일별 처리 결과, JavaParser 폴백, 에러 상세)
+- **결과 요약**: 추출 완료 후 성공/실패 요약 + "이력 조회 →" 링크 (자동 이동 없음)
+- **서버 로그**: `ApiExtractorService.extractLogs` — 파일별 OK/WARN/ERROR 로그 축적, `/api/progress` 응답에 `logs` 배열 포함
 - Whatap 호출건수 조회 카드는 유지 (접힘/펼침)
 
 ## viewer.html 테이블 컬럼 (15개)

@@ -40,6 +40,12 @@ public class ApiExtractorService {
     private volatile String currentFile = "";
     private volatile String lastError = null;
     private volatile int savedCount = -1; // -1 = 미저장, 0 이상 = 저장 건수
+    private final List<String> extractLogs = Collections.synchronizedList(new ArrayList<>());
+
+    private void addLog(String level, String msg) {
+        String ts = java.time.LocalTime.now().toString().substring(0, 8);
+        extractLogs.add(ts + " [" + level + "] " + msg);
+    }
 
     public boolean isExtracting() { return extracting; }
     public List<ApiInfo> getCached() { return cachedApis; }
@@ -53,11 +59,13 @@ public class ApiExtractorService {
         p.put("percent", totalFiles > 0 ? (processedFiles * 100 / totalFiles) : 0);
         p.put("error", lastError);
         p.put("savedCount", savedCount);
+        p.put("logs", new ArrayList<>(extractLogs));
         return p;
     }
 
     public void startExtractAsync(ExtractRequest req) {
         savedCount = -1;
+        extractLogs.clear();
         new Thread(() -> extract(req)).start();
     }
 
@@ -79,6 +87,11 @@ public class ApiExtractorService {
         List<ApiInfo> apis = new CopyOnWriteArrayList<>();
         lastError = null;
 
+        addLog("INFO", "추출 시작 — 경로: " + rootPath);
+        if (req.getRepositoryName() != null && !req.getRepositoryName().isBlank()) {
+            addLog("INFO", "레포지토리: " + req.getRepositoryName());
+        }
+
         try {
             Path root = Paths.get(rootPath);
             if (!Files.exists(root)) throw new IllegalArgumentException("경로가 존재하지 않습니다: " + rootPath);
@@ -90,17 +103,26 @@ public class ApiExtractorService {
 
             totalFiles = controllerFiles.size();
             processedFiles = 0;
+            addLog("INFO", "Controller 파일 " + totalFiles + "개 발견");
 
             controllerFiles.parallelStream().forEach(file -> {
                 String rel = root.relativize(file).toString();
-                currentFile = file.getFileName().toString();
-                List<String[]> git = getRecentGitHistories(rel, rootPath, gitBin, 5);
-                apis.addAll(extractApisHybrid(file, rel, git, apiPathPrefix, pathConstantsMap));
+                String fileName = file.getFileName().toString();
+                currentFile = fileName;
+                try {
+                    List<String[]> git = getRecentGitHistories(rel, rootPath, gitBin, 5);
+                    List<ApiInfo> fileApis = extractApisHybrid(file, rel, git, apiPathPrefix, pathConstantsMap);
+                    apis.addAll(fileApis);
+                    addLog("OK", fileName + " — " + fileApis.size() + "개 API 추출");
+                } catch (Exception e) {
+                    addLog("ERROR", fileName + " — " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                }
                 processedFiles++;
             });
 
         } catch (Exception e) {
             lastError = e.getMessage();
+            addLog("ERROR", "추출 실패: " + e.getMessage());
             extracting = false;
             throw new RuntimeException("추출 실패: " + e.getMessage(), e);
         }
@@ -115,14 +137,18 @@ public class ApiExtractorService {
         }
 
         cachedApis = sorted;
+        addLog("INFO", "추출 완료 — 총 " + sorted.size() + "개 API");
 
         // DB 저장 (레포지토리명이 있을 때만)
         String repoName = req.getRepositoryName();
         if (repoName != null && !repoName.isBlank()) {
             try {
+                addLog("INFO", "DB 저장 중 — 레포: " + repoName.trim());
                 savedCount = storageService.save(repoName.trim(), cachedApis);
+                addLog("OK", "DB 저장 완료 — " + savedCount + "개 저장/갱신");
             } catch (Exception e) {
                 savedCount = -1;
+                addLog("ERROR", "DB 저장 실패: " + e.getMessage());
             }
         }
 
@@ -141,6 +167,7 @@ public class ApiExtractorService {
         try {
             return extractWithJavaParser(path, rel, git, apiPathPrefix, pathConstantsMap);
         } catch (Exception e) {
+            addLog("WARN", path.getFileName() + " — JavaParser 실패 (" + e.getClass().getSimpleName() + "), Regex 폴백 적용");
             return extractWithRegex(path, rel, git, apiPathPrefix, pathConstantsMap);
         }
     }

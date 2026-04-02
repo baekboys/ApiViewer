@@ -26,6 +26,8 @@
     .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
     .dot-blue { background: var(--primary); }
     .dot-purple { background: var(--purple); }
+    .dot-green { background: var(--success); }
+    .dot-red { background: var(--danger); }
 
     .config-grid { display: grid; grid-template-columns: 2fr 1fr 1.2fr 0.8fr 0.8fr; gap: 10px; }
     .config-grid-w { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr; gap: 10px; }
@@ -49,12 +51,14 @@
     .btn-blue:not(:disabled):hover { background: var(--primary-hover); }
     .btn-purple { background: var(--purple); color: #fff; }
     .btn-purple:not(:disabled):hover { background: #7c3aed; }
+    .btn-ghost { background: #f1f5f9; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:not(:disabled):hover { background: #e2e8f0; }
     .nav-link { font-size:12px; color:var(--text-muted); font-weight:600; text-decoration:none; padding:6px 12px; border:1px solid var(--border); border-radius:6px; }
     .nav-link:hover { background:#f1f5f9; }
     .nav-active { color:var(--primary) !important; border-color:var(--primary) !important; }
 
-    .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
-    .progress-fill { height: 100%; background: var(--purple); border-radius: 2px; animation: prog 2s ease-in-out infinite; }
+    .progress-bar-w { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
+    .progress-fill-w { height: 100%; background: var(--purple); border-radius: 2px; animation: prog 2s ease-in-out infinite; }
     @keyframes prog { 0%{width:0;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0;margin-left:100%} }
 
     .toast { position: fixed; bottom: 24px; right: 24px; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #fff; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; }
@@ -63,46 +67,60 @@
     .toast.success { background: var(--success); }
     .toast.info { background: var(--purple); }
 
-    .progress-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
-    .progress-overlay.show { opacity: 1; pointer-events: auto; }
-    .progress-modal { background: var(--card); border-radius: 14px; padding: 32px 36px; width: 480px; max-width: 90vw; box-shadow: 0 8px 40px rgba(0,0,0,.18); }
-    .progress-modal-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-    .progress-modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
-    .progress-repo { font-size: 12px; font-weight: 600; color: var(--primary); background: #eff6ff; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; display: none; }
-    .progress-track { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
-    .progress-track-fill { height: 100%; background: var(--primary); border-radius: 5px; transition: width .4s ease; width: 0%; }
-    .progress-stats { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
-    .progress-percent { font-size: 28px; font-weight: 800; color: var(--primary); text-align: center; margin-bottom: 8px; }
-    .progress-file { font-size: 11px; color: var(--text-muted); background: var(--bg); border-radius: 6px; padding: 7px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
-    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .all-repo-info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #1e40af; margin-bottom: 0; }
+    .all-repo-info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #1e40af; }
     .all-repo-info strong { display: block; font-size: 13px; margin-bottom: 4px; }
+
+    /* ── 추출 진행 카드 ── */
+    .progress-card { display: none; }
+    .progress-card.show { display: block; }
+    .prog-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .prog-header .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .prog-header .prog-title { font-size: 14px; font-weight: 700; color: var(--text); }
+    .prog-header .prog-status { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+    .prog-repo-label { font-size: 12px; font-weight: 600; color: var(--primary); background: #eff6ff; border-radius: 6px; padding: 5px 10px; margin-bottom: 10px; display: none; }
+    .prog-bar-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .prog-track { flex: 1; height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+    .prog-track-fill { height: 100%; background: var(--primary); border-radius: 5px; transition: width .4s ease; width: 0%; }
+    .prog-pct { font-size: 18px; font-weight: 800; color: var(--primary); min-width: 50px; text-align: right; }
+    .prog-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    .prog-file { font-size: 11px; color: var(--text-muted); background: var(--bg); border-radius: 6px; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
+
+    /* ── 결과 요약 ── */
+    .result-summary { display: none; margin-top: 14px; padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+    .result-summary.show { display: flex; align-items: center; gap: 10px; }
+    .result-summary.ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .result-summary.fail { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .result-summary .result-actions { margin-left: auto; display: flex; gap: 8px; }
+    .result-summary .result-actions a { font-size: 12px; padding: 4px 12px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+    .link-viewer { background: var(--primary); color: #fff !important; }
+    .link-viewer:hover { background: var(--primary-hover); }
+
+    /* ── 로그 패널 ── */
+    .log-card { display: none; }
+    .log-card.show { display: block; }
+    .log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .log-header .card-title { margin-bottom: 0; }
+    .log-counts { display: flex; gap: 10px; font-size: 11px; font-weight: 600; }
+    .log-counts .cnt-ok { color: var(--success); }
+    .log-counts .cnt-warn { color: #d97706; }
+    .log-counts .cnt-err { color: var(--danger); }
+    .log-wrap { background: #0f172a; border-radius: 8px; padding: 0; max-height: 400px; overflow-y: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; line-height: 1.7; }
+    .log-line { padding: 3px 14px; border-bottom: 1px solid #1e293b; display: flex; gap: 8px; }
+    .log-line:last-child { border-bottom: none; }
+    .log-ts { color: #64748b; min-width: 64px; flex-shrink: 0; }
+    .log-tag { min-width: 50px; flex-shrink: 0; font-weight: 700; }
+    .log-tag.t-INFO { color: #60a5fa; }
+    .log-tag.t-OK   { color: #4ade80; }
+    .log-tag.t-WARN { color: #fbbf24; }
+    .log-tag.t-ERROR{ color: #f87171; }
+    .log-msg { color: #e2e8f0; word-break: break-all; }
+    .log-msg.m-ERROR { color: #fca5a5; }
+    .log-msg.m-WARN  { color: #fde68a; }
+    .log-empty { color: #475569; padding: 20px; text-align: center; }
   </style>
 </head>
 <body>
-
-<!-- 추출 진행 오버레이 -->
-<div class="progress-overlay" id="progressOverlay">
-  <div class="progress-modal">
-    <div class="progress-modal-title">
-      <div class="spinner"></div>
-      API 추출 중
-    </div>
-    <div class="progress-modal-sub">Controller 파일을 분석하고 있습니다. 잠시만 기다려 주세요.</div>
-    <div class="progress-repo" id="overlayRepoInfo"></div>
-    <div class="progress-percent" id="overlayPercent">0%</div>
-    <div class="progress-track">
-      <div class="progress-track-fill" id="overlayFill"></div>
-    </div>
-    <div class="progress-stats">
-      <span id="overlayCount">파일 탐색 중...</span>
-      <span id="overlayCountRight"></span>
-    </div>
-    <div class="progress-file" id="overlayFile">준비 중...</div>
-  </div>
-</div>
 
 <div class="header">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -136,7 +154,7 @@
     <!-- 전체 추출 안내 -->
     <div id="allRepoInfo" style="display:none;" class="all-repo-info">
       <strong>전체 레포지토리 순차 추출</strong>
-      설정된 모든 레포지토리를 순서대로 추출합니다. 완료 후 이력 조회 화면으로 이동합니다.
+      설정된 모든 레포지토리를 순서대로 추출합니다.
     </div>
 
     <!-- 개별 레포 입력 폼 -->
@@ -181,7 +199,7 @@
       </div>
       <span class="toggle-arrow" id="whatapArrow">▼</span>
     </div>
-    <div class="progress-bar" id="whatapProgress"><div class="progress-fill"></div></div>
+    <div class="progress-bar-w" id="whatapProgress"><div class="progress-fill-w"></div></div>
     <div class="whatap-body" id="whatapBody">
       <div style="margin-top:14px;">
         <div class="config-grid-w">
@@ -214,6 +232,45 @@
     </div>
   </div>
 
+  <!-- ─── 추출 진행 상황 ─── -->
+  <div class="card progress-card" id="progressCard">
+    <div class="prog-header">
+      <div class="spinner" id="progSpinner"></div>
+      <span class="prog-title" id="progTitle">추출 진행 중</span>
+      <span class="prog-status" id="progStatus"></span>
+    </div>
+    <div class="prog-repo-label" id="progRepoLabel"></div>
+    <div class="prog-bar-wrap">
+      <div class="prog-track">
+        <div class="prog-track-fill" id="progFill"></div>
+      </div>
+      <span class="prog-pct" id="progPct">0%</span>
+    </div>
+    <div class="prog-info">
+      <span id="progCount">파일 탐색 중...</span>
+      <span id="progFile" class="prog-file" style="max-width:400px;"></span>
+    </div>
+
+    <!-- 결과 요약 -->
+    <div class="result-summary" id="resultSummary">
+      <span id="resultMsg"></span>
+      <div class="result-actions" id="resultActions"></div>
+    </div>
+  </div>
+
+  <!-- ─── 추출 로그 ─── -->
+  <div class="card log-card" id="logCard">
+    <div class="log-header">
+      <div class="card-title" style="margin-bottom:0;">
+        <span class="dot dot-green"></span>추출 로그
+      </div>
+      <div class="log-counts" id="logCounts"></div>
+    </div>
+    <div class="log-wrap" id="logWrap">
+      <div class="log-empty">추출이 시작되면 로그가 여기에 표시됩니다.</div>
+    </div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -221,6 +278,7 @@
 <script>
   let allRepos = [];
   let whatapOpen = false;
+  let lastLogCount = 0;
 
   // ── 레포 설정 목록 로드 ───────────────────────────────────
   async function initRepoConfigs() {
@@ -276,7 +334,6 @@
     } catch(e) { showToast('설정 불러오기 실패', 'error'); }
   }
 
-  // ── Whatap 패널 토글 ─────────────────────────────────────
   function toggleWhatap() {
     whatapOpen = !whatapOpen;
     document.getElementById('whatapBody').classList.toggle('open', whatapOpen);
@@ -289,52 +346,73 @@
   async function doExtract() {
     const selVal = document.getElementById('repoConfigSelect').value;
 
+    // 초기화
+    lastLogCount = 0;
+    showProgressCard(true);
+    showLogCard(true);
+    clearLogs();
+    hideResult();
+
     if (selVal === 'all') {
       const repos = allRepos.filter(r => r.rootPath);
       if (repos.length === 0) { showToast('추출할 레포지토리가 없습니다.', 'error'); return; }
 
       setExtracting(true);
-      showProgress(true);
+      addLocalLog('INFO', `전체 추출 시작 — ${repos.length}개 레포지토리`);
+      let totalSaved = 0;
+      let errorCount = 0;
 
       for (let i = 0; i < repos.length; i++) {
         const r = repos[i];
-        updateRepoInfo(`레포 ${i+1}/${repos.length}: ${r.repoName}`);
+        setRepoLabel(`레포 ${i+1}/${repos.length}: ${r.repoName}`);
+        addLocalLog('INFO', `── ${r.repoName} 추출 시작 ──`);
         try {
-          await extractOneRepo(r.rootPath, r.repoName, r.domain || '', r.apiPathPrefix || '', r.gitBinPath || 'git', r.pathConstants || '');
+          const result = await extractOneRepo(r.rootPath, r.repoName, r.domain || '', r.apiPathPrefix || '', r.gitBinPath || 'git', r.pathConstants || '');
+          if (result.savedCount >= 0) totalSaved += result.savedCount;
         } catch(e) {
-          showToast(`${r.repoName} 오류: ${e.message}`, 'error');
+          addLocalLog('ERROR', `${r.repoName} 추출 실패: ${e.message}`);
+          errorCount++;
         }
       }
 
       setExtracting(false);
-      showProgress(false);
-      window.location.href = '/viewer.html';
+      setRepoLabel('');
+      if (errorCount > 0) {
+        showResult('fail', `전체 추출 완료 — 성공 ${repos.length - errorCount}개, 실패 ${errorCount}개, 총 ${totalSaved}개 저장`);
+      } else {
+        showResult('ok', `전체 추출 완료 — ${repos.length}개 레포, 총 ${totalSaved}개 API 저장`);
+      }
+      addLocalLog('INFO', `전체 추출 종료`);
 
     } else {
       const rootPath = document.getElementById('rootPath').value.trim();
       if (!rootPath) { showToast('소스 경로를 입력하세요.', 'error'); return; }
 
       setExtracting(true);
-      showProgress(true);
-
       const repoName = document.getElementById('repositoryName').value.trim();
+
       try {
-        await extractOneRepo(
+        const result = await extractOneRepo(
           rootPath, repoName,
           document.getElementById('domain').value.trim(),
           document.getElementById('apiPathPrefix').value.trim(),
           document.getElementById('gitBinPath').value.trim(),
           document.getElementById('pathConstants').value.trim()
         );
+        if (result.error) {
+          showResult('fail', `추출 오류: ${result.error}`);
+        } else {
+          const msg = result.savedCount >= 0
+            ? `추출 완료 — ${result.savedCount}개 API 저장`
+            : `추출 완료`;
+          showResult('ok', msg);
+        }
       } catch(e) {
-        showToast('추출 오류: ' + e.message, 'error');
+        showResult('fail', `추출 오류: ${e.message}`);
+        addLocalLog('ERROR', e.message);
       }
 
       setExtracting(false);
-      showProgress(false);
-      window.location.href = repoName
-        ? `/viewer.html?repo=${encodeURIComponent(repoName)}`
-        : '/viewer.html';
     }
   }
 
@@ -352,12 +430,12 @@
         progressTimer = setInterval(async () => {
           try {
             const p = await (await fetch('/api/progress')).json();
-            updateProgressBar(p.percent, p.processed, p.total, p.currentFile);
+            updateProgress(p);
+
             if (!p.extracting) {
               clearInterval(progressTimer); progressTimer = null;
-              if (p.error) showToast(`오류: ${p.error}`, 'error');
-              else if (p.savedCount >= 0) showToast(`${repositoryName || '추출'} 완료 — ${p.savedCount}개 저장`, 'success');
-              resolve();
+              updateProgress(p); // 마지막 로그 반영
+              resolve({ savedCount: p.savedCount, error: p.error });
             }
           } catch(e) {
             clearInterval(progressTimer); progressTimer = null;
@@ -368,27 +446,128 @@
     });
   }
 
-  function updateProgressBar(percent, processed, total, file) {
-    document.getElementById('overlayFill').style.width = percent + '%';
-    document.getElementById('overlayPercent').textContent = percent + '%';
-    document.getElementById('overlayFile').textContent = file || '분석 중...';
-    document.getElementById('overlayCount').textContent =
-      total > 0 ? `${processed} / ${total} 파일 완료` : '파일 목록 탐색 중...';
-    document.getElementById('overlayCountRight').textContent = '';
-  }
+  // ── 진행상황 업데이트 ─────────────────────────────────────
+  function updateProgress(p) {
+    const pct = p.percent || 0;
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('progPct').textContent = pct + '%';
+    document.getElementById('progFile').textContent = p.currentFile || '';
 
-  function updateRepoInfo(text) {
-    const el = document.getElementById('overlayRepoInfo');
-    el.textContent = text; el.style.display = 'block';
-    updateProgressBar(0, 0, 0, '준비 중...');
-  }
-
-  function showProgress(v) {
-    document.getElementById('progressOverlay').classList.toggle('show', v);
-    if (v) {
-      document.getElementById('overlayRepoInfo').style.display = 'none';
-      updateProgressBar(0, 0, 0, '준비 중...');
+    if (p.total > 0) {
+      document.getElementById('progCount').textContent = `${p.processed} / ${p.total} 파일`;
+      document.getElementById('progStatus').textContent = p.extracting ? '분석 중...' : '완료';
+    } else {
+      document.getElementById('progCount').textContent = '파일 탐색 중...';
     }
+
+    // 서버 로그 동기화
+    const logs = p.logs || [];
+    if (logs.length > lastLogCount) {
+      const newLogs = logs.slice(lastLogCount);
+      newLogs.forEach(line => appendLogLine(line));
+      lastLogCount = logs.length;
+    }
+  }
+
+  // ── 로그 패널 ──────────────────────────────────────────────
+  function clearLogs() {
+    document.getElementById('logWrap').innerHTML = '';
+    document.getElementById('logCounts').innerHTML = '';
+    lastLogCount = 0;
+  }
+
+  function addLocalLog(level, msg) {
+    const ts = new Date().toTimeString().substring(0, 8);
+    appendLogLine(`${ts} [${level}] ${msg}`);
+  }
+
+  function appendLogLine(raw) {
+    const wrap = document.getElementById('logWrap');
+    // 빈 안내문 제거
+    const empty = wrap.querySelector('.log-empty');
+    if (empty) empty.remove();
+
+    // 파싱: "HH:MM:SS [LEVEL] message"
+    const m = raw.match(/^(\d{2}:\d{2}:\d{2})\s+\[(\w+)]\s+(.*)$/);
+    const ts    = m ? m[1] : '';
+    const level = m ? m[2] : 'INFO';
+    const msg   = m ? m[3] : raw;
+
+    const div = document.createElement('div');
+    div.className = 'log-line';
+    div.innerHTML =
+      `<span class="log-ts">${esc(ts)}</span>` +
+      `<span class="log-tag t-${level}">${level}</span>` +
+      `<span class="log-msg m-${level}">${esc(msg)}</span>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+
+    updateLogCounts();
+  }
+
+  function updateLogCounts() {
+    const lines = document.querySelectorAll('.log-line');
+    let ok = 0, warn = 0, err = 0;
+    lines.forEach(l => {
+      const tag = l.querySelector('.log-tag');
+      if (!tag) return;
+      if (tag.classList.contains('t-OK'))    ok++;
+      if (tag.classList.contains('t-WARN'))  warn++;
+      if (tag.classList.contains('t-ERROR')) err++;
+    });
+    const parts = [];
+    if (ok)   parts.push(`<span class="cnt-ok">OK ${ok}</span>`);
+    if (warn) parts.push(`<span class="cnt-warn">WARN ${warn}</span>`);
+    if (err)  parts.push(`<span class="cnt-err">ERROR ${err}</span>`);
+    document.getElementById('logCounts').innerHTML = parts.join('');
+  }
+
+  // ── 진행 카드 UI ──────────────────────────────────────────
+  function showProgressCard(v) {
+    document.getElementById('progressCard').classList.toggle('show', v);
+    if (v) {
+      document.getElementById('progSpinner').style.display = 'inline-block';
+      document.getElementById('progTitle').textContent = '추출 진행 중';
+      document.getElementById('progFill').style.width = '0%';
+      document.getElementById('progPct').textContent = '0%';
+      document.getElementById('progCount').textContent = '준비 중...';
+      document.getElementById('progFile').textContent = '';
+      document.getElementById('progStatus').textContent = '';
+    }
+  }
+
+  function showLogCard(v) {
+    document.getElementById('logCard').classList.toggle('show', v);
+  }
+
+  function setRepoLabel(text) {
+    const el = document.getElementById('progRepoLabel');
+    if (text) { el.textContent = text; el.style.display = 'block'; }
+    else { el.style.display = 'none'; }
+  }
+
+  function showResult(type, msg) {
+    const el = document.getElementById('resultSummary');
+    el.className = `result-summary show ${type}`;
+    document.getElementById('resultMsg').textContent = msg;
+
+    // 완료 시 스피너 숨기고 제목 변경
+    document.getElementById('progSpinner').style.display = 'none';
+    document.getElementById('progTitle').textContent = type === 'ok' ? '추출 완료' : '추출 완료 (오류 있음)';
+    document.getElementById('progStatus').textContent = '';
+
+    // 조회 링크
+    const actions = document.getElementById('resultActions');
+    const repoName = document.getElementById('repositoryName').value.trim();
+    const selVal = document.getElementById('repoConfigSelect').value;
+    const viewerUrl = (selVal === 'all' || !repoName)
+      ? '/viewer.html'
+      : `/viewer.html?repo=${encodeURIComponent(repoName)}`;
+    actions.innerHTML = `<a class="link-viewer" href="${viewerUrl}">이력 조회 →</a>`;
+  }
+
+  function hideResult() {
+    document.getElementById('resultSummary').className = 'result-summary';
   }
 
   // ── Whatap 통계 가져오기 ─────────────────────────────────
@@ -453,6 +632,11 @@
     const t = document.getElementById('toast');
     t.textContent = msg; t.className = `toast ${type} show`;
     setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   function autoFillRepoName() {

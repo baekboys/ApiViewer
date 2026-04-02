@@ -93,8 +93,13 @@
 
   <div class="card" style="padding:12px 20px;">
     <div style="display:flex;gap:12px;align-items:center;">
-      <button class="btn btn-blue" onclick="loadReviewData()">조회</button>
-      <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;">⬇ 엑셀 다운로드</button>
+      <label style="font-size:11px;color:var(--text-muted);font-weight:600;display:flex;flex-direction:column;gap:4px;">업무명
+        <select id="bizSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);min-width:160px;">
+          <option value="">(전체)</option>
+        </select>
+      </label>
+      <button class="btn btn-blue" onclick="loadReviewData()" style="align-self:flex-end;">조회</button>
+      <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;align-self:flex-end;">⬇ 엑셀 다운로드</button>
     </div>
   </div>
 
@@ -171,9 +176,12 @@
 <script>
   let allApis = [], filteredApis = [], repoConfigMap = {}, selectedIds = new Set();
 
+  let bizLoaded = false;
+
   async function loadReviewData() {
     document.getElementById('tbody').innerHTML = '<tr><td colspan="17"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
+    const biz = document.getElementById('bizSelect').value;
     try {
       const [dataRes, cfgRes] = await Promise.all([
         fetch('/api/db/apis?blockTargetOnly=true'),
@@ -182,7 +190,24 @@
       const data = await dataRes.json();
       const cfgs = await cfgRes.json();
       cfgs.forEach(c => { repoConfigMap[c.repoName] = { team:c.teamName||'', manager:c.managerName||'', businessName:c.businessName||'' }; });
-      allApis = data.apis || [];
+
+      // 업무명 드롭다운 (최초 1회)
+      if (!bizLoaded) {
+        const bizSet = new Set();
+        cfgs.forEach(c => { if (c.businessName) bizSet.add(c.businessName); });
+        const bizSel = document.getElementById('bizSelect');
+        [...bizSet].sort().forEach(b => { const o = document.createElement('option'); o.value=b; o.textContent=b; bizSel.appendChild(o); });
+        bizLoaded = true;
+      }
+
+      let apis = data.apis || [];
+      // 업무명 필터
+      if (biz) {
+        const matchRepos = new Set();
+        Object.entries(repoConfigMap).forEach(([rn, cfg]) => { if (cfg.businessName === biz) matchRepos.add(rn); });
+        apis = apis.filter(a => matchRepos.has(a.repositoryName));
+      }
+      allApis = apis;
       renderStats(); filterTable();
       document.getElementById('statsBar').style.display = 'flex';
       document.getElementById('filterBar').style.display = 'flex';

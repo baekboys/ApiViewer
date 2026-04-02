@@ -56,11 +56,14 @@ public class YamlConfigService {
         int added = 0, updated = 0;
 
         // 공통 설정 저장
-        if (config.getGlobal() != null && config.getGlobal().getPeriod() != null) {
+        if (config.getGlobal() != null) {
             GlobalConfig gc = globalRepo.findById(1L).orElse(new GlobalConfig());
-            ReposYamlConfig.PeriodGlobal pg = config.getGlobal().getPeriod();
-            if (pg.getStartDate() != null) gc.setStartDate(pg.getStartDate());
-            if (pg.getEndDate()   != null) gc.setEndDate(pg.getEndDate());
+            ReposYamlConfig.GlobalSection g = config.getGlobal();
+            if (g.getPeriod() != null) {
+                if (g.getPeriod().getStartDate() != null) gc.setStartDate(g.getPeriod().getStartDate());
+                if (g.getPeriod().getEndDate()   != null) gc.setEndDate(g.getPeriod().getEndDate());
+            }
+            if (g.getReviewThreshold() != null) gc.setReviewThreshold(g.getReviewThreshold());
             globalRepo.save(gc);
         }
 
@@ -80,6 +83,7 @@ public class YamlConfigService {
                 rc.setGitBinPath(entry.getGitBinPath());
                 rc.setTeamName(entry.getTeamName());
                 rc.setManagerName(entry.getManagerName());
+                rc.setBusinessName(entry.getBusinessName());
                 rc.setApiPathPrefix(entry.getApiPathPrefix());
                 rc.setPathConstants(entry.getPathConstants());
 

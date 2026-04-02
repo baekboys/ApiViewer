@@ -16,8 +16,11 @@ public class ReposYamlConfig {
     // ── 공통 설정 ──────────────────────────────────────────
     public static class GlobalSection {
         private PeriodGlobal period;
+        private Integer reviewThreshold;
         public PeriodGlobal getPeriod() { return period; }
         public void setPeriod(PeriodGlobal period) { this.period = period; }
+        public Integer getReviewThreshold() { return reviewThreshold; }
+        public void setReviewThreshold(Integer reviewThreshold) { this.reviewThreshold = reviewThreshold; }
     }
 
     public static class PeriodGlobal {
@@ -37,6 +40,7 @@ public class ReposYamlConfig {
         private String gitBinPath;
         private String teamName;
         private String managerName;
+        private String businessName;
         private String apiPathPrefix;
         private String pathConstants;
         private WhatapEntry whatap;
@@ -53,6 +57,8 @@ public class ReposYamlConfig {
         public void setTeamName(String teamName) { this.teamName = teamName; }
         public String getManagerName() { return managerName; }
         public void setManagerName(String managerName) { this.managerName = managerName; }
+        public String getBusinessName() { return businessName; }
+        public void setBusinessName(String businessName) { this.businessName = businessName; }
         public String getApiPathPrefix() { return apiPathPrefix; }
         public void setApiPathPrefix(String apiPathPrefix) { this.apiPathPrefix = apiPathPrefix; }
         public String getPathConstants() { return pathConstants; }

@@ -5,16 +5,13 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "api_record", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"extract_date", "repository_name", "api_path", "http_method"})
+    @UniqueConstraint(columnNames = {"repository_name", "api_path", "http_method"})
 })
 public class ApiRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "extract_date", nullable = false)
-    private LocalDate extractDate;
 
     @Column(name = "repository_name", nullable = false)
     private String repositoryName;
@@ -25,6 +22,23 @@ public class ApiRecord {
     @Column(name = "http_method", length = 20)
     private String httpMethod;
 
+    /** 마지막으로 소스에서 분석된 날짜 (추출 시마다 갱신) */
+    @Column(name = "last_analyzed_date")
+    private LocalDate lastAnalyzedDate;
+
+    /**
+     * 상태: 사용 / 차단대상 / 차단검토필요 / 차단완료
+     * statusOverridden=true이면 수동 설정 유지 (자동 재계산 안 함)
+     */
+    @Column(name = "status", length = 20)
+    private String status = "사용";
+
+    @Column(name = "status_overridden")
+    private boolean statusOverridden = false;
+
+    @Column(name = "call_count")
+    private Long callCount;
+
     @Column(name = "method_name")
     private String methodName;
 
@@ -34,6 +48,7 @@ public class ApiRecord {
     @Column(name = "repo_path", length = 500)
     private String repoPath;
 
+    /** @Deprecated 어노테이션 여부 (상태 계산용, 내부 용도) */
     @Column(name = "is_deprecated", length = 1)
     private String isDeprecated;
 
@@ -65,14 +80,20 @@ public class ApiRecord {
     private String gitHistory; // JSON: [{"date":"...","author":"...","message":"..."},...]
 
     public Long getId() { return id; }
-    public LocalDate getExtractDate() { return extractDate; }
-    public void setExtractDate(LocalDate extractDate) { this.extractDate = extractDate; }
     public String getRepositoryName() { return repositoryName; }
     public void setRepositoryName(String repositoryName) { this.repositoryName = repositoryName; }
     public String getApiPath() { return apiPath; }
     public void setApiPath(String apiPath) { this.apiPath = apiPath; }
     public String getHttpMethod() { return httpMethod; }
     public void setHttpMethod(String httpMethod) { this.httpMethod = httpMethod; }
+    public LocalDate getLastAnalyzedDate() { return lastAnalyzedDate; }
+    public void setLastAnalyzedDate(LocalDate lastAnalyzedDate) { this.lastAnalyzedDate = lastAnalyzedDate; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public boolean isStatusOverridden() { return statusOverridden; }
+    public void setStatusOverridden(boolean statusOverridden) { this.statusOverridden = statusOverridden; }
+    public Long getCallCount() { return callCount; }
+    public void setCallCount(Long callCount) { this.callCount = callCount; }
     public String getMethodName() { return methodName; }
     public void setMethodName(String methodName) { this.methodName = methodName; }
     public String getControllerName() { return controllerName; }
@@ -95,10 +116,8 @@ public class ApiRecord {
     public void setRequestPropertyValue(String requestPropertyValue) { this.requestPropertyValue = requestPropertyValue; }
     public String getControllerRequestPropertyValue() { return controllerRequestPropertyValue; }
     public void setControllerRequestPropertyValue(String v) { this.controllerRequestPropertyValue = v; }
-
     public String getFullUrl() { return fullUrl; }
     public void setFullUrl(String fullUrl) { this.fullUrl = fullUrl; }
-
     public String getGitHistory() { return gitHistory; }
     public void setGitHistory(String gitHistory) { this.gitHistory = gitHistory; }
 }

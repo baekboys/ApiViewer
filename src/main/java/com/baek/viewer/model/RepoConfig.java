@@ -28,6 +28,9 @@ public class RepoConfig {
     @Column(name = "manager_name")
     private String managerName;
 
+    @Column(name = "business_name")
+    private String businessName;
+
     @Column(name = "api_path_prefix")
     private String apiPathPrefix;
 
@@ -69,6 +72,8 @@ public class RepoConfig {
     public void setTeamName(String teamName) { this.teamName = teamName; }
     public String getManagerName() { return managerName; }
     public void setManagerName(String managerName) { this.managerName = managerName; }
+    public String getBusinessName() { return businessName; }
+    public void setBusinessName(String businessName) { this.businessName = businessName; }
     public String getApiPathPrefix() { return apiPathPrefix; }
     public void setApiPathPrefix(String apiPathPrefix) { this.apiPathPrefix = apiPathPrefix; }
     public String getPathConstants() { return pathConstants; }

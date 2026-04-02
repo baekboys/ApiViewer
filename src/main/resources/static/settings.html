@@ -17,7 +17,10 @@
     .header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
     .header h1{font-size:18px;font-weight:700;color:var(--primary);}
     .header-sub{font-size:12px;color:var(--text-muted);background:#f1f5f9;padding:3px 10px;border-radius:4px;font-weight:600;}
-    .header-right{margin-left:auto;display:flex;gap:10px;}
+    .header-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .nav-link{font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 12px;border:1px solid var(--border);border-radius:6px;}
+    .nav-link:hover{background:#f1f5f9;}
+    .nav-active{color:var(--primary)!important;border-color:var(--primary)!important;}
 
     .main{max-width:1100px;margin:0 auto;padding:20px 24px;}
 
@@ -81,8 +84,10 @@
   <h1>API Viewer</h1>
   <span class="header-sub">설정 관리</span>
   <div class="header-right">
-    <a href="/" style="font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:6px;">← 추출 페이지</a>
-    <a href="/viewer.html" style="font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:6px;">📋 저장 이력 조회</a>
+    <a href="/"             class="nav-link">📊 대시보드</a>
+    <a href="/extract.html" class="nav-link">🔍 API 추출</a>
+    <a href="/viewer.html"  class="nav-link">📋 이력 조회</a>
+    <a href="/settings.html"class="nav-link nav-active">⚙️ 설정</a>
   </div>
 </div>
 
@@ -112,6 +117,10 @@
       <label class="field">Whatap 조회 종료일
         <input id="gEndDate" type="text" placeholder="20261231">
         <span class="field-hint">형식: YYYYMMDD</span>
+      </label>
+      <label class="field">차단검토 기준 호출건수
+        <input id="gReviewThreshold" type="number" min="0" placeholder="3" style="width:100px;">
+        <span class="field-hint">이 값 이하이면서 커밋 1년 초과 시 차단검토필요</span>
       </label>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:4px;">
@@ -166,9 +175,12 @@
           <input id="f_teamName" type="text" placeholder="IT개발팀">
         </label>
       </div>
-      <div class="field-row col2">
+      <div class="field-row col3">
         <label class="field">담당자
           <input id="f_managerName" type="text" placeholder="홍길동">
+        </label>
+        <label class="field">업무명
+          <input id="f_businessName" type="text" placeholder="카드회원관리">
         </label>
         <label class="field">상수 치환 (PATH_CONSTANTS)
           <input id="f_pathConstants" type="text" placeholder="Constants.BASE=/v1, ApiConst.ROOT=/api/v2">
@@ -260,16 +272,18 @@
     try {
       const res = await fetch('/api/config/global');
       const g = await res.json();
-      document.getElementById('gStartDate').value = g.startDate || '';
-      document.getElementById('gEndDate').value   = g.endDate   || '';
+      document.getElementById('gStartDate').value        = g.startDate        || '';
+      document.getElementById('gEndDate').value          = g.endDate          || '';
+      document.getElementById('gReviewThreshold').value  = g.reviewThreshold  ?? 3;
     } catch(e) {}
   }
 
   async function saveGlobal() {
     const body = {
       id: 1,
-      startDate: document.getElementById('gStartDate').value.trim(),
-      endDate:   document.getElementById('gEndDate').value.trim()
+      startDate:       document.getElementById('gStartDate').value.trim(),
+      endDate:         document.getElementById('gEndDate').value.trim(),
+      reviewThreshold: parseInt(document.getElementById('gReviewThreshold').value) || 3
     };
     try {
       const res = await fetch('/api/config/global', {
@@ -303,6 +317,7 @@
           <span>🌐 ${esc(r.domain || '-')}</span>
           ${r.teamName ? `<span>👥 ${esc(r.teamName)}</span>` : ''}
           ${r.managerName ? `<span>👤 ${esc(r.managerName)}</span>` : ''}
+          ${r.businessName ? `<span>📝 ${esc(r.businessName)}</span>` : ''}
           ${r.apiPathPrefix ? `<span>🔗 prefix: ${esc(r.apiPathPrefix)}</span>` : ''}
           <span>Whatap: <b style="color:${r.whatapEnabled==='Y'?'var(--success)':'var(--text-muted)'}">${r.whatapEnabled||'N'}</b></span>
         </div>
@@ -332,7 +347,7 @@
   }
 
   function clearForm() {
-    ['repoName','domain','rootPath','gitBinPath','teamName','managerName',
+    ['repoName','domain','rootPath','gitBinPath','teamName','managerName','businessName',
      'apiPathPrefix','pathConstants','whatapUrl','whatapFilter','whatapOkinds',
      'whatapOkindsName','whatapCookie'].forEach(k => document.getElementById('f_'+k).value = '');
     document.getElementById('f_whatapEnabled').value = 'N';
@@ -346,6 +361,7 @@
     document.getElementById('f_gitBinPath').value       = r.gitBinPath       || '';
     document.getElementById('f_teamName').value         = r.teamName         || '';
     document.getElementById('f_managerName').value      = r.managerName      || '';
+    document.getElementById('f_businessName').value     = r.businessName     || '';
     document.getElementById('f_apiPathPrefix').value    = r.apiPathPrefix    || '';
     document.getElementById('f_pathConstants').value    = r.pathConstants    || '';
     document.getElementById('f_whatapEnabled').value    = r.whatapEnabled    || 'N';
@@ -369,6 +385,7 @@
       gitBinPath:       document.getElementById('f_gitBinPath').value.trim(),
       teamName:         document.getElementById('f_teamName').value.trim(),
       managerName:      document.getElementById('f_managerName').value.trim(),
+      businessName:     document.getElementById('f_businessName').value.trim(),
       apiPathPrefix:    document.getElementById('f_apiPathPrefix').value.trim(),
       pathConstants:    document.getElementById('f_pathConstants').value.trim(),
       whatapEnabled:    document.getElementById('f_whatapEnabled').value,

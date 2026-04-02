@@ -24,7 +24,8 @@ run.bat                # Windows
 ### 접속 URL
 | URL | 설명 |
 |-----|------|
-| http://localhost:8080 | 추출 페이지 |
+| http://localhost:8080 | 대시보드 (통계) |
+| http://localhost:8080/extract.html | API 추출 페이지 |
 | http://localhost:8080/viewer.html | DB 저장 이력 조회 |
 | http://localhost:8080/settings.html | 레포지토리 설정 관리 |
 | http://localhost:8080/h2-console | H2 DB 콘솔 (JDBC: `jdbc:h2:file:./data/api-viewer-db`, user: sa, pw: 없음) |
@@ -55,8 +56,9 @@ src/main/java/com/baek/viewer/
     └── WhatapService.java        # Whatap APM 호출건수 조회
 
 src/main/resources/static/
-├── index.html      # 추출 페이지
-├── viewer.html     # DB 이력 조회 페이지 (달력 날짜 선택)
+├── index.html      # 대시보드 (통계: 전체/팀별/담당자별/레포별/상태별/Method별)
+├── extract.html    # API 추출 페이지
+├── viewer.html     # DB 이력 조회 페이지
 └── settings.html   # 레포지토리 설정 관리 페이지
 ```
 
@@ -97,18 +99,34 @@ src/main/resources/static/
 - index.html 테이블: git1~git5 모두 표시 (구분선으로 구분)
 
 ### 4. DB 저장 규칙 (ApiStorageService)
-- 키: `(extract_date, repository_name, api_path, http_method)`
-- **같은 날 재추출** → 해당 날짜+레포 전체 삭제 후 재삽입 (최신으로 갱신)
-- **다른 날 추출** → 새 날짜로 별도 저장 (이전 날짜 보존)
+- 키: `(repository_name, api_path, http_method)` — 날짜는 키에서 제거
+- **upsert**: 동일 키가 있으면 업데이트, 없으면 신규 삽입
+- `last_analyzed_date`: 추출할 때마다 오늘 날짜로 갱신 (키 아님)
+- `statusOverridden=true`인 레코드는 추출/호출건수 업데이트 시 status 변경 안 함
 
-### 5. 이력 조회 (viewer.html)
-- 레포지토리 선택 → 달력 표시 (데이터 있는 날짜 파란색 하이라이트)
-- 날짜 클릭 → API 목록 조회 (DB에서 fetch)
-- git_history JSON을 파싱하여 최대 5개 커밋 이력 표시
+### 5. 상태(status) 자동 계산 로직
+| 상태 | 조건 |
+|------|------|
+| 차단완료 | `isDeprecated=Y` AND `fullComment`에 `[URL차단작업]` 포함 |
+| 차단대상 | `callCount=0` AND 모든 커밋이 오늘 기준 1년 초과 |
+| 차단검토필요 | `0 < callCount ≤ reviewThreshold` AND 모든 커밋 1년 초과 |
+| 사용 | 그 외 (기본값) |
+- `reviewThreshold`: `repos-config.yml` `global.reviewThreshold` (기본 3), GlobalConfig에 저장
+- `statusOverridden=true`: 사용자 수동 변경 시 설정, 이후 자동 재계산 안 함
+- 자동계산 복원: PATCH `/api/db/status`에 `status: null` 전송 → `statusOverridden=false`로 리셋
 
-### 6. Whatap APM 연동
+### 6. 이력 조회 (viewer.html)
+- 레포지토리 선택 → 조회 버튼 클릭 → API 목록 조회 (달력 제거)
+- 상태 배지: 사용(초록), 차단검토필요(노랑), 차단대상(주황), 차단완료(회색)
+- 체크박스로 여러 항목 선택 → 하단 bulk bar에서 상태 일괄 변경
+- 수동 설정된 항목에는 🔒 아이콘 표시
+- 통계 pill 클릭 → 해당 상태 필터 적용
+- `callCount`, `lastAnalyzedDate` 컬럼 추가
+
+### 7. Whatap APM 연동
 - 기간+쿠키 입력 → 실제 호출건수 조회 → API 목록에 매핑
 - 레포 설정의 Whatap 정보 + 공통 설정의 기간이 자동 입력됨
+- 조회 완료 후 자동으로 POST `/api/db/call-counts`로 DB에 호출건수 반영 → 상태 재계산
 
 ---
 
@@ -122,8 +140,10 @@ src/main/resources/static/
 | GET | `/api/list` | 메모리 캐시된 추출 결과 |
 | GET | `/api/status` | 추출 중 여부 확인 |
 | GET | `/api/db/repositories` | DB 저장된 레포 목록 |
-| GET | `/api/db/dates?repository=` | 레포별 추출 날짜 목록 |
-| GET | `/api/db/apis?repository=&date=` | DB에서 API 목록 조회 |
+| GET | `/api/db/apis?repository=` | DB에서 API 목록 조회 (repository 생략 시 전체 조회) |
+| GET | `/api/db/stats` | 전체 통계 (상태별/Method별/팀별/담당자별/레포별) |
+| PATCH | `/api/db/status` | 상태 일괄 변경 `{ids:[],status:"차단대상"}` |
+| POST | `/api/db/call-counts` | Whatap 호출건수 DB 반영 `{repoName,callCounts:{}}` |
 | POST | `/api/whatap/stats` | Whatap 호출건수 조회 |
 
 ### ConfigController (`/api/config`)
@@ -142,13 +162,57 @@ src/main/resources/static/
 ## DB 테이블 구조
 
 ### api_record
-추출된 API 이력. `(extract_date, repository_name, api_path, http_method)` UNIQUE 제약.
+추출된 API 이력. `(repository_name, api_path, http_method)` UNIQUE 제약.
+- `last_analyzed_date`: 마지막 추출 날짜 (키 아님, 추출마다 갱신)
+- `status`: 사용/차단검토필요/차단대상/차단완료 (기본: 사용)
+- `status_overridden`: 수동 상태 설정 여부 (true면 자동 재계산 안 함)
+- `call_count`: Whatap 조회 건수 (null=미조회)
+- `is_deprecated`: @Deprecated 어노테이션 여부 (Y/N, 상태 계산용 내부 필드)
 
 ### repo_config
 레포지토리별 설정. `repo_name` UNIQUE.
 
 ### global_config
-공통 설정. id=1 단일 레코드 (startDate, endDate).
+공통 설정. id=1 단일 레코드 (startDate, endDate, reviewThreshold).
+
+---
+
+## 업무명(businessName) 필드
+- `repos-config.yml`의 각 레포 항목에 `businessName` 필드 추가 (예: `businessName: 카드회원관리`)
+- `ReposYamlConfig.RepoEntry`, `RepoConfig` 엔티티에 `businessName` 필드 포함
+- `YamlConfigService.importFromYaml()`에서 `rc.setBusinessName(entry.getBusinessName())` 저장
+- **viewer.html**: 테이블 앞부분에 레포지토리(+업무명 sub-text), 팀, 담당자 3개 컬럼 추가
+- **index.html (대시보드)**: 레포지토리별 테이블에 업무명 컬럼 추가, 담당자별 테이블에 팀 컬럼 추가
+- **settings.html**: 모달 폼에 업무명 입력 필드 추가
+- **엑셀 다운로드**: 레포지토리, 업무명, 팀, 담당자 순서로 앞 컬럼에 포함
+- **GET `/api/db/stats`**: byRepo 항목에 `businessName` 포함, byManager 항목에 `team` 포함
+
+## 추출 페이지 (extract.html) 구조
+- 추출 전용 페이지 — 결과 테이블 없음 (추출 완료 시 자동으로 viewer.html로 이동)
+- **전체 레포 추출**: 드롭다운에서 "🔄 전체 레포 추출" 선택 → 설정된 모든 레포를 순차 추출
+- **개별 레포 추출**: 드롭다운에서 특정 레포 선택 → 해당 레포만 추출
+- 진행 오버레이에 "레포 X/N: 레포명" 표시 (전체 추출 모드)
+- 추출 완료 후 자동 리다이렉트: 전체→`/viewer.html`, 개별→`/viewer.html?repo=레포명`
+- Whatap 호출건수 조회 카드는 유지 (접힘/펼침)
+
+## viewer.html 테이블 컬럼 (15개)
+| 순서 | 컬럼명 |
+|------|--------|
+| 0 | 체크박스 |
+| 1 | 레포지토리/업무명 |
+| 2 | 팀 |
+| 3 | 담당자 |
+| 4 | Method |
+| 5 | API 경로 |
+| 6 | URL 호출 |
+| 7 | 컨트롤러 |
+| 8 | 메소드명 |
+| 9 | 프로그램ID |
+| 10 | 설명 |
+| 11 | 호출건수 |
+| 12 | 상태 |
+| 13 | 마지막분석일 |
+| 14 | 최근 커밋 이력 |
 
 ---
 

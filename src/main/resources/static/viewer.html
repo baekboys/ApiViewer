@@ -17,7 +17,10 @@
     .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); }
     .header h1 { font-size: 18px; font-weight: 700; color: var(--primary); }
     .header-sub { font-size: 12px; color: var(--text-muted); background: #f1f5f9; padding: 3px 10px; border-radius: 4px; font-weight: 600; }
-    .header-right { margin-left: auto; }
+    .header-right { margin-left: auto; display:flex; align-items:center; gap:6px; }
+    .nav-link { font-size:12px; color:var(--text-muted); font-weight:600; text-decoration:none; padding:6px 12px; border:1px solid var(--border); border-radius:6px; }
+    .nav-link:hover { background:#f1f5f9; }
+    .nav-active { color:var(--primary) !important; border-color:var(--primary) !important; }
 
     .main { max-width: 1700px; margin: 0 auto; padding: 20px 24px; }
 
@@ -26,42 +29,35 @@
     .card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
 
     /* 조회 폼 */
-    .query-layout { display: grid; grid-template-columns: 220px 1fr auto; gap: 16px; align-items: start; }
+    .query-layout { display: flex; gap: 16px; align-items: flex-end; }
     label.field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
-    label.field select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; background: var(--card); transition: border .15s; }
+    label.field select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; background: var(--card); transition: border .15s; min-width: 180px; }
     label.field select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px #3b82f620; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-green:not(:disabled):hover { background: #15803d; }
 
-    /* 달력 */
-    .calendar-wrap { flex: 1; }
-    .calendar-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .cal-nav { background: none; border: 1px solid var(--border); border-radius: 5px; width: 26px; height: 26px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
-    .cal-nav:hover { background: #f1f5f9; }
-    .cal-month-label { font-size: 13px; font-weight: 700; color: var(--text); min-width: 100px; text-align: center; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 32px); gap: 3px; }
-    .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); padding: 3px 0; }
-    .cal-day { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 12px; cursor: default; color: var(--text-muted); position: relative; }
-    .cal-day.has-data { background: #dbeafe; color: var(--primary); font-weight: 700; cursor: pointer; }
-    .cal-day.has-data:hover { background: #bfdbfe; }
-    .cal-day.selected { background: var(--primary) !important; color: #fff !important; }
-    .cal-day.other-month { opacity: .3; cursor: default; }
-
-    .query-actions { display: flex; flex-direction: column; gap: 8px; padding-top: 18px; }
     .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; white-space: nowrap; height: 34px; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn-blue { background: var(--primary); color: #fff; }
     .btn-blue:not(:disabled):hover { background: var(--primary-hover); }
     .btn-ghost { background: #f1f5f9; color: var(--text-muted); border: 1px solid var(--border); }
     .btn-ghost:not(:disabled):hover { background: #e2e8f0; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; height: 28px; }
 
     .db-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-top: 12px; }
     .db-meta strong { color: var(--primary); }
 
     /* 통계 */
     .stats-bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow); }
+    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s; }
+    .stat-pill:hover { border-color: var(--primary); }
+    .stat-pill.active-filter { border-color: var(--primary); background: #eff6ff; }
     .stat-pill strong { font-size: 15px; font-weight: 700; }
-    .stat-pill.dep strong { color: var(--danger); }
-    .stat-pill.ok strong { color: var(--success); }
+    .stat-pill.s-block   strong { color: #dc2626; }
+    .stat-pill.s-review  strong { color: #d97706; }
+    .stat-pill.s-target  strong { color: #ea580c; }
+    .stat-pill.s-done    strong { color: #6b7280; }
+    .stat-pill.s-use     strong { color: var(--success); }
 
     /* 필터 */
     .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
@@ -70,25 +66,48 @@
     .filter-bar select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; background: var(--card); }
     .filter-count { margin-left: auto; font-size: 12px; color: var(--text-muted); }
 
+    /* 일괄 변경 바 */
+    .bulk-bar { display: none; position: sticky; bottom: 0; background: #1e293b; color: #fff;
+      padding: 10px 20px; border-radius: 10px; margin-bottom: 10px;
+      align-items: center; gap: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25); z-index: 10; }
+    .bulk-bar.visible { display: flex; }
+    .bulk-bar .bulk-count { font-size: 13px; font-weight: 600; flex: 1; }
+    .bulk-bar select { padding: 5px 10px; border-radius: 6px; font-size: 12px; border: none; outline: none; }
+    .btn-apply { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-apply:hover { background: var(--primary-hover); }
+    .btn-cancel { background: #475569; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-cancel:hover { background: #334155; }
+
     /* 테이블 */
-    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: auto; box-shadow: var(--shadow); max-height: calc(100vh - 320px); }
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: auto; box-shadow: var(--shadow); max-height: calc(100vh - 290px); }
     table { width: 100%; border-collapse: collapse; }
     thead th { position: sticky; top: 0; z-index: 2; background: #f1f5f9; padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
     thead th:hover { background: #e2e8f0; }
     thead th.sorted { color: var(--primary); }
+    thead th.no-sort { cursor: default; }
+    thead th.no-sort:hover { background: #f1f5f9; }
     .sort-icon { margin-left: 3px; opacity: .4; }
     .sorted .sort-icon { opacity: 1; }
     tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--row-hover); }
+    tbody tr.row-selected { background: #eff6ff !important; }
     tbody td { padding: 8px 12px; vertical-align: top; max-width: 260px; word-break: break-all; }
+    td.cb-cell { width: 36px; max-width: 36px; text-align: center; padding: 8px 0; }
+    input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); }
 
+    /* 배지 */
     .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
     .badge-GET    { background:#dcfce7;color:#166534; } .badge-POST   { background:#dbeafe;color:#1e40af; }
     .badge-PUT    { background:#fef9c3;color:#854d0e; } .badge-DELETE { background:#fee2e2;color:#991b1b; }
     .badge-PATCH  { background:#ede9fe;color:#5b21b6; } .badge-REQUEST{ background:#f1f5f9;color:#475569; }
-    .badge-dep { background:#fee2e2;color:#991b1b;font-size:10px; }
-    .badge-ok  { background:#f1f5f9;color:#64748b;font-size:10px; }
+
+    /* 상태 배지 */
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .st-use      { background:#dcfce7; color:#166534; }
+    .st-target   { background:#ffedd5; color:#c2410c; }
+    .st-review   { background:#fef9c3; color:#92400e; }
+    .st-done     { background:#f1f5f9; color:#6b7280; }
 
     .api-path { font-family:'Consolas',monospace; font-size:12px; color:#1e40af; }
     .api-op   { color:var(--text-muted); font-size:12px; }
@@ -114,9 +133,12 @@
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
   <h1>API Viewer</h1>
-  <span class="header-sub">저장 이력 조회</span>
+  <span class="header-sub">이력 조회</span>
   <div class="header-right">
-    <a href="/" style="font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:6px;">← 추출 페이지</a>
+    <a href="/"             class="nav-link">📊 대시보드</a>
+    <a href="/extract.html" class="nav-link">🔍 API 추출</a>
+    <a href="/viewer.html"  class="nav-link nav-active">📋 이력 조회</a>
+    <a href="/settings.html"class="nav-link">⚙️ 설정</a>
   </div>
 </div>
 
@@ -126,47 +148,32 @@
   <div class="card">
     <div class="card-title"><span class="dot"></span>조회 조건</div>
     <div class="query-layout">
-
-      <!-- 레포지토리 선택 -->
       <label class="field">레포지토리
-        <select id="repoSelect" onchange="onRepoChange()">
-          <option value="">-- 선택 --</option>
+        <select id="repoSelect">
+          <option value="">(전체 조회)</option>
         </select>
       </label>
-
-      <!-- 달력 -->
-      <div class="calendar-wrap">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">추출 날짜</div>
-        <div class="calendar-header">
-          <button class="cal-nav" onclick="moveMonth(-1)">‹</button>
-          <span class="cal-month-label" id="calMonthLabel"></span>
-          <button class="cal-nav" onclick="moveMonth(1)">›</button>
-          <span id="selectedDateBadge" style="margin-left:8px;font-size:12px;color:var(--primary);font-weight:700;"></span>
-        </div>
-        <div class="calendar-grid" id="calGrid"></div>
-      </div>
-
-      <!-- 조회 버튼 -->
-      <div class="query-actions">
-        <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
-      </div>
+      <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
+      <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;">⬇ 엑셀 다운로드</button>
     </div>
 
     <div class="db-meta" id="dbMeta" style="display:none">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-      레포지토리: <strong id="metaRepo">-</strong> &nbsp;|&nbsp; 추출일: <strong id="metaDate">-</strong> &nbsp;|&nbsp; 총 <strong id="metaTotal">0</strong>개 API
+      레포지토리: <strong id="metaRepo">-</strong> &nbsp;|&nbsp; 마지막 분석일: <strong id="metaDate">-</strong> &nbsp;|&nbsp; 총 <strong id="metaTotal">0</strong>개 API
     </div>
   </div>
 
-  <!-- 통계 -->
+  <!-- 통계 (상태 필터 겸용) -->
   <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stat-pill ok"><span>전체</span><strong id="statTotal">0</strong></div>
-    <div class="stat-pill"><span>Active</span><strong id="statActive">0</strong></div>
-    <div class="stat-pill dep"><span>Deprecated</span><strong id="statDep">0</strong></div>
-    <div class="stat-pill"><span>GET</span><strong id="statGet">0</strong></div>
-    <div class="stat-pill"><span>POST</span><strong id="statPost">0</strong></div>
-    <div class="stat-pill"><span>PUT</span><strong id="statPut">0</strong></div>
-    <div class="stat-pill"><span>DELETE</span><strong id="statDelete">0</strong></div>
+    <div class="stat-pill" id="pill-all"     onclick="setStatusFilter('')">      <span>전체</span>    <strong id="statTotal">0</strong></div>
+    <div class="stat-pill s-use"    id="pill-사용"     onclick="setStatusFilter('사용')">    <span>사용</span>    <strong id="stat-사용">0</strong></div>
+    <div class="stat-pill s-review" id="pill-차단검토필요" onclick="setStatusFilter('차단검토필요')"><span>차단검토필요</span><strong id="stat-차단검토필요">0</strong></div>
+    <div class="stat-pill s-target" id="pill-차단대상"   onclick="setStatusFilter('차단대상')">  <span>차단대상</span>  <strong id="stat-차단대상">0</strong></div>
+    <div class="stat-pill s-done"   id="pill-차단완료"   onclick="setStatusFilter('차단완료')">  <span>차단완료</span>  <strong id="stat-차단완료">0</strong></div>
+    <div class="stat-pill" style="cursor:default;">                                                     <span>GET</span>     <strong id="statGet">0</strong></div>
+    <div class="stat-pill" style="cursor:default;">                                                     <span>POST</span>    <strong id="statPost">0</strong></div>
+    <div class="stat-pill" style="cursor:default;">                                                     <span>PUT</span>     <strong id="statPut">0</strong></div>
+    <div class="stat-pill" style="cursor:default;">                                                     <span>DELETE</span>  <strong id="statDelete">0</strong></div>
   </div>
 
   <!-- 검색/필터 -->
@@ -177,12 +184,22 @@
       <option>GET</option><option>POST</option><option>PUT</option>
       <option>DELETE</option><option>PATCH</option><option>REQUEST</option>
     </select>
-    <select id="depFilter" onchange="filterTable()">
-      <option value="">전체</option>
-      <option value="Y">Deprecated만</option>
-      <option value="N">Active만</option>
-    </select>
     <span class="filter-count" id="filterCount"></span>
+  </div>
+
+  <!-- 일괄 변경 바 -->
+  <div class="bulk-bar" id="bulkBar">
+    <span class="bulk-count" id="bulkCount">0개 선택됨</span>
+    <select id="bulkStatus">
+      <option value="">-- 상태 선택 --</option>
+      <option value="사용">사용</option>
+      <option value="차단검토필요">차단검토필요</option>
+      <option value="차단대상">차단대상</option>
+      <option value="차단완료">차단완료</option>
+      <option value="">자동계산 (초기화)</option>
+    </select>
+    <button class="btn-apply" onclick="applyBulkStatus()">적용</button>
+    <button class="btn-cancel" onclick="clearSelection()">취소</button>
   </div>
 
   <!-- 테이블 -->
@@ -190,19 +207,25 @@
     <table id="apiTable">
       <thead>
         <tr>
+          <th class="no-sort cb-cell"><input type="checkbox" id="checkAll" onclick="toggleAll(this)"></th>
+          <th onclick="sortBy('repositoryName')">레포지토리 / 업무명 <span class="sort-icon">↕</span></th>
+          <th onclick="sortBy('teamName')">팀 <span class="sort-icon">↕</span></th>
+          <th onclick="sortBy('managerName')">담당자 <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('httpMethod')">Method <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('apiPath')">API 경로 <span class="sort-icon">↕</span></th>
-          <th>URL 호출</th>
+          <th class="no-sort">URL 호출</th>
           <th onclick="sortBy('controllerName')">컨트롤러 <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('methodName')">메소드명 <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('programId')">프로그램ID <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('apiOperationValue')">설명 <span class="sort-icon">↕</span></th>
-          <th onclick="sortBy('isDeprecated')">상태 <span class="sort-icon">↕</span></th>
-          <th>최근 커밋 이력</th>
+          <th onclick="sortBy('callCount')">호출건수 <span class="sort-icon">↕</span></th>
+          <th onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
+          <th onclick="sortBy('lastAnalyzedDate')">마지막분석일 <span class="sort-icon">↕</span></th>
+          <th class="no-sort">최근 커밋 이력</th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="9"><div class="state-box">레포지토리와 날짜를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
+        <tr><td colspan="15"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -212,21 +235,23 @@
 
 <script>
   let allApis = [];
+  let filteredApis = [];
   let sortKey = 'apiPath', sortAsc = true;
-  let availableDates = new Set(); // "YYYY-MM-DD"
-  let selectedDate = null;
-  let calYear, calMonth;
+  let statusFilter = '';
+  let selectedIds = new Set(); // api id 기준
+  let repoConfigMap = {}; // repoName → {team, manager}
 
   // ── 초기화 ────────────────────────────────────────────────
   async function initRepos() {
-    const today = new Date();
-    calYear = today.getFullYear();
-    calMonth = today.getMonth(); // 0-indexed
-    renderCalendar();
-
     try {
-      const res = await fetch('/api/db/repositories');
-      const repos = await res.json();
+      const [repoRes, cfgRes] = await Promise.all([
+        fetch('/api/db/repositories'),
+        fetch('/api/config/repos')
+      ]);
+      const repos = await repoRes.json();
+      const cfgs  = await cfgRes.json();
+
+      // 레포 선택 드롭다운
       const sel = document.getElementById('repoSelect');
       repos.forEach(r => {
         const opt = document.createElement('option');
@@ -234,137 +259,55 @@
         sel.appendChild(opt);
       });
       if (repos.length === 0) showToast('저장된 데이터가 없습니다. 먼저 추출을 실행하세요.', 'error');
+
+      // 팀/담당자 매핑 캐싱
+      cfgs.forEach(c => { repoConfigMap[c.repoName] = { team: c.teamName || '', manager: c.managerName || '', businessName: c.businessName || '' }; });
     } catch(e) { showToast('레포지토리 목록 조회 실패', 'error'); }
-  }
-
-  // ── 레포 변경 → 날짜 목록 로드 ──────────────────────────
-  async function onRepoChange() {
-    const repo = document.getElementById('repoSelect').value;
-    availableDates = new Set();
-    selectedDate = null;
-    document.getElementById('selectedDateBadge').textContent = '';
-    renderCalendar();
-
-    if (!repo) return;
-    try {
-      const res = await fetch(`/api/db/dates?repository=${encodeURIComponent(repo)}`);
-      const dates = await res.json();
-      availableDates = new Set(dates);
-
-      // 가장 최신 날짜가 있는 월로 이동
-      if (dates.length > 0) {
-        const latest = dates[0]; // DESC 정렬이므로 첫 번째가 최신
-        const [y, m] = latest.split('-').map(Number);
-        calYear = y; calMonth = m - 1;
-        selectedDate = latest;
-        document.getElementById('selectedDateBadge').textContent = latest + ' 선택됨';
-      }
-      renderCalendar();
-    } catch(e) { showToast('날짜 목록 조회 실패', 'error'); }
-  }
-
-  // ── 달력 렌더 ─────────────────────────────────────────────
-  function renderCalendar() {
-    const DAYS = ['일','월','화','수','목','금','토'];
-    const label = document.getElementById('calMonthLabel');
-    label.textContent = `${calYear}년 ${calMonth + 1}월`;
-
-    const grid = document.getElementById('calGrid');
-    grid.innerHTML = '';
-
-    // 요일 헤더
-    DAYS.forEach(d => {
-      const el = document.createElement('div');
-      el.className = 'cal-dow';
-      el.textContent = d;
-      grid.appendChild(el);
-    });
-
-    const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=일
-    const lastDate = new Date(calYear, calMonth + 1, 0).getDate();
-    const prevLastDate = new Date(calYear, calMonth, 0).getDate();
-
-    // 이전 달 빈 칸
-    for (let i = 0; i < firstDay; i++) {
-      const el = document.createElement('div');
-      el.className = 'cal-day other-month';
-      el.textContent = prevLastDate - firstDay + 1 + i;
-      grid.appendChild(el);
-    }
-
-    // 이번 달 날짜
-    for (let d = 1; d <= lastDate; d++) {
-      const el = document.createElement('div');
-      const mm = String(calMonth + 1).padStart(2, '0');
-      const dd = String(d).padStart(2, '0');
-      const dateStr = `${calYear}-${mm}-${dd}`;
-
-      el.className = 'cal-day';
-      el.textContent = d;
-
-      if (availableDates.has(dateStr)) {
-        el.classList.add('has-data');
-        el.title = `${dateStr} 데이터 있음`;
-        el.onclick = () => selectDate(dateStr, el);
-      }
-      if (dateStr === selectedDate) el.classList.add('selected');
-
-      grid.appendChild(el);
-    }
-
-    // 다음 달 빈 칸 (6줄 고정)
-    const total = firstDay + lastDate;
-    const remaining = total % 7 === 0 ? 0 : 7 - (total % 7);
-    for (let i = 1; i <= remaining; i++) {
-      const el = document.createElement('div');
-      el.className = 'cal-day other-month';
-      el.textContent = i;
-      grid.appendChild(el);
-    }
-  }
-
-  function selectDate(dateStr) {
-    selectedDate = dateStr;
-    document.getElementById('selectedDateBadge').textContent = dateStr + ' 선택됨';
-    renderCalendar();
-  }
-
-  function moveMonth(delta) {
-    calMonth += delta;
-    if (calMonth > 11) { calMonth = 0; calYear++; }
-    if (calMonth < 0)  { calMonth = 11; calYear--; }
-    renderCalendar();
+    // URL 파라미터로 레포 자동 선택
+    const urlRepo = new URLSearchParams(location.search).get('repo');
+    if (urlRepo) document.getElementById('repoSelect').value = urlRepo;
   }
 
   // ── API 조회 ──────────────────────────────────────────────
   async function loadApis() {
     const repo = document.getElementById('repoSelect').value;
-    if (!repo)         { showToast('레포지토리를 선택하세요.', 'error'); return; }
-    if (!selectedDate) { showToast('날짜를 선택하세요.', 'error'); return; }
 
     document.getElementById('loadBtn').disabled = true;
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="9"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+      '<tr><td colspan="15"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+    clearSelection();
 
     try {
-      const res = await fetch(`/api/db/apis?repository=${encodeURIComponent(repo)}&date=${selectedDate}`);
+      const url = repo
+        ? `/api/db/apis?repository=${encodeURIComponent(repo)}`
+        : '/api/db/apis';
+      const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '서버 오류');
 
       allApis = data.apis || [];
+      statusFilter = '';
+
+      // 마지막 분석일 (최신)
+      const latestDate = allApis.reduce((max, a) => {
+        if (!a.lastAnalyzedDate) return max;
+        return (!max || a.lastAnalyzedDate > max) ? a.lastAnalyzedDate : max;
+      }, null);
+
       renderStats();
       filterTable();
       document.getElementById('statsBar').style.display = 'flex';
       document.getElementById('filterBar').style.display = 'flex';
       document.getElementById('dbMeta').style.display = 'flex';
-      document.getElementById('metaRepo').textContent = repo;
-      document.getElementById('metaDate').textContent = selectedDate;
+      document.getElementById('metaRepo').textContent = repo || '전체';
+      document.getElementById('metaDate').textContent = latestDate || '-';
       document.getElementById('metaTotal').textContent = allApis.length;
+      document.getElementById('excelBtn').style.display = 'inline-block';
       showToast(`${allApis.length}개 API 조회 완료`, 'success');
     } catch(e) {
       showToast(e.message, 'error');
       document.getElementById('tbody').innerHTML =
-        `<tr><td colspan="9"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
+        `<tr><td colspan="15"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
     } finally {
       document.getElementById('loadBtn').disabled = false;
     }
@@ -372,48 +315,84 @@
 
   // ── 통계 ──────────────────────────────────────────────────
   function renderStats() {
+    const counts = { '사용':0, '차단검토필요':0, '차단대상':0, '차단완료':0 };
+    allApis.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+
     document.getElementById('statTotal').textContent  = allApis.length;
-    document.getElementById('statDep').textContent    = allApis.filter(a => a.isDeprecated === 'Y').length;
-    document.getElementById('statActive').textContent = allApis.filter(a => a.isDeprecated !== 'Y').length;
-    document.getElementById('statGet').textContent    = allApis.filter(a => a.httpMethod === 'GET').length;
-    document.getElementById('statPost').textContent   = allApis.filter(a => a.httpMethod === 'POST').length;
-    document.getElementById('statPut').textContent    = allApis.filter(a => a.httpMethod === 'PUT').length;
-    document.getElementById('statDelete').textContent = allApis.filter(a => a.httpMethod === 'DELETE').length;
+    document.getElementById('stat-사용').textContent      = counts['사용'];
+    document.getElementById('stat-차단검토필요').textContent = counts['차단검토필요'];
+    document.getElementById('stat-차단대상').textContent   = counts['차단대상'];
+    document.getElementById('stat-차단완료').textContent   = counts['차단완료'];
+    document.getElementById('statGet').textContent     = allApis.filter(a => a.httpMethod === 'GET').length;
+    document.getElementById('statPost').textContent    = allApis.filter(a => a.httpMethod === 'POST').length;
+    document.getElementById('statPut').textContent     = allApis.filter(a => a.httpMethod === 'PUT').length;
+    document.getElementById('statDelete').textContent  = allApis.filter(a => a.httpMethod === 'DELETE').length;
+  }
+
+  function setStatusFilter(val) {
+    statusFilter = val;
+    document.querySelectorAll('.stat-pill').forEach(p => p.classList.remove('active-filter'));
+    const pillId = val ? `pill-${val}` : 'pill-all';
+    const pill = document.getElementById(pillId);
+    if (pill) pill.classList.add('active-filter');
+    filterTable();
   }
 
   // ── 필터 ──────────────────────────────────────────────────
   function filterTable() {
     const q      = document.getElementById('searchInput').value.toLowerCase();
     const method = document.getElementById('methodFilter').value;
-    const dep    = document.getElementById('depFilter').value;
 
-    let filtered = allApis.filter(a => {
+    filteredApis = allApis.filter(a => {
       const text = [a.apiPath, a.controllerName, a.methodName, a.apiOperationValue,
                     a.programId, a.descriptionTag].join(' ').toLowerCase();
       return (!q || text.includes(q))
           && (!method || a.httpMethod === method)
-          && (!dep    || a.isDeprecated === dep);
+          && (!statusFilter || a.status === statusFilter);
     });
 
-    filtered.sort((x, y) => {
-      const a = (x[sortKey] || '').toString().toLowerCase();
-      const b = (y[sortKey] || '').toString().toLowerCase();
-      return sortAsc ? a.localeCompare(b) : b.localeCompare(a);
+    filteredApis.sort((x, y) => {
+      if (sortKey === 'callCount') {
+        const an = x.callCount ?? -1, bn = y.callCount ?? -1;
+        return sortAsc ? an - bn : bn - an;
+      }
+      let av, bv;
+      if (sortKey === 'teamName') {
+        av = (repoConfigMap[x.repositoryName] || {}).team || '';
+        bv = (repoConfigMap[y.repositoryName] || {}).team || '';
+      } else if (sortKey === 'managerName') {
+        av = (repoConfigMap[x.repositoryName] || {}).manager || '';
+        bv = (repoConfigMap[y.repositoryName] || {}).manager || '';
+      } else {
+        av = (x[sortKey] ?? '').toString();
+        bv = (y[sortKey] ?? '').toString();
+      }
+      av = av.toLowerCase(); bv = bv.toLowerCase();
+      return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
     });
 
-    document.getElementById('filterCount').textContent = `${filtered.length} / ${allApis.length}건`;
-    renderRows(filtered);
+    document.getElementById('filterCount').textContent = `${filteredApis.length} / ${allApis.length}건`;
+    renderRows(filteredApis);
+    syncCheckAll();
   }
 
   // ── 테이블 렌더 ───────────────────────────────────────────
   function renderRows(list) {
     const tbody = document.getElementById('tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="9"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = list.map(a => `
-      <tr>
+    tbody.innerHTML = list.map(a => {
+      const checked = selectedIds.has(a.id) ? 'checked' : '';
+      const rowCls  = selectedIds.has(a.id) ? ' row-selected' : '';
+      const cfg = repoConfigMap[a.repositoryName] || {};
+      return `
+      <tr class="${rowCls}" id="row-${a.id}">
+        <td class="cb-cell"><input type="checkbox" data-id="${a.id}" ${checked} onchange="toggleRow(this)"></td>
+        <td style="min-width:120px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b>${cfg.businessName ? `<br><span style="font-size:10px;color:var(--text-muted);">${esc(cfg.businessName)}</span>` : ''}</td>
+        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(cfg.team)}</td>
+        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(cfg.manager)}</td>
         <td><span class="badge badge-${a.httpMethod||'REQUEST'}">${a.httpMethod||'?'}</span></td>
         <td><div class="api-path">${esc(a.apiPath)}</div></td>
         <td>${a.fullUrl
@@ -423,11 +402,18 @@
         <td style="font-size:12px;">${esc(a.methodName)}</td>
         <td style="font-family:monospace;font-size:11px;">${esc(a.programId)}</td>
         <td class="api-op">${esc(label(a))}</td>
-        <td>${a.isDeprecated === 'Y'
-          ? '<span class="badge badge-dep">Deprecated</span>'
-          : '<span class="badge badge-ok">Active</span>'}</td>
+        <td style="text-align:right;font-size:12px;">${a.callCount != null ? a.callCount.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
+        <td>${statusBadge(a.status)}${a.statusOverridden ? ' <span title="수동설정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}</td>
+        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.lastAnalyzedDate || '-')}</td>
         <td class="git-info">${gitHistoryCell(a.gitHistory)}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
+  }
+
+  function statusBadge(status) {
+    const cls = { '사용':'st-use', '차단대상':'st-target', '차단검토필요':'st-review', '차단완료':'st-done' };
+    const c = cls[status] || 'st-use';
+    return `<span class="status-badge ${c}">${esc(status || '사용')}</span>`;
   }
 
   function gitHistoryCell(json) {
@@ -443,17 +429,150 @@
   }
 
   // ── 정렬 ──────────────────────────────────────────────────
+  const colIndexMap = { repositoryName:1, teamName:2, managerName:3, httpMethod:4, apiPath:5,
+                        controllerName:7, methodName:8, programId:9, apiOperationValue:10,
+                        callCount:11, status:12, lastAnalyzedDate:13 };
   function sortBy(key) {
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
-    const keyMap = { httpMethod:0, apiPath:1, controllerName:3, methodName:4,
-                     programId:5, apiOperationValue:6, isDeprecated:7 };
-    if (keyMap[key] !== undefined) {
-      const th = document.querySelectorAll('thead th')[keyMap[key]];
+    const idx = colIndexMap[key];
+    if (idx !== undefined) {
+      const th = document.querySelectorAll('thead th')[idx];
       th.classList.add('sorted');
       th.querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
     }
     filterTable();
+  }
+
+  // ── 체크박스 ──────────────────────────────────────────────
+  function toggleRow(cb) {
+    const id = parseInt(cb.dataset.id);
+    if (cb.checked) { selectedIds.add(id); } else { selectedIds.delete(id); }
+    const row = document.getElementById(`row-${id}`);
+    if (row) row.classList.toggle('row-selected', cb.checked);
+    updateBulkBar();
+    syncCheckAll();
+  }
+
+  function toggleAll(masterCb) {
+    filteredApis.forEach(a => {
+      if (masterCb.checked) selectedIds.add(a.id); else selectedIds.delete(a.id);
+      const row = document.getElementById(`row-${a.id}`);
+      if (row) {
+        row.classList.toggle('row-selected', masterCb.checked);
+        const cb = row.querySelector('input[type=checkbox]');
+        if (cb) cb.checked = masterCb.checked;
+      }
+    });
+    updateBulkBar();
+  }
+
+  function syncCheckAll() {
+    const master = document.getElementById('checkAll');
+    if (!filteredApis.length) { master.checked = false; master.indeterminate = false; return; }
+    const checkedCount = filteredApis.filter(a => selectedIds.has(a.id)).length;
+    master.indeterminate = checkedCount > 0 && checkedCount < filteredApis.length;
+    master.checked = checkedCount === filteredApis.length;
+  }
+
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    document.getElementById('bulkCount').textContent = `${selectedIds.size}개 선택됨`;
+    bar.classList.toggle('visible', selectedIds.size > 0);
+  }
+
+  function clearSelection() {
+    selectedIds.clear();
+    document.querySelectorAll('tbody input[type=checkbox]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('row-selected'));
+    document.getElementById('checkAll').checked = false;
+    document.getElementById('checkAll').indeterminate = false;
+    updateBulkBar();
+  }
+
+  // ── 상태 일괄 변경 ────────────────────────────────────────
+  async function applyBulkStatus() {
+    if (selectedIds.size === 0) { showToast('선택된 항목이 없습니다.', 'error'); return; }
+    const statusSel = document.getElementById('bulkStatus');
+    const status = statusSel.value;
+
+    const label = status || '자동계산';
+    if (!confirm(`선택된 ${selectedIds.size}개 항목의 상태를 [${label}]으로 변경하시겠습니까?`)) return;
+
+    try {
+      const res = await fetch('/api/db/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), status: status || null })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '서버 오류');
+
+      showToast(`${data.updated}개 항목 상태 변경 완료`, 'success');
+      clearSelection();
+      // 화면 갱신
+      await loadApis();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ── 엑셀 다운로드 ─────────────────────────────────────────
+  function downloadExcel() {
+    if (!filteredApis.length) { showToast('다운로드할 데이터가 없습니다.', 'error'); return; }
+    const commitHeaders = [];
+    for (let i = 1; i <= 5; i++) commitHeaders.push(`날짜${i}`, `커밋터${i}`, `내용${i}`);
+    const headers = [
+      '레포지토리','업무명','팀','담당자',
+      'HTTP Method','API 경로','Full URL','컨트롤러','메소드명','프로그램ID','설명','호출건수','상태','마지막분석일',
+      ...commitHeaders
+    ];
+    const rows = filteredApis.map(a => {
+      const cfg = repoConfigMap[a.repositoryName] || {};
+      const commits = parseGitHistory(a.gitHistory);
+      const commitCols = [];
+      for (let i = 0; i < 5; i++) {
+        const c = commits[i];
+        commitCols.push(c ? c.date : '', c ? c.author : '', c ? c.message : '');
+      }
+      return [
+        a.repositoryName || '',
+        cfg.businessName || '',
+        cfg.team || '',
+        cfg.manager || '',
+        a.httpMethod || '',
+        a.apiPath || '',
+        a.fullUrl || '',
+        a.controllerName || '',
+        a.methodName || '',
+        a.programId || '',
+        label(a),
+        a.callCount != null ? a.callCount : '',
+        a.status || '',
+        a.lastAnalyzedDate || '',
+        ...commitCols
+      ];
+    });
+    exportCsv(headers, rows, `api-list-${document.getElementById('repoSelect').value || 'all'}`);
+    showToast(`${filteredApis.length}개 API 다운로드 완료`, 'success');
+  }
+
+  function parseGitHistory(json) {
+    if (!json) return [];
+    try { return JSON.parse(json); } catch(e) { return []; }
+  }
+
+  function exportCsv(headers, rows, filename) {
+    const csv = [headers, ...rows].map(r =>
+      r.map(c => { const s = String(c).replace(/"/g,'""'); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s}"` : s; }).join(',')
+    ).join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ── 헬퍼 ──────────────────────────────────────────────────

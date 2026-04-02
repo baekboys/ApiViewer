@@ -18,5 +18,15 @@ if [ ! -f "$JAR" ]; then
   exit 1
 fi
 
-echo "[INFO] 서버 시작: http://localhost:8080"
+echo ""
+echo "================================================"
+echo "  API Viewer 시작"
+echo "------------------------------------------------"
+echo "  웹        : http://localhost:8080"
+echo "  조회 페이지: http://localhost:8080/viewer.html"
+echo "  H2 콘솔   : http://localhost:8080/h2-console"
+echo "  JDBC URL  : jdbc:h2:file:./data/api-viewer-db"
+echo "  User      : sa  /  Password: (없음)"
+echo "================================================"
+echo ""
 java -jar "$JAR"

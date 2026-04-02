@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Viewer — 설정 관리</title>
+  <style>
+    :root {
+      --bg:#f4f6f9; --card:#fff; --primary:#3b82f6; --primary-hover:#2563eb;
+      --danger:#ef4444; --success:#22c55e; --purple:#8b5cf6;
+      --text:#1e293b; --text-muted:#64748b; --border:#e2e8f0;
+      --shadow:0 1px 4px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
+
+    .header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
+    .header h1{font-size:18px;font-weight:700;color:var(--primary);}
+    .header-sub{font-size:12px;color:var(--text-muted);background:#f1f5f9;padding:3px 10px;border-radius:4px;font-weight:600;}
+    .header-right{margin-left:auto;display:flex;gap:10px;}
+
+    .main{max-width:1100px;margin:0 auto;padding:20px 24px;}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+    .card-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+    .dot{width:8px;height:8px;border-radius:50%;}
+    .dot-blue{background:var(--primary);} .dot-green{background:var(--success);}
+
+    /* 필드 */
+    .field-row{display:grid;gap:10px;margin-bottom:10px;}
+    .field-row.col2{grid-template-columns:1fr 1fr;}
+    .field-row.col3{grid-template-columns:1fr 1fr 1fr;}
+    .field-row.col4{grid-template-columns:1fr 1fr 1fr 1fr;}
+    label.field{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-muted);font-weight:600;}
+    label.field input,label.field select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);transition:border .15s;}
+    label.field input:focus,label.field select:focus{border-color:var(--primary);box-shadow:0 0 0 2px #3b82f620;}
+    label.field input.danger:focus{border-color:var(--danger);box-shadow:0 0 0 2px #ef444420;}
+    .field-hint{font-size:10px;color:var(--text-muted);font-weight:400;margin-top:2px;}
+
+    /* 버튼 */
+    .btn{padding:7px 18px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;height:32px;white-space:nowrap;}
+    .btn:disabled{opacity:.5;cursor:not-allowed;}
+    .btn-blue{background:var(--primary);color:#fff;} .btn-blue:not(:disabled):hover{background:var(--primary-hover);}
+    .btn-green{background:var(--success);color:#fff;} .btn-green:not(:disabled):hover{background:#16a34a;}
+    .btn-danger{background:var(--danger);color:#fff;} .btn-danger:not(:disabled):hover{background:#dc2626;}
+    .btn-ghost{background:#f1f5f9;color:var(--text-muted);border:1px solid var(--border);} .btn-ghost:not(:disabled):hover{background:#e2e8f0;}
+
+    /* 레포 목록 */
+    .repo-list{display:flex;flex-direction:column;gap:10px;}
+    .repo-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+    .repo-card:hover{border-color:var(--primary);}
+    .repo-name{font-weight:700;font-size:14px;color:var(--text);min-width:140px;}
+    .repo-detail{flex:1;font-size:11px;color:var(--text-muted);line-height:1.7;}
+    .repo-detail span{margin-right:14px;}
+    .repo-actions{display:flex;gap:6px;flex-shrink:0;}
+    .empty-repos{text-align:center;padding:30px;color:var(--text-muted);}
+
+    /* 모달 */
+    .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+    .modal-overlay.show{opacity:1;pointer-events:auto;}
+    .modal{background:var(--card);border-radius:14px;width:720px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);}
+    .modal-header{padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;border-bottom:1px solid var(--border);padding-bottom:14px;}
+    .modal-title{font-size:15px;font-weight:700;color:var(--text);}
+    .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1;}
+    .modal-body{padding:20px 24px;}
+    .modal-section{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+    .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--card);}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+    .toast.show{opacity:1;}
+    .toast.error{background:var(--danger);} .toast.success{background:var(--success);} .toast.info{background:var(--purple);}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+  </svg>
+  <h1>API Viewer</h1>
+  <span class="header-sub">설정 관리</span>
+  <div class="header-right">
+    <a href="/" style="font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:6px;">← 추출 페이지</a>
+    <a href="/viewer.html" style="font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:6px;">📋 저장 이력 조회</a>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- YAML 임포트 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--purple);"></span>YAML 파일에서 설정 가져오기</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
+      <label class="field">repos-config.yml 파일 경로
+        <input id="yamlFilePath" type="text" placeholder="/Users/.../ApiViewer/repos-config.yml"
+               style="font-family:monospace;">
+        <span class="field-hint">레포지토리명 기준으로 기존 항목은 업데이트, 신규 항목은 추가됩니다.</span>
+      </label>
+      <button class="btn btn-blue" onclick="importYaml()" style="background:var(--purple);">YAML 가져오기</button>
+    </div>
+  </div>
+
+  <!-- 공통 설정 -->
+  <div class="card">
+    <div class="card-title"><span class="dot dot-blue"></span>공통 설정 (모든 레포지토리에 적용)</div>
+    <div class="field-row col2">
+      <label class="field">Whatap 조회 시작일
+        <input id="gStartDate" type="text" placeholder="20250101">
+        <span class="field-hint">형식: YYYYMMDD</span>
+      </label>
+      <label class="field">Whatap 조회 종료일
+        <input id="gEndDate" type="text" placeholder="20261231">
+        <span class="field-hint">형식: YYYYMMDD</span>
+      </label>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+      <button class="btn btn-blue" onclick="saveGlobal()">공통 설정 저장</button>
+    </div>
+  </div>
+
+  <!-- 레포지토리 설정 -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot dot-green"></span>레포지토리별 설정
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">repos-config.yml 파일을 편집 후 동기화하세요.</span>
+      <button class="btn btn-ghost" style="margin-left:auto;height:28px;padding:4px 14px;font-size:12px;" onclick="syncYaml()">🔄 YAML 동기화</button>
+    </div>
+    <div class="repo-list" id="repoList">
+      <div class="empty-repos">등록된 레포지토리가 없습니다.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 레포 편집 모달 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">레포지토리 추가</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">기본 정보</div>
+      <div class="field-row col2">
+        <label class="field">레포지토리명 *
+          <input id="f_repoName" type="text" placeholder="my-project">
+        </label>
+        <label class="field">도메인
+          <input id="f_domain" type="text" placeholder="https://api.example.com">
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field">소스 경로 (ROOT_PATH) *
+          <input id="f_rootPath" type="text" placeholder="/Users/.../my-project/src/main/java">
+        </label>
+      </div>
+      <div class="field-row col3">
+        <label class="field">Git 실행 경로
+          <input id="f_gitBinPath" type="text" placeholder="git">
+        </label>
+        <label class="field">API 경로 프리픽스
+          <input id="f_apiPathPrefix" type="text" placeholder="/APP">
+        </label>
+        <label class="field">팀명
+          <input id="f_teamName" type="text" placeholder="IT개발팀">
+        </label>
+      </div>
+      <div class="field-row col2">
+        <label class="field">담당자
+          <input id="f_managerName" type="text" placeholder="홍길동">
+        </label>
+        <label class="field">상수 치환 (PATH_CONSTANTS)
+          <input id="f_pathConstants" type="text" placeholder="Constants.BASE=/v1, ApiConst.ROOT=/api/v2">
+        </label>
+      </div>
+
+      <div class="modal-section">Whatap APM 설정</div>
+      <div class="field-row col2">
+        <label class="field">Whatap 활성화
+          <select id="f_whatapEnabled">
+            <option value="N">N (비활성)</option>
+            <option value="Y">Y (활성)</option>
+          </select>
+        </label>
+        <label class="field">Whatap URL
+          <input id="f_whatapUrl" type="text" placeholder="https://whatap.io/api/...">
+        </label>
+      </div>
+      <div class="field-row col3">
+        <label class="field">프로젝트 코드 (pcode)
+          <input id="f_whatapPcode" type="number" placeholder="8">
+        </label>
+        <label class="field">서비스 필터
+          <input id="f_whatapFilter" type="text" placeholder="/app, /api">
+        </label>
+        <label class="field">Agent OKINDS
+          <input id="f_whatapOkinds" type="text" placeholder="123, 456">
+        </label>
+      </div>
+      <div class="field-row col2">
+        <label class="field">OKINDS 명칭
+          <input id="f_whatapOkindsName" type="text" placeholder="메인서버">
+        </label>
+        <label class="field">쿠키 (Cookie)
+          <input id="f_whatapCookie" class="danger" type="password" placeholder="브라우저 개발자도구에서 복사">
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">취소</button>
+      <button class="btn btn-blue" onclick="saveRepo()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let editingId = null;
+
+  // ── 초기 로드 ─────────────────────────────────────────────
+  async function init() {
+    // 기본 YAML 경로 추천 (현재 URL 기준 프로젝트 루트 추정)
+    document.getElementById('yamlFilePath').placeholder =
+      window.location.hostname === 'localhost' ? 'repos-config.yml 절대 경로 입력' : '';
+    await Promise.all([loadGlobal(), loadRepos()]);
+  }
+
+  async function importYaml() {
+    const filePath = document.getElementById('yamlFilePath').value.trim();
+    if (!filePath) { showToast('파일 경로를 입력하세요.', 'error'); return; }
+    await doImport(filePath, event.target, 'YAML 가져오기');
+  }
+
+  async function syncYaml() {
+    await doImport('', event.target, '🔄 YAML 동기화');
+  }
+
+  async function doImport(filePath, btn, label) {
+    btn.disabled = true; btn.textContent = '동기화 중...';
+    try {
+      const res = await fetch('/api/config/import-yaml', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ filePath })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '실패');
+      await Promise.all([loadGlobal(), loadRepos()]);
+      showToast(`완료 — 추가 ${data.added}개, 업데이트 ${data.updated}개`, 'success');
+    } catch(e) {
+      showToast(e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  }
+
+  async function loadGlobal() {
+    try {
+      const res = await fetch('/api/config/global');
+      const g = await res.json();
+      document.getElementById('gStartDate').value = g.startDate || '';
+      document.getElementById('gEndDate').value   = g.endDate   || '';
+    } catch(e) {}
+  }
+
+  async function saveGlobal() {
+    const body = {
+      id: 1,
+      startDate: document.getElementById('gStartDate').value.trim(),
+      endDate:   document.getElementById('gEndDate').value.trim()
+    };
+    try {
+      const res = await fetch('/api/config/global', {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error();
+      showToast('공통 설정 저장 완료', 'success');
+    } catch(e) { showToast('저장 실패', 'error'); }
+  }
+
+  // ── 레포 목록 ─────────────────────────────────────────────
+  async function loadRepos() {
+    try {
+      const res = await fetch('/api/config/repos');
+      const repos = await res.json();
+      renderRepos(repos);
+    } catch(e) { showToast('레포 목록 조회 실패', 'error'); }
+  }
+
+  function renderRepos(repos) {
+    const el = document.getElementById('repoList');
+    if (!repos.length) {
+      el.innerHTML = '<div class="empty-repos">등록된 레포지토리가 없습니다.<br>위의 <b>+ 레포 추가</b> 버튼을 클릭하여 추가하세요.</div>';
+      return;
+    }
+    el.innerHTML = repos.map(r => `
+      <div class="repo-card">
+        <div class="repo-name">${esc(r.repoName)}</div>
+        <div class="repo-detail">
+          <span>📁 ${esc(r.rootPath || '-')}</span>
+          <span>🌐 ${esc(r.domain || '-')}</span>
+          ${r.teamName ? `<span>👥 ${esc(r.teamName)}</span>` : ''}
+          ${r.managerName ? `<span>👤 ${esc(r.managerName)}</span>` : ''}
+          ${r.apiPathPrefix ? `<span>🔗 prefix: ${esc(r.apiPathPrefix)}</span>` : ''}
+          <span>Whatap: <b style="color:${r.whatapEnabled==='Y'?'var(--success)':'var(--text-muted)'}">${r.whatapEnabled||'N'}</b></span>
+        </div>
+        <div class="repo-actions">
+          <button class="btn btn-danger" onclick="deleteRepo(${r.id}, '${esc(r.repoName)}')">삭제</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── 모달 ──────────────────────────────────────────────────
+  function openModal(id = null) {
+    editingId = id;
+    document.getElementById('modalTitle').textContent = id ? '레포지토리 편집' : '레포지토리 추가';
+    clearForm();
+
+    if (id) {
+      fetch(`/api/config/repos/${id}`)
+        .then(r => r.json())
+        .then(r => fillForm(r));
+    }
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+    editingId = null;
+  }
+
+  function clearForm() {
+    ['repoName','domain','rootPath','gitBinPath','teamName','managerName',
+     'apiPathPrefix','pathConstants','whatapUrl','whatapFilter','whatapOkinds',
+     'whatapOkindsName','whatapCookie'].forEach(k => document.getElementById('f_'+k).value = '');
+    document.getElementById('f_whatapEnabled').value = 'N';
+    document.getElementById('f_whatapPcode').value = '8';
+  }
+
+  function fillForm(r) {
+    document.getElementById('f_repoName').value         = r.repoName         || '';
+    document.getElementById('f_domain').value           = r.domain           || '';
+    document.getElementById('f_rootPath').value         = r.rootPath         || '';
+    document.getElementById('f_gitBinPath').value       = r.gitBinPath       || '';
+    document.getElementById('f_teamName').value         = r.teamName         || '';
+    document.getElementById('f_managerName').value      = r.managerName      || '';
+    document.getElementById('f_apiPathPrefix').value    = r.apiPathPrefix    || '';
+    document.getElementById('f_pathConstants').value    = r.pathConstants    || '';
+    document.getElementById('f_whatapEnabled').value    = r.whatapEnabled    || 'N';
+    document.getElementById('f_whatapUrl').value        = r.whatapUrl        || '';
+    document.getElementById('f_whatapPcode').value      = r.whatapPcode      || 8;
+    document.getElementById('f_whatapFilter').value     = r.whatapFilter     || '';
+    document.getElementById('f_whatapOkinds').value     = r.whatapOkinds     || '';
+    document.getElementById('f_whatapOkindsName').value = r.whatapOkindsName || '';
+    document.getElementById('f_whatapCookie').value     = r.whatapCookie     || '';
+  }
+
+  async function saveRepo() {
+    const repoName = document.getElementById('f_repoName').value.trim();
+    const rootPath = document.getElementById('f_rootPath').value.trim();
+    if (!repoName) { showToast('레포지토리명을 입력하세요.', 'error'); return; }
+    if (!rootPath) { showToast('소스 경로를 입력하세요.', 'error'); return; }
+
+    const body = {
+      repoName, rootPath,
+      domain:           document.getElementById('f_domain').value.trim(),
+      gitBinPath:       document.getElementById('f_gitBinPath').value.trim(),
+      teamName:         document.getElementById('f_teamName').value.trim(),
+      managerName:      document.getElementById('f_managerName').value.trim(),
+      apiPathPrefix:    document.getElementById('f_apiPathPrefix').value.trim(),
+      pathConstants:    document.getElementById('f_pathConstants').value.trim(),
+      whatapEnabled:    document.getElementById('f_whatapEnabled').value,
+      whatapUrl:        document.getElementById('f_whatapUrl').value.trim(),
+      whatapPcode:      parseInt(document.getElementById('f_whatapPcode').value) || 8,
+      whatapFilter:     document.getElementById('f_whatapFilter').value.trim(),
+      whatapOkinds:     document.getElementById('f_whatapOkinds').value.trim(),
+      whatapOkindsName: document.getElementById('f_whatapOkindsName').value.trim(),
+      whatapCookie:     document.getElementById('f_whatapCookie').value.trim()
+    };
+
+    try {
+      const url    = editingId ? `/api/config/repos/${editingId}` : '/api/config/repos';
+      const method = editingId ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+      closeModal();
+      await loadRepos();
+      showToast(editingId ? '수정 완료' : '추가 완료', 'success');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function deleteRepo(id, name) {
+    if (!confirm(`"${name}" 레포지토리 설정을 삭제하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`/api/config/repos/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      await loadRepos();
+      showToast('삭제 완료', 'success');
+    } catch(e) { showToast('삭제 실패', 'error'); }
+  }
+
+  // ── 헬퍼 ──────────────────────────────────────────────────
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // 모달 외부 클릭 닫기
+  document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  });
+
+  init();
+</script>
+</body>
+</html>

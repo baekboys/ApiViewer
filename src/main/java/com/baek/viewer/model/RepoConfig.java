@@ -1,0 +1,90 @@
+package com.baek.viewer.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "repo_config")
+public class RepoConfig {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "repo_name", nullable = false, unique = true)
+    private String repoName;
+
+    @Column(name = "domain")
+    private String domain;
+
+    @Column(name = "root_path")
+    private String rootPath;
+
+    @Column(name = "git_bin_path")
+    private String gitBinPath;
+
+    @Column(name = "team_name")
+    private String teamName;
+
+    @Column(name = "manager_name")
+    private String managerName;
+
+    @Column(name = "api_path_prefix")
+    private String apiPathPrefix;
+
+    @Column(name = "path_constants", length = 1000)
+    private String pathConstants;
+
+    @Column(name = "whatap_enabled", length = 1)
+    private String whatapEnabled = "N";
+
+    @Column(name = "whatap_url", length = 500)
+    private String whatapUrl;
+
+    @Column(name = "whatap_pcode")
+    private Integer whatapPcode = 8;
+
+    @Column(name = "whatap_filter", length = 500)
+    private String whatapFilter;
+
+    @Column(name = "whatap_okinds", length = 500)
+    private String whatapOkinds;
+
+    @Column(name = "whatap_okinds_name")
+    private String whatapOkindsName;
+
+    @Column(name = "whatap_cookie", columnDefinition = "TEXT")
+    private String whatapCookie;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getRepoName() { return repoName; }
+    public void setRepoName(String repoName) { this.repoName = repoName; }
+    public String getDomain() { return domain; }
+    public void setDomain(String domain) { this.domain = domain; }
+    public String getRootPath() { return rootPath; }
+    public void setRootPath(String rootPath) { this.rootPath = rootPath; }
+    public String getGitBinPath() { return gitBinPath; }
+    public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
+    public String getTeamName() { return teamName; }
+    public void setTeamName(String teamName) { this.teamName = teamName; }
+    public String getManagerName() { return managerName; }
+    public void setManagerName(String managerName) { this.managerName = managerName; }
+    public String getApiPathPrefix() { return apiPathPrefix; }
+    public void setApiPathPrefix(String apiPathPrefix) { this.apiPathPrefix = apiPathPrefix; }
+    public String getPathConstants() { return pathConstants; }
+    public void setPathConstants(String pathConstants) { this.pathConstants = pathConstants; }
+    public String getWhatapEnabled() { return whatapEnabled; }
+    public void setWhatapEnabled(String whatapEnabled) { this.whatapEnabled = whatapEnabled; }
+    public String getWhatapUrl() { return whatapUrl; }
+    public void setWhatapUrl(String whatapUrl) { this.whatapUrl = whatapUrl; }
+    public Integer getWhatapPcode() { return whatapPcode; }
+    public void setWhatapPcode(Integer whatapPcode) { this.whatapPcode = whatapPcode; }
+    public String getWhatapFilter() { return whatapFilter; }
+    public void setWhatapFilter(String whatapFilter) { this.whatapFilter = whatapFilter; }
+    public String getWhatapOkinds() { return whatapOkinds; }
+    public void setWhatapOkinds(String whatapOkinds) { this.whatapOkinds = whatapOkinds; }
+    public String getWhatapOkindsName() { return whatapOkindsName; }
+    public void setWhatapOkindsName(String whatapOkindsName) { this.whatapOkindsName = whatapOkindsName; }
+    public String getWhatapCookie() { return whatapCookie; }
+    public void setWhatapCookie(String whatapCookie) { this.whatapCookie = whatapCookie; }
+}

@@ -1,0 +1,109 @@
+package com.baek.viewer.service;
+
+import com.baek.viewer.model.GlobalConfig;
+import com.baek.viewer.model.RepoConfig;
+import com.baek.viewer.model.ReposYamlConfig;
+import com.baek.viewer.repository.GlobalConfigRepository;
+import com.baek.viewer.repository.RepoConfigRepository;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@Service
+public class YamlConfigService {
+
+    private final RepoConfigRepository repoRepo;
+    private final GlobalConfigRepository globalRepo;
+
+    @Value("${api.viewer.repos-config-path:./repos-config.yml}")
+    private String defaultConfigPath;
+
+    public YamlConfigService(RepoConfigRepository repoRepo, GlobalConfigRepository globalRepo) {
+        this.repoRepo = repoRepo;
+        this.globalRepo = globalRepo;
+    }
+
+    public String getDefaultConfigPath() {
+        return defaultConfigPath;
+    }
+
+    /**
+     * YAML 파일을 파싱하여 DB에 저장합니다.
+     * 기존 레포는 업데이트, 신규 레포는 추가합니다.
+     */
+    @Transactional
+    public Map<String, Object> importFromYaml(String filePath) throws Exception {
+        Yaml yaml = new Yaml(new Constructor(ReposYamlConfig.class, new LoaderOptions()));
+
+        ReposYamlConfig config;
+        try (InputStream is = new FileInputStream(filePath)) {
+            config = yaml.load(is);
+        }
+
+        if (config == null) throw new IllegalArgumentException("YAML 파일이 비어 있습니다.");
+
+        int added = 0, updated = 0;
+
+        // 공통 설정 저장
+        if (config.getGlobal() != null && config.getGlobal().getPeriod() != null) {
+            GlobalConfig gc = globalRepo.findById(1L).orElse(new GlobalConfig());
+            ReposYamlConfig.PeriodGlobal pg = config.getGlobal().getPeriod();
+            if (pg.getStartDate() != null) gc.setStartDate(pg.getStartDate());
+            if (pg.getEndDate()   != null) gc.setEndDate(pg.getEndDate());
+            globalRepo.save(gc);
+        }
+
+        // 레포별 설정 저장
+        List<String> importedNames = new ArrayList<>();
+        if (config.getRepositories() != null) {
+            for (ReposYamlConfig.RepoEntry entry : config.getRepositories()) {
+                if (entry.getRepoName() == null || entry.getRepoName().isBlank()) continue;
+
+                Optional<RepoConfig> existing = repoRepo.findByRepoName(entry.getRepoName());
+                RepoConfig rc = existing.orElse(new RepoConfig());
+                boolean isNew = rc.getId() == null;
+
+                rc.setRepoName(entry.getRepoName());
+                rc.setDomain(entry.getDomain());
+                rc.setRootPath(entry.getRootPath());
+                rc.setGitBinPath(entry.getGitBinPath());
+                rc.setTeamName(entry.getTeamName());
+                rc.setManagerName(entry.getManagerName());
+                rc.setApiPathPrefix(entry.getApiPathPrefix());
+                rc.setPathConstants(entry.getPathConstants());
+
+                if (entry.getWhatap() != null) {
+                    ReposYamlConfig.WhatapEntry w = entry.getWhatap();
+                    rc.setWhatapEnabled(w.getEnabled());
+                    rc.setWhatapUrl(w.getUrl());
+                    rc.setWhatapPcode(w.getPcode());
+                    rc.setWhatapFilter(w.getFilter());
+                    rc.setWhatapOkinds(w.getOkinds());
+                    rc.setWhatapOkindsName(w.getOkindsName());
+                    rc.setWhatapCookie(w.getCookie());
+                }
+
+                repoRepo.save(rc);
+                importedNames.add(entry.getRepoName());
+                if (isNew) added++; else updated++;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("added", added);
+        result.put("updated", updated);
+        result.put("repos", importedNames);
+        return result;
+    }
+}

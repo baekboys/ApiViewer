@@ -27,12 +27,19 @@ public class ApiExtractorService {
     @Value("${api.viewer.git-bin-path:git}")
     private String defaultGitBinPath;
 
+    private final ApiStorageService storageService;
+
+    public ApiExtractorService(ApiStorageService storageService) {
+        this.storageService = storageService;
+    }
+
     private volatile List<ApiInfo> cachedApis = new ArrayList<>();
     private volatile boolean extracting = false;
     private volatile int totalFiles = 0;
     private volatile int processedFiles = 0;
     private volatile String currentFile = "";
     private volatile String lastError = null;
+    private volatile int savedCount = -1; // -1 = 미저장, 0 이상 = 저장 건수
 
     public boolean isExtracting() { return extracting; }
     public List<ApiInfo> getCached() { return cachedApis; }
@@ -45,10 +52,12 @@ public class ApiExtractorService {
         p.put("currentFile", currentFile);
         p.put("percent", totalFiles > 0 ? (processedFiles * 100 / totalFiles) : 0);
         p.put("error", lastError);
+        p.put("savedCount", savedCount);
         return p;
     }
 
     public void startExtractAsync(ExtractRequest req) {
+        savedCount = -1;
         new Thread(() -> extract(req)).start();
     }
 
@@ -85,7 +94,7 @@ public class ApiExtractorService {
             controllerFiles.parallelStream().forEach(file -> {
                 String rel = root.relativize(file).toString();
                 currentFile = file.getFileName().toString();
-                List<String[]> git = getRecentGitHistories(rel, rootPath, gitBin, 3);
+                List<String[]> git = getRecentGitHistories(rel, rootPath, gitBin, 5);
                 apis.addAll(extractApisHybrid(file, rel, git, apiPathPrefix, pathConstantsMap));
                 processedFiles++;
             });
@@ -106,6 +115,17 @@ public class ApiExtractorService {
         }
 
         cachedApis = sorted;
+
+        // DB 저장 (레포지토리명이 있을 때만)
+        String repoName = req.getRepositoryName();
+        if (repoName != null && !repoName.isBlank()) {
+            try {
+                savedCount = storageService.save(repoName.trim(), cachedApis);
+            } catch (Exception e) {
+                savedCount = -1;
+            }
+        }
+
         extracting = false;
         return cachedApis;
     }
@@ -242,6 +262,7 @@ public class ApiExtractorService {
                     info.setProgramId(autoExtractProgramId(finalPath));
                     info.setControllerComment(controllerComment);
                     info.setGit1(git.get(0)); info.setGit2(git.get(1)); info.setGit3(git.get(2));
+                    info.setGit4(git.get(3)); info.setGit5(git.get(4));
 
                     Matcher docM = Pattern.compile("/\\*\\*(.*?)\\*/", Pattern.DOTALL).matcher(headArea);
                     if (docM.find()) {
@@ -282,6 +303,7 @@ public class ApiExtractorService {
                     info.setProgramId(autoExtractProgramId(finalPath));
                     info.setControllerComment(controllerComment);
                     info.setGit1(git.get(0)); info.setGit2(git.get(1)); info.setGit3(git.get(2));
+                    info.setGit4(git.get(3)); info.setGit5(git.get(4));
                     info.setFullComment("-"); info.setDescriptionTag("-");
                     info.setApiOperationValue("-");
                     info.setRequestPropertyValue("-");
@@ -311,6 +333,7 @@ public class ApiExtractorService {
         info.setControllerComment(controllerComment);
         info.setControllerRequestPropertyValue(controllerRequestProperty);
         info.setGit1(git.get(0)); info.setGit2(git.get(1)); info.setGit3(git.get(2));
+        info.setGit4(git.get(3)); info.setGit5(git.get(4));
 
         if (method.getComment().isPresent()) {
             String doc = method.getComment().get().getContent();

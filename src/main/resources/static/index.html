@@ -40,7 +40,7 @@
     .dot-purple { background: var(--purple); }
 
     /* 설정 그리드 */
-    .config-grid { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr; gap: 10px; }
+    .config-grid { display: grid; grid-template-columns: 2fr 1fr 1.2fr 0.8fr 0.8fr; gap: 10px; }
     .config-grid-w { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr; gap: 10px; }
     .config-row2 { display: grid; grid-template-columns: 2fr auto; gap: 10px; margin-top: 10px; align-items: end; }
     .config-row3 { display: grid; grid-template-columns: 1.5fr 1.5fr auto; gap: 10px; margin-top: 10px; align-items: end; }
@@ -180,6 +180,8 @@
   <h1>API Viewer</h1>
   <div class="header-right">
     <span id="whatapBadge" class="tag" style="display:none">Whatap 연동됨</span>
+    <a href="/settings.html" style="font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:6px;">⚙️ 설정 관리</a>
+    <a href="/viewer.html" style="font-size:12px;color:var(--primary);font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--primary);border-radius:6px;">📋 저장 이력 조회</a>
     <span style="font-size:12px;color:var(--text-muted);">Spring Controller API 추출기</span>
   </div>
 </div>
@@ -188,10 +190,21 @@
 
   <!-- ─── API 추출 설정 ─── -->
   <div class="card">
-    <div class="card-title"><span class="dot dot-blue"></span>API 추출 설정</div>
+    <div class="card-title">
+      <span class="dot dot-blue"></span>API 추출 설정
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--text-muted);font-weight:400;">저장된 설정 불러오기</span>
+        <select id="repoConfigSelect" onchange="loadRepoConfig()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);min-width:160px;">
+          <option value="">-- 레포지토리 선택 --</option>
+        </select>
+      </div>
+    </div>
     <div class="config-grid">
       <label class="field">소스 경로 (ROOT_PATH) *
-        <input id="rootPath" type="text" placeholder="/Users/.../my-project/src/main/java">
+        <input id="rootPath" type="text" placeholder="/Users/.../my-project/src/main/java" oninput="autoFillRepoName()">
+      </label>
+      <label class="field">레포지토리명 (DB 저장 키)
+        <input id="repositoryName" type="text" placeholder="my-project">
       </label>
       <label class="field">도메인 (DOMAIN)
         <input id="domain" type="text" placeholder="https://api.example.com">
@@ -321,7 +334,55 @@
   let sortKey = 'apiPath';
   let sortAsc = true;
   let whatapOpen = false;
-  let whatapLoaded = false; // Whatap 통계가 한 번이라도 로드됐는지
+  let whatapLoaded = false;
+
+  // ── 레포 설정 목록 로드 ───────────────────────────────────
+  async function initRepoConfigs() {
+    try {
+      const res = await fetch('/api/config/repos');
+      const repos = await res.json();
+      const sel = document.getElementById('repoConfigSelect');
+      repos.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id; opt.textContent = r.repoName;
+        sel.appendChild(opt);
+      });
+    } catch(e) {}
+  }
+
+  async function loadRepoConfig() {
+    const id = document.getElementById('repoConfigSelect').value;
+    if (!id) return;
+    try {
+      const [repoRes, globalRes] = await Promise.all([
+        fetch(`/api/config/repos/${id}`),
+        fetch('/api/config/global')
+      ]);
+      const r = await repoRes.json();
+      const g = await globalRes.json();
+
+      // 추출 설정 자동 입력
+      document.getElementById('rootPath').value       = r.rootPath       || '';
+      document.getElementById('repositoryName').value = r.repoName       || '';
+      document.getElementById('domain').value         = r.domain         || '';
+      document.getElementById('apiPathPrefix').value  = r.apiPathPrefix  || '';
+      document.getElementById('gitBinPath').value     = r.gitBinPath     || '';
+      document.getElementById('pathConstants').value  = r.pathConstants  || '';
+
+      // Whatap 자동 입력
+      if (r.whatapEnabled === 'Y') {
+        document.getElementById('wUrl').value    = r.whatapUrl    || '';
+        document.getElementById('wPcode').value  = r.whatapPcode  || 8;
+        document.getElementById('wFilter').value = r.whatapFilter || '';
+        document.getElementById('wOkinds').value = r.whatapOkinds || '';
+        document.getElementById('wCookie').value = r.whatapCookie || '';
+        if (g.startDate) document.getElementById('wStart').value = g.startDate;
+        if (g.endDate)   document.getElementById('wEnd').value   = g.endDate;
+        if (!whatapOpen) toggleWhatap();
+      }
+      showToast(`"${r.repoName}" 설정을 불러왔습니다.`, 'info');
+    } catch(e) { showToast('설정 불러오기 실패', 'error'); }
+  }
 
   // ── Whatap 패널 토글 ─────────────────────────────────────
   function toggleWhatap() {
@@ -347,10 +408,11 @@
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
           rootPath,
-          domain:        document.getElementById('domain').value.trim(),
-          apiPathPrefix: document.getElementById('apiPathPrefix').value.trim(),
-          gitBinPath:    document.getElementById('gitBinPath').value.trim(),
-          pathConstants: document.getElementById('pathConstants').value.trim()
+          repositoryName: document.getElementById('repositoryName').value.trim(),
+          domain:         document.getElementById('domain').value.trim(),
+          apiPathPrefix:  document.getElementById('apiPathPrefix').value.trim(),
+          gitBinPath:     document.getElementById('gitBinPath').value.trim(),
+          pathConstants:  document.getElementById('pathConstants').value.trim()
         })
       });
       const data = await res.json();
@@ -396,6 +458,9 @@
         filterTable();
         showStats(true);
         showToast(`추출 완료 — ${allApis.length}개 API`, 'success');
+        if (p.savedCount >= 0) {
+          setTimeout(() => showToast(`DB 저장 완료 — ${p.savedCount}개 저장됨`, 'info'), 1000);
+        }
         setExtracting(false);
         showProgress(false);
       }
@@ -553,7 +618,7 @@
           ? '<span class="badge badge-dep">Deprecated</span>'
           : '<span class="badge badge-ok">Active</span>'}</td>
         <td style="text-align:right;">${callCountCell(a)}</td>
-        <td class="git-info">${gitCell(a.git1)}${gitCell(a.git2, true)}${gitCell(a.git3, true)}</td>
+        <td class="git-info">${gitCell(a.git1)}${gitCell(a.git2, true)}${gitCell(a.git3, true)}${gitCell(a.git4, true)}${gitCell(a.git5, true)}</td>
       </tr>`).join('');
   }
 
@@ -618,6 +683,22 @@
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // 소스 경로에서 레포지토리명 자동완성
+  function autoFillRepoName() {
+    const repoInput = document.getElementById('repositoryName');
+    if (repoInput.value.trim()) return; // 이미 입력된 경우 덮어쓰지 않음
+    const path = document.getElementById('rootPath').value.trim();
+    if (!path) return;
+    const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+    // src/main/java 등 제거하고 프로젝트 루트명 추출
+    const skip = new Set(['src', 'main', 'java', 'kotlin']);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (!skip.has(parts[i].toLowerCase())) { repoInput.value = parts[i]; break; }
+    }
+  }
+
+  initRepoConfigs();
 
   // 엔터키 추출
   document.addEventListener('keydown', e => {

@@ -106,8 +106,7 @@ public class ApiStorageService {
      * - updateStatus=false: status 변경 안 함, updateBlock=false: 차단대상 변경 안 함
      */
     @Transactional
-    public int updateBulk(List<Long> ids, String status, boolean updateStatus,
-                          String blockTarget, String blockCriteria, boolean updateBlock) {
+    public int updateBulk(List<Long> ids, Map<String, Object> fields) {
         int reviewThreshold = getReviewThreshold();
         int updated = 0;
         for (Long id : ids) {
@@ -115,7 +114,8 @@ public class ApiStorageService {
             if (opt.isEmpty()) continue;
             ApiRecord r = opt.get();
 
-            if (updateStatus) {
+            if (fields.containsKey("status")) {
+                String status = fields.get("status") != null ? fields.get("status").toString() : null;
                 if (status == null || status.isBlank()) {
                     r.setStatusOverridden(false);
                     r.setStatus(calculateStatus(r, reviewThreshold));
@@ -125,10 +125,17 @@ public class ApiStorageService {
                 }
             }
 
-            if (updateBlock) {
-                r.setBlockTarget(blockTarget);
-                r.setBlockCriteria(blockCriteria);
-            }
+            if (fields.containsKey("blockTarget"))
+                r.setBlockTarget(toNullableStr(fields.get("blockTarget")));
+            if (fields.containsKey("blockCriteria"))
+                r.setBlockCriteria(toNullableStr(fields.get("blockCriteria")));
+
+            boolean reviewChanged = false;
+            if (fields.containsKey("reviewResult"))  { r.setReviewResult(toNullableStr(fields.get("reviewResult"))); reviewChanged = true; }
+            if (fields.containsKey("reviewOpinion")) { r.setReviewOpinion(toNullableStr(fields.get("reviewOpinion"))); reviewChanged = true; }
+            if (fields.containsKey("reviewTeam"))    { r.setReviewTeam(toNullableStr(fields.get("reviewTeam"))); reviewChanged = true; }
+            if (fields.containsKey("reviewManager")) { r.setReviewManager(toNullableStr(fields.get("reviewManager"))); reviewChanged = true; }
+            if (reviewChanged) r.setReviewedAt(java.time.LocalDateTime.now());
 
             repository.save(r);
             updated++;
@@ -136,10 +143,16 @@ public class ApiStorageService {
         return updated;
     }
 
+    private String toNullableStr(Object v) {
+        if (v == null) return null;
+        String s = v.toString().trim();
+        return s.isEmpty() ? null : s;
+    }
+
     /** 기존 호환용 — 상태만 변경 */
     @Transactional
     public int updateStatus(List<Long> ids, String status) {
-        return updateBulk(ids, status, true, null, null, false);
+        return updateBulk(ids, Map.of("status", status != null ? status : ""));
     }
 
     // ── 상태 계산 ────────────────────────────────────────────────────────────

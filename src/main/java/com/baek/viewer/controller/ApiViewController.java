@@ -102,10 +102,9 @@ public class ApiViewController {
         return ResponseEntity.ok(response);
     }
 
-    /** 상태/차단대상/차단대상기준 일괄 변경
-     * Body: { "ids": [1,2,3], "status": "차단완료", "blockTarget": "최우선 차단대상", "blockCriteria": "IT담당자검토건" }
-     * - status: 없으면 변경 안 함, null/빈값이면 자동계산 복원, 값이면 수동 설정
-     * - blockTarget/blockCriteria: 없으면 변경 안 함, null/빈값이면 해제, 값이면 설정
+    /** 일괄 변경 (상태/차단대상/차단대상기준/현업검토 등)
+     * Body: { "ids": [1,2,3], "status": "차단완료", "blockTarget": "최우선 차단대상", ... }
+     * ids 외 필드가 존재하면 해당 필드를 변경합니다. null/빈값은 해제.
      */
     @PatchMapping("/db/status")
     public ResponseEntity<?> updateStatus(@RequestBody Map<String, Object> body) {
@@ -117,21 +116,11 @@ public class ApiViewController {
             }
             List<Long> ids = rawIds.stream().map(i -> i.longValue()).toList();
 
-            boolean updateStatus = body.containsKey("status");
-            String status = (String) body.get("status");
+            // ids 제외한 나머지 필드를 전달
+            Map<String, Object> fields = new LinkedHashMap<>(body);
+            fields.remove("ids");
 
-            boolean updateBlock = body.containsKey("blockTarget") || body.containsKey("blockCriteria");
-            String blockTarget = body.containsKey("blockTarget")
-                    ? (body.get("blockTarget") != null ? body.get("blockTarget").toString() : null) : null;
-            String blockCriteria = body.containsKey("blockCriteria")
-                    ? (body.get("blockCriteria") != null ? body.get("blockCriteria").toString() : null) : null;
-
-            // 빈 문자열은 null로 처리 (해제)
-            if (blockTarget != null && blockTarget.isBlank()) blockTarget = null;
-            if (blockCriteria != null && blockCriteria.isBlank()) blockCriteria = null;
-
-            int updated = storageService.updateBulk(ids, status, updateStatus,
-                    blockTarget, blockCriteria, updateBlock);
+            int updated = storageService.updateBulk(ids, fields);
             return ResponseEntity.ok(Map.of("updated", updated));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
@@ -146,9 +135,16 @@ public class ApiViewController {
         try {
             ApiRecord r = recordRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("레코드를 찾을 수 없습니다: " + id));
-            if (body.containsKey("memo"))          r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null);
-            if (body.containsKey("reviewResult"))   r.setReviewResult(body.get("reviewResult") != null ? body.get("reviewResult").toString() : null);
-            if (body.containsKey("reviewOpinion"))  r.setReviewOpinion(body.get("reviewOpinion") != null ? body.get("reviewOpinion").toString() : null);
+            if (body.containsKey("memo"))            r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null);
+            if (body.containsKey("teamOverride"))    r.setTeamOverride(body.get("teamOverride") != null ? body.get("teamOverride").toString() : null);
+            if (body.containsKey("managerOverride")) r.setManagerOverride(body.get("managerOverride") != null ? body.get("managerOverride").toString() : null);
+
+            boolean reviewChanged = false;
+            if (body.containsKey("reviewResult"))   { r.setReviewResult(body.get("reviewResult") != null ? body.get("reviewResult").toString() : null); reviewChanged = true; }
+            if (body.containsKey("reviewOpinion"))  { r.setReviewOpinion(body.get("reviewOpinion") != null ? body.get("reviewOpinion").toString() : null); reviewChanged = true; }
+            if (body.containsKey("reviewTeam"))     { r.setReviewTeam(body.get("reviewTeam") != null ? body.get("reviewTeam").toString() : null); reviewChanged = true; }
+            if (body.containsKey("reviewManager"))  { r.setReviewManager(body.get("reviewManager") != null ? body.get("reviewManager").toString() : null); reviewChanged = true; }
+            if (reviewChanged) r.setReviewedAt(java.time.LocalDateTime.now());
             recordRepository.save(r);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {

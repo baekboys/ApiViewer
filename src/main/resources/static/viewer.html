@@ -237,13 +237,14 @@
           <th onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('blockTarget')">차단대상 <span class="sort-icon">↕</span></th>
           <th onclick="sortBy('blockCriteria')">차단대상기준 <span class="sort-icon">↕</span></th>
+          <th onclick="sortBy('reviewResult')">현업검토결과 <span class="sort-icon">↕</span></th>
           <th class="no-sort">비고</th>
           <th onclick="sortBy('lastAnalyzedDate')">마지막분석일 <span class="sort-icon">↕</span></th>
           <th class="no-sort">최근 커밋</th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="18"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
+        <tr><td colspan="19"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -291,7 +292,7 @@
 
     document.getElementById('loadBtn').disabled = true;
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="18"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+      '<tr><td colspan="19"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
 
     try {
@@ -324,7 +325,7 @@
     } catch(e) {
       showToast(e.message, 'error');
       document.getElementById('tbody').innerHTML =
-        `<tr><td colspan="18"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
+        `<tr><td colspan="19"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
     } finally {
       document.getElementById('loadBtn').disabled = false;
     }
@@ -386,11 +387,11 @@
       }
       let av, bv;
       if (sortKey === 'teamName') {
-        av = (repoConfigMap[x.repositoryName] || {}).team || '';
-        bv = (repoConfigMap[y.repositoryName] || {}).team || '';
+        av = x.teamOverride || (repoConfigMap[x.repositoryName] || {}).team || '';
+        bv = y.teamOverride || (repoConfigMap[y.repositoryName] || {}).team || '';
       } else if (sortKey === 'managerName') {
-        av = (repoConfigMap[x.repositoryName] || {}).manager || '';
-        bv = (repoConfigMap[y.repositoryName] || {}).manager || '';
+        av = x.managerOverride || (repoConfigMap[x.repositoryName] || {}).manager || '';
+        bv = y.managerOverride || (repoConfigMap[y.repositoryName] || {}).manager || '';
       } else {
         av = (x[sortKey] ?? '').toString();
         bv = (y[sortKey] ?? '').toString();
@@ -408,7 +409,7 @@
   function renderRows(list) {
     const tbody = document.getElementById('tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="18"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="19"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
       return;
     }
     tbody.innerHTML = list.map(a => {
@@ -419,8 +420,8 @@
       <tr class="${rowCls}" id="row-${a.id}">
         <td class="cb-cell"><input type="checkbox" data-id="${a.id}" ${checked} onchange="toggleRow(this)"></td>
         <td style="min-width:120px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b>${cfg.businessName ? `<br><span style="font-size:10px;color:var(--text-muted);">${esc(cfg.businessName)}</span>` : ''}</td>
-        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(cfg.team)}</td>
-        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(cfg.manager)}</td>
+        <td class="memo-cell" onclick="editField(this,${a.id},'teamOverride')" title="클릭하여 편집" style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
+        <td class="memo-cell" onclick="editField(this,${a.id},'managerOverride')" title="클릭하여 편집" style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.managerOverride || cfg.manager)}</td>
         <td><span class="badge badge-${a.httpMethod||'REQUEST'}">${a.httpMethod||'?'}</span></td>
         <td><div class="api-path">${esc(a.apiPath)}</div></td>
         <td>${a.fullUrl
@@ -434,7 +435,8 @@
         <td>${statusBadge(a.status)}${a.statusOverridden ? ' <span title="수동설정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}</td>
         <td>${blockTargetBadge(a.blockTarget)}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria || '')}</td>
-        <td class="memo-cell" onclick="editMemo(this,${a.id})" title="클릭하여 편집">${esc(a.memo || '')}</td>
+        <td>${reviewResultBadge(a.reviewResult)}</td>
+        <td class="memo-cell" onclick="editField(this,${a.id},'memo')" title="클릭하여 편집">${esc(a.memo || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.lastAnalyzedDate || '-')}</td>
         <td>${gitHistoryCell(a.gitHistory)}</td>
       </tr>`;
@@ -465,19 +467,28 @@
     ).join('') + '</div>';
   }
 
-  // ── 비고 인라인 편집 ──────────────────────────────────────
-  function editMemo(td, id) {
+  function reviewResultBadge(rv) {
+    if (!rv) return '<span style="color:#cbd5e1;font-size:11px;">-</span>';
+    if (rv === '차단대상 제외') return `<span class="status-badge" style="background:#dbeafe;color:#1e40af;">${esc(rv)}</span>`;
+    return `<span class="status-badge" style="background:#f1f5f9;color:#475569;">${esc(rv)}</span>`;
+  }
+
+  // ── 인라인 편집 (비고, 팀, 담당자) ────────────────────────
+  function editField(td, id, field) {
     if (td.querySelector('input')) return;
     const old = td.textContent.trim();
-    td.innerHTML = `<input type="text" value="${esc(old)}" onblur="saveMemo(this,${id})" onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
+    td.innerHTML = `<input type="text" value="${esc(old)}" style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
+      onblur="saveFieldInline(this,${id},'${field}')"
+      onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
     td.querySelector('input').focus();
   }
-  async function saveMemo(input, id) {
-    if (input.dataset.cancel) { const a = allApis.find(x=>x.id===id); input.parentElement.textContent = a?.memo||''; return; }
+  async function saveFieldInline(input, id, field) {
+    if (input.dataset.cancel) { filterTable(); return; }
     const val = input.value.trim();
     try {
-      await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({memo:val||null}) });
-      const a = allApis.find(x=>x.id===id); if(a) a.memo = val||null;
+      const body = {}; body[field] = val || null;
+      await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const a = allApis.find(x=>x.id===id); if(a) a[field] = val||null;
       input.parentElement.textContent = val;
     } catch(e) { showToast('저장 실패','error'); }
   }
@@ -485,7 +496,7 @@
   // ── 정렬 ──────────────────────────────────────────────────
   const colIndexMap = { repositoryName:1, teamName:2, managerName:3, httpMethod:4, apiPath:5,
                         controllerName:7, methodName:8, programId:9, apiOperationValue:10,
-                        callCount:11, status:12, blockTarget:13, blockCriteria:14, lastAnalyzedDate:16 };
+                        callCount:11, status:12, blockTarget:13, blockCriteria:14, reviewResult:15, lastAnalyzedDate:17 };
   function sortBy(key) {
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
@@ -618,7 +629,7 @@
     for (let i = 1; i <= 5; i++) commitHeaders.push(`날짜${i}`, `커밋터${i}`, `내용${i}`);
     const headers = [
       '레포지토리','업무명','팀','담당자',
-      'HTTP Method','API 경로','Full URL','컨트롤러','메소드명','프로그램ID','설명','호출건수','상태','차단대상','차단대상기준','비고','마지막분석일',
+      'HTTP Method','API 경로','Full URL','컨트롤러','메소드명','프로그램ID','설명','호출건수','상태','차단대상','차단대상기준','현업검토결과','비고','마지막분석일',
       ...commitHeaders
     ];
     const rows = filteredApis.map(a => {
@@ -632,8 +643,8 @@
       return [
         a.repositoryName || '',
         cfg.businessName || '',
-        cfg.team || '',
-        cfg.manager || '',
+        a.teamOverride || cfg.team || '',
+        a.managerOverride || cfg.manager || '',
         a.httpMethod || '',
         a.apiPath || '',
         a.fullUrl || '',
@@ -645,6 +656,7 @@
         a.status || '',
         a.blockTarget || '',
         a.blockCriteria || '',
+        a.reviewResult || '',
         a.memo || '',
         a.lastAnalyzedDate || '',
         ...commitCols

@@ -2,6 +2,7 @@ package com.baek.viewer.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "api_record", uniqueConstraints = {
@@ -96,6 +97,26 @@ public class ApiRecord {
     @Column(name = "review_opinion", length = 500)
     private String reviewOpinion;
 
+    /** 현업 팀 */
+    @Column(name = "review_team", length = 100)
+    private String reviewTeam;
+
+    /** 현업 담당자 */
+    @Column(name = "review_manager", length = 100)
+    private String reviewManager;
+
+    /** 현업검토일시 (자동 갱신) */
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    /** 팀 오버라이드 (조회화면에서 수정 시) */
+    @Column(name = "team_override", length = 100)
+    private String teamOverride;
+
+    /** 담당자 오버라이드 (조회화면에서 수정 시) */
+    @Column(name = "manager_override", length = 100)
+    private String managerOverride;
+
     @Column(name = "git_history", columnDefinition = "TEXT")
     private String gitHistory; // JSON: [{"date":"...","author":"...","message":"..."},...]
 
@@ -144,6 +165,16 @@ public class ApiRecord {
     public void setReviewResult(String reviewResult) { this.reviewResult = reviewResult; }
     public String getReviewOpinion() { return reviewOpinion; }
     public void setReviewOpinion(String reviewOpinion) { this.reviewOpinion = reviewOpinion; }
+    public String getReviewTeam() { return reviewTeam; }
+    public void setReviewTeam(String reviewTeam) { this.reviewTeam = reviewTeam; }
+    public String getReviewManager() { return reviewManager; }
+    public void setReviewManager(String reviewManager) { this.reviewManager = reviewManager; }
+    public LocalDateTime getReviewedAt() { return reviewedAt; }
+    public void setReviewedAt(LocalDateTime reviewedAt) { this.reviewedAt = reviewedAt; }
+    public String getTeamOverride() { return teamOverride; }
+    public void setTeamOverride(String teamOverride) { this.teamOverride = teamOverride; }
+    public String getManagerOverride() { return managerOverride; }
+    public void setManagerOverride(String managerOverride) { this.managerOverride = managerOverride; }
     public String getBlockTarget() { return blockTarget; }
     public void setBlockTarget(String blockTarget) { this.blockTarget = blockTarget; }
     public String getBlockCriteria() { return blockCriteria; }

@@ -64,6 +64,12 @@ public class ApiRecord {
     @Column(name = "call_count")
     private Long callCount;
 
+    @Column(name = "call_count_month")
+    private Long callCountMonth;
+
+    @Column(name = "call_count_week")
+    private Long callCountWeek;
+
     @Column(name = "method_name")
     private String methodName;
 
@@ -100,6 +106,10 @@ public class ApiRecord {
 
     @Column(name = "full_url", length = 1000)
     private String fullUrl;
+
+    /** 컨트롤러 파일 풀패스 (/{repoName}/{repoPath}) */
+    @Column(name = "controller_file_path", length = 1000)
+    private String controllerFilePath;
 
     /** 비고 (사용자 메모) */
     @Column(name = "memo", length = 500)
@@ -175,6 +185,10 @@ public class ApiRecord {
     public void setStatusOverridden(boolean statusOverridden) { this.statusOverridden = statusOverridden; }
     public Long getCallCount() { return callCount; }
     public void setCallCount(Long callCount) { this.callCount = callCount; }
+    public Long getCallCountMonth() { return callCountMonth; }
+    public void setCallCountMonth(Long callCountMonth) { this.callCountMonth = callCountMonth; }
+    public Long getCallCountWeek() { return callCountWeek; }
+    public void setCallCountWeek(Long callCountWeek) { this.callCountWeek = callCountWeek; }
     public String getMethodName() { return methodName; }
     public void setMethodName(String methodName) { this.methodName = methodName; }
     public String getControllerName() { return controllerName; }
@@ -199,6 +213,8 @@ public class ApiRecord {
     public void setControllerRequestPropertyValue(String v) { this.controllerRequestPropertyValue = v; }
     public String getFullUrl() { return fullUrl; }
     public void setFullUrl(String fullUrl) { this.fullUrl = fullUrl; }
+    public String getControllerFilePath() { return controllerFilePath; }
+    public void setControllerFilePath(String controllerFilePath) { this.controllerFilePath = controllerFilePath; }
     public String getMemo() { return memo; }
     public void setMemo(String memo) { this.memo = memo; }
     public String getReviewResult() { return reviewResult; }

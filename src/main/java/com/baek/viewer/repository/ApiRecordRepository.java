@@ -30,4 +30,7 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long> {
 
     @Query("SELECT r FROM ApiRecord r WHERE r.blockTarget IS NOT NULL")
     List<ApiRecordSummary> findSummaryByBlockTargetIsNotNull();
+
+    @Query("SELECT r FROM ApiRecord r WHERE r.status IN :statuses")
+    List<ApiRecordSummary> findSummaryByStatusIn(@Param("statuses") List<String> statuses);
 }

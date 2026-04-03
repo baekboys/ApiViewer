@@ -94,6 +94,16 @@
     tbody tr.row-selected { background: #eff6ff !important; }
     tbody tr.row-changed { background: #fef2f2 !important; }
     tbody tr.row-changed:hover { background: #fee2e2 !important; }
+    tbody tr.row-locked { background: #f1f5f9 !important; opacity:.7; }
+    tbody tr.row-locked:hover { background: #e2e8f0 !important; }
+    tbody tr.row-locked td.memo-editable { pointer-events:none; border-style:solid; border-color:#e2e8f0; }
+    tbody tr.row-locked td.memo-cell { pointer-events:none; }
+    .lock-btn { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; cursor:pointer; user-select:none; white-space:nowrap; }
+    .lock-on  { background:#1e40af; color:#fff; }
+    .lock-on:hover { background:#1e3a8a; }
+    .lock-off { background:#e2e8f0; color:#94a3b8; }
+    .lock-off:hover { background:#cbd5e1; color:#64748b; }
+    .lock-blocked { background:#6b7280; color:#d1d5db; cursor:not-allowed; opacity:.5; }
     tbody td { padding: 8px 12px; vertical-align: top; max-width: 260px; word-break: break-all; }
     td.cb-cell { width: 36px; max-width: 36px; text-align: center; padding: 8px 0; }
     input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); }
@@ -111,6 +121,7 @@
     .st-del      { background:#fee2e2; color:#991b1b; text-decoration:line-through; }
     .bt-top      { background:#fee2e2; color:#991b1b; }
     .bt-low      { background:#ffedd5; color:#c2410c; }
+    .bt-rev      { background:#fef3c7; color:#92400e; }
 
     .api-path { font-family:'Consolas',monospace; font-size:12px; color:#1e40af; }
     .api-op   { color:var(--text-muted); font-size:12px; }
@@ -221,8 +232,9 @@
     <div class="stat-pill s-use"  id="pill-사용"   onclick="setFilter('사용')">    <span>사용</span>      <strong id="stat-사용">0</strong></div>
     <div class="stat-pill s-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span>  <strong id="stat-차단완료">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
-    <div class="stat-pill s-block" id="pill-bt-top" onclick="setFilter('bt-최우선')" style="cursor:pointer;"><span>최우선</span><strong id="stat-bt-top" style="color:#dc2626;">0</strong></div>
-    <div class="stat-pill s-block" id="pill-bt-low" onclick="setFilter('bt-후순위')" style="cursor:pointer;"><span>후순위</span><strong id="stat-bt-low" style="color:#ea580c;">0</strong></div>
+    <div class="stat-pill s-block" id="pill-최우선" onclick="setFilter('최우선 차단대상')" style="cursor:pointer;"><span>최우선</span><strong id="stat-최우선" style="color:#dc2626;">0</strong></div>
+    <div class="stat-pill s-block" id="pill-후순위" onclick="setFilter('후순위 차단대상')" style="cursor:pointer;"><span>후순위</span><strong id="stat-후순위" style="color:#ea580c;">0</strong></div>
+    <div class="stat-pill s-block" id="pill-검토필요" onclick="setFilter('검토필요 차단대상')" style="cursor:pointer;"><span>검토필요</span><strong id="stat-검토필요" style="color:#d97706;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
     <div class="stat-pill" id="pill-reviewed" onclick="setFilter('reviewed')" style="cursor:pointer;"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
@@ -247,27 +259,30 @@
     <span class="filter-count" id="filterCount"></span>
   </div>
 
+  <div id="noticeBar" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:12px;color:#92400e;line-height:1.5;">
+    ⚠️ 상태가 <b>차단대상</b> 또는 <b>검토필요</b>인 URL 중 담당자가 판단이 어려운 대상은 상태를 <b>"사용"</b>으로 변경해 주세요. 현업 검토가 필요한 건은 <b>현업 검토</b> 화면에서 의견을 남겨주시기 바랍니다.
+  </div>
+
   <!-- 일괄 변경 바 -->
   <div class="bulk-bar" id="bulkBar">
     <span class="bulk-count" id="bulkCount">0개 선택됨</span>
-    <select id="bulkStatus">
+    <select id="bulkStatus" onchange="onBulkStatusChange()">
       <option value="__SKIP__">-- 상태 --</option>
       <option value="사용">사용</option>
       <option value="차단완료">차단완료</option>
-      <option value="">자동계산 (초기화)</option>
-    </select>
-    <select id="bulkBlockTarget" onchange="onBulkBlockTargetChange()">
-      <option value="__SKIP__">-- 차단대상 --</option>
       <option value="최우선 차단대상">최우선 차단대상</option>
       <option value="후순위 차단대상">후순위 차단대상</option>
-      <option value="">해제 (없음)</option>
+      <option value="검토필요 차단대상">검토필요 차단대상</option>
+      <option value="">자동계산 (초기화)</option>
     </select>
     <select id="bulkBlockCriteria">
-      <option value="__SKIP__">-- 차단대상기준 --</option>
+      <option value="__SKIP__">-- 차단기준 --</option>
     </select>
     <input id="bulkTeam" type="text" placeholder="팀 변경" style="padding:5px 10px;border-radius:6px;font-size:12px;border:none;outline:none;width:90px;">
     <input id="bulkManager" type="text" placeholder="담당자 변경" style="padding:5px 10px;border-radius:6px;font-size:12px;border:none;outline:none;width:90px;">
     <button class="btn-apply" onclick="applyBulk()">적용</button>
+    <button class="btn-apply" onclick="bulkLock(true)" style="background:#475569;">일괄 확정</button>
+    <button class="btn-apply" onclick="bulkLock(false)" style="background:#94a3b8;">일괄 해제</button>
     <button class="btn-apply" onclick="bulkClearStatusChange()" style="background:#6b7280;">상태변경 확인</button>
     <button class="btn-cancel" onclick="clearSelection()">취소</button>
   </div>
@@ -279,32 +294,36 @@
         <tr>
           <th class="no-sort cb-cell hg-info sticky-h" style="left:0;min-width:36px;width:36px;"><input type="checkbox" id="checkAll" onclick="toggleAll(this)"></th>
           <th class="hg-info no-sort sticky-h" style="left:36px;min-width:46px;width:46px;">상세</th>
-          <th class="hg-info sticky-h" onclick="sortBy('repositoryName')" style="left:82px;min-width:110px;">레포지토리 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('businessName')" style="left:192px;min-width:100px;">업무명 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('teamName')" style="left:292px;min-width:80px;">팀 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('managerName')" style="left:372px;min-width:70px;">담당자 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h sticky-last" onclick="sortBy('apiPath')" style="left:442px;min-width:200px;">URL 경로 <span class="sort-icon">↕</span></th>
+          <th class="hg-info no-sort sticky-h" onclick="sortBy('statusOverridden')" style="left:82px;min-width:52px;width:52px;">확정 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('repositoryName')" style="left:134px;min-width:110px;">레포지토리 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('businessName')" style="left:244px;min-width:100px;">업무명 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('teamName')" style="left:344px;min-width:80px;">팀 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('managerName')" style="left:424px;min-width:70px;">담당자 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h sticky-last" onclick="sortBy('apiPath')" style="left:494px;min-width:200px;">URL 경로 <span class="sort-icon">↕</span></th>
           <th class="hg-info no-sort">URL호출</th>
           <th class="hg-info" onclick="sortBy('httpMethod')">Method <span class="sort-icon">↕</span></th>
           <th class="hg-dev" onclick="sortBy('controllerName')">컨트롤러 <span class="sort-icon">↕</span></th>
           <th class="hg-dev" onclick="sortBy('methodName')">메소드명 <span class="sort-icon">↕</span></th>
           <th class="hg-dev" onclick="sortBy('programId')">프로그램ID <span class="sort-icon">↕</span></th>
+          <th class="hg-dev no-sort">최근커밋</th>
+          <th class="hg-dev" onclick="sortBy('isDeprecated')">Deprecated <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('apiOperationValue')">관련 메뉴(또는 기능) <span class="sort-icon">↕</span></th>
-          <th class="hg-desc" onclick="sortBy('callCount')">호출건수 <span class="sort-icon">↕</span></th>
+          <th class="hg-desc" onclick="sortBy('callCount')">총 호출건 <span class="sort-icon">↕</span></th>
+          <th class="hg-desc" onclick="sortBy('callCountMonth')">1달 호출건 <span class="sort-icon">↕</span></th>
+          <th class="hg-desc" onclick="sortBy('callCountWeek')">1주 호출건 <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
-          <th class="hg-desc" onclick="sortBy('blockedDate')">차단일자 <span class="sort-icon">↕</span></th>
-          <th class="hg-desc no-sort">차단근거</th>
-          <th class="hg-block" onclick="sortBy('blockTarget')">차단대상선정 <span class="sort-icon">↕</span></th>
-          <th class="hg-block" onclick="sortBy('blockCriteria')">차단대상선정기준 <span class="sort-icon">↕</span></th>
+          <th class="hg-block" onclick="sortBy('blockCriteria')">차단기준 <span class="sort-icon">↕</span></th>
+          <th class="hg-block" onclick="sortBy('blockedDate')">차단일자 <span class="sort-icon">↕</span></th>
+          <th class="hg-block no-sort">차단근거</th>
           <th class="hg-block no-sort">비고(입력가능)</th>
           <th class="hg-block" onclick="sortBy('reviewResult')">현업검토결과 <span class="sort-icon">↕</span></th>
-          <th class="hg-git no-sort">최근커밋</th>
+          <th class="hg-block no-sort">현업검토의견</th>
           <th class="hg-info" onclick="sortBy('lastAnalyzedAt')">분석일시 <span class="sort-icon">↕</span></th>
           <th class="hg-info" onclick="sortBy('modifiedAt')">변경일시 <span class="sort-icon">↕</span></th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="24"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
+        <tr><td colspan="28"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -330,16 +349,19 @@
   let sortKey = 'apiPath', sortAsc = true;
   let selectedIds = new Set(); // api id 기준
   let repoConfigMap = {}; // repoName → {team, manager}
+  let reviewThreshold = 3; // default, 서버에서 갱신
 
   // ── 초기화 ────────────────────────────────────────────────
   async function initRepos() {
     try {
-      const [repoRes, cfgRes] = await Promise.all([
+      const [repoRes, cfgRes, globalRes] = await Promise.all([
         fetch('/api/db/repositories'),
-        fetch('/api/config/repos')
+        fetch('/api/config/repos'),
+        fetch('/api/config/global')
       ]);
       const repos = await repoRes.json();
       const cfgs  = await cfgRes.json();
+      try { const g = await globalRes.json(); if (g.reviewThreshold) reviewThreshold = g.reviewThreshold; } catch(e) {}
 
       // 팀/담당자 매핑 캐싱
       cfgs.forEach(c => { repoConfigMap[c.repoName] = { team: c.teamName || '', manager: c.managerName || '', businessName: c.businessName || '' }; });
@@ -365,14 +387,14 @@
 
     document.getElementById('loadBtn').disabled = true;
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="24"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+      '<tr><td colspan="28"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
 
     const abortCtrl = new AbortController();
     const timeoutId = setTimeout(() => abortCtrl.abort(), 30000);
     const slowMsgId = setTimeout(() => {
       const tb = document.getElementById('tbody');
-      if (tb.querySelector('.spinner')) tb.innerHTML = '<tr><td colspan="24"><div class="state-box"><div class="spinner"></div><br>조회 중... (데이터가 많을 경우 시간이 걸릴 수 있습니다)</div></td></tr>';
+      if (tb.querySelector('.spinner')) tb.innerHTML = '<tr><td colspan="28"><div class="state-box"><div class="spinner"></div><br>조회 중... (데이터가 많을 경우 시간이 걸릴 수 있습니다)</div></td></tr>';
     }, 5000);
     try {
       const url = repo
@@ -395,6 +417,7 @@
       renderStats();
       filterTable();
       document.getElementById('statsBar').style.display = 'flex';
+      document.getElementById('noticeBar').style.display = 'block';
       document.getElementById('filterBar').style.display = 'flex';
       document.getElementById('dbMeta').style.display = 'flex';
       document.getElementById('metaRepo').textContent = repo || '전체';
@@ -406,10 +429,10 @@
       clearTimeout(timeoutId); clearTimeout(slowMsgId);
       if (e.name === 'AbortError') {
         showToast('조회 시간이 초과되었습니다. 레포지토리를 선택하여 조회해 주세요.', 'error');
-        document.getElementById('tbody').innerHTML = '<tr><td colspan="24"><div class="state-box">⏱ 조회 시간 초과<br><small>데이터가 많아 응답이 지연되고 있습니다.<br>특정 레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>';
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="28"><div class="state-box">⏱ 조회 시간 초과<br><small>데이터가 많아 응답이 지연되고 있습니다.<br>특정 레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>';
       } else {
         showToast(e.message, 'error');
-        document.getElementById('tbody').innerHTML = `<tr><td colspan="24"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
+        document.getElementById('tbody').innerHTML = `<tr><td colspan="28"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
       }
     } finally {
       document.getElementById('loadBtn').disabled = false;
@@ -418,18 +441,18 @@
 
   // ── 통계 ──────────────────────────────────────────────────
   function renderStats() {
-    const sCounts = { '사용':0, '차단완료':0 };
-    const btCounts = { '최우선 차단대상':0, '후순위 차단대상':0 };
+    const sCounts = { '사용':0, '차단완료':0, '최우선 차단대상':0, '후순위 차단대상':0, '검토필요 차단대상':0 };
     allApis.forEach(a => {
-      if (sCounts[a.status] !== undefined) sCounts[a.status]++;
-      if (btCounts[a.blockTarget] !== undefined) btCounts[a.blockTarget]++;
+      const s = a.status || '사용';
+      if (sCounts[s] !== undefined) sCounts[s]++;
     });
 
     document.getElementById('statTotal').textContent   = allApis.length;
     document.getElementById('stat-사용').textContent    = sCounts['사용'];
     document.getElementById('stat-차단완료').textContent = sCounts['차단완료'];
-    document.getElementById('stat-bt-top').textContent  = btCounts['최우선 차단대상'];
-    document.getElementById('stat-bt-low').textContent  = btCounts['후순위 차단대상'];
+    document.getElementById('stat-최우선').textContent   = sCounts['최우선 차단대상'];
+    document.getElementById('stat-후순위').textContent   = sCounts['후순위 차단대상'];
+    document.getElementById('stat-검토필요').textContent  = sCounts['검토필요 차단대상'];
     document.getElementById('stat-reviewed').textContent  = allApis.filter(a => a.reviewResult).length;
     document.getElementById('stat-changed').textContent  = allApis.filter(a => a.statusChanged).length;
     document.getElementById('statGet').textContent      = allApis.filter(a => a.httpMethod === 'GET').length;
@@ -445,8 +468,9 @@
     if (val === '') { document.getElementById('pill-all').classList.add('active-filter'); }
     else if (val === '사용') { document.getElementById('pill-사용').classList.add('active-filter'); }
     else if (val === '차단완료') { document.getElementById('pill-차단완료').classList.add('active-filter'); }
-    else if (val === 'bt-최우선') { document.getElementById('pill-bt-top').classList.add('active-filter'); }
-    else if (val === 'bt-후순위') { document.getElementById('pill-bt-low').classList.add('active-filter'); }
+    else if (val === '최우선 차단대상') { document.getElementById('pill-최우선').classList.add('active-filter'); }
+    else if (val === '후순위 차단대상') { document.getElementById('pill-후순위').classList.add('active-filter'); }
+    else if (val === '검토필요 차단대상') { document.getElementById('pill-검토필요').classList.add('active-filter'); }
     else if (val === 'reviewed') { document.getElementById('pill-reviewed').classList.add('active-filter'); }
     else if (val === 'changed') { document.getElementById('pill-changed').classList.add('active-filter'); }
     filterTable();
@@ -465,9 +489,7 @@
       const team = (a.teamOverride || cfg.team || '').toLowerCase();
       const mgr  = (a.managerOverride || cfg.manager || '').toLowerCase();
       let filterOk = true;
-      if (activeFilter === '사용' || activeFilter === '차단완료') filterOk = a.status === activeFilter;
-      else if (activeFilter === 'bt-최우선') filterOk = a.blockTarget === '최우선 차단대상';
-      else if (activeFilter === 'bt-후순위') filterOk = a.blockTarget === '후순위 차단대상';
+      if (['사용','차단완료','최우선 차단대상','후순위 차단대상','검토필요 차단대상'].includes(activeFilter)) filterOk = a.status === activeFilter;
       else if (activeFilter === 'reviewed') filterOk = !!a.reviewResult;
       else if (activeFilter === 'changed') filterOk = a.statusChanged === true;
       return (!q || text.includes(q))
@@ -478,7 +500,7 @@
     });
 
     filteredApis.sort((x, y) => {
-      if (sortKey === 'callCount') {
+      if (['callCount','callCountMonth','callCountWeek'].includes(sortKey)) {
         const an = x.callCount ?? -1, bn = y.callCount ?? -1;
         return sortAsc ? an - bn : bn - an;
       }
@@ -509,38 +531,49 @@
   function renderRows(list) {
     const tbody = document.getElementById('tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="24"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="28"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
       return;
     }
     tbody.innerHTML = list.map(a => {
       const checked = selectedIds.has(a.id) ? 'checked' : '';
-      const rowCls  = (selectedIds.has(a.id) ? ' row-selected' : '') + (a.statusChanged ? ' row-changed' : '');
+      const locked = a.statusOverridden;
+      const isBlocked = a.status === '차단완료';
+      const rowCls  = (selectedIds.has(a.id) ? ' row-selected' : '') + (a.statusChanged ? ' row-changed' : '') + ((locked || isBlocked) ? ' row-locked' : '');
       const cfg = repoConfigMap[a.repositoryName] || {};
       const git1 = parseGitHistory(a.gitHistory)[0];
+      const lockIcon = isBlocked
+        ? '<span class="lock-btn lock-blocked" title="차단완료 - 수정불가">변경불가</span>'
+        : locked
+        ? `<span class="lock-btn lock-on" onclick="toggleLock(${a.id},false)" title="클릭하여 해제">확정</span>`
+        : `<span class="lock-btn lock-off" onclick="toggleLock(${a.id},true)" title="클릭하여 확정">미확정</span>`;
       return `
       <tr class="${rowCls}" id="row-${a.id}">
-        <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;"><input type="checkbox" data-id="${a.id}" ${checked} onchange="toggleRow(this)"></td>
+        <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;"><input type="checkbox" data-id="${a.id}" ${checked} ${isBlocked?'disabled':''} onchange="toggleRow(this)"></td>
         <td class="sk" style="left:36px;min-width:46px;width:46px;text-align:center;"><button class="btn btn-ghost btn-sm" onclick="openDetail(${a.id})" style="padding:2px 6px;font-size:10px;">상세</button></td>
-        <td class="sk" style="left:82px;min-width:110px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b></td>
-        <td class="sk" style="left:192px;min-width:100px;font-size:11px;color:var(--text-muted);">${esc(cfg.businessName || '')}</td>
-        <td class="sk memo-cell" onclick="editField(this,${a.id},'teamOverride')" title="클릭하여 편집" style="left:292px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
-        <td class="sk memo-cell" onclick="editField(this,${a.id},'managerOverride')" title="클릭하여 편집" style="left:372px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.managerOverride || cfg.manager)}</td>
-        <td class="sk sk-last" style="left:442px;min-width:200px;"><div class="api-path">${esc(a.apiPath)}</div></td>
+        <td class="sk" style="left:82px;min-width:52px;width:52px;text-align:center;">${lockIcon}</td>
+        <td class="sk" style="left:134px;min-width:110px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b></td>
+        <td class="sk" style="left:244px;min-width:100px;font-size:11px;color:var(--text-muted);">${esc(cfg.businessName || '')}</td>
+        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;teamOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:344px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
+        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;managerOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:424px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.managerOverride || cfg.manager)}</td>
+        <td class="sk sk-last" style="left:494px;min-width:200px;"><div class="api-path">${esc(a.apiPath)}</div></td>
         <td>${a.fullUrl ? `<a href="${esc(a.fullUrl)}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;padding:2px 8px;border:1px solid var(--primary);border-radius:4px;white-space:nowrap;">열기 ↗</a>` : '<span style="color:#cbd5e1;font-size:11px;">-</span>'}</td>
         <td><span class="badge badge-${a.httpMethod||'REQUEST'}">${a.httpMethod||'?'}</span></td>
         <td class="ctrl-name">${esc(a.controllerName)}</td>
         <td style="font-size:12px;">${esc(a.methodName)}</td>
         <td style="font-family:monospace;font-size:11px;">${esc(a.programId)}</td>
+        <td class="git-col">${git1 ? `<span class="git-col-d">${esc(git1.date)}</span> <span class="git-col-a">${esc(git1.author)}</span><br><span class="git-col-m" title="${esc(git1.message)}">${esc(git1.message)}</span>` : '<span style="color:#cbd5e1;">-</span>'}</td>
+        <td style="text-align:center;font-size:11px;">${a.isDeprecated==='Y' ? '<span style="color:#dc2626;font-weight:700;">Y</span>' : '<span style="color:#cbd5e1;">N</span>'}</td>
         <td class="desc-col" title="${esc(allDesc(a))}">${esc(allDesc(a))}</td>
         <td style="text-align:right;font-size:12px;">${a.callCount != null ? a.callCount.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
-        <td>${statusBadge(a.status)}${a.statusOverridden ? ' <span title="수동설정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}${a.statusChanged ? ` <span title="${esc(a.statusChangeLog||'상태변경 감지')}" style="color:#dc2626;cursor:pointer;font-size:10px;" onclick="clearStatusFlag(event,${a.id})">⚠️확인</span>` : ''}</td>
+        <td style="text-align:right;font-size:12px;">${a.callCountMonth != null ? a.callCountMonth.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
+        <td style="text-align:right;font-size:12px;">${a.callCountWeek != null ? a.callCountWeek.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
+        <td>${statusBadge(a.status)}${a.statusOverridden ? ' <span title="상태확정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
+        <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.blockedDate || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:200px;">${esc((a.blockedReason||'').slice(0,40))}${(a.blockedReason||'').length>40?'…':''}</td>
-        <td>${blockTargetBadge(a.blockTarget)}</td>
-        <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria || '')}</td>
-        <td class="memo-editable" onclick="editField(this,${a.id},'memo')" title="클릭하여 입력">${esc(a.memo || '')}</td>
+        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;memo&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.memo || '')}</td>
         <td>${reviewResultBadge(a.reviewResult)}</td>
-        <td class="git-col">${git1 ? `<span class="git-col-d">${esc(git1.date)}</span> <span class="git-col-a">${esc(git1.author)}</span><br><span class="git-col-m" title="${esc(git1.message)}">${esc(git1.message)}</span>` : '<span style="color:#cbd5e1;">-</span>'}</td>
+        <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.reviewOpinion || '')}</td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fmtDt(a.lastAnalyzedAt)}${isAdmin()&&a.createdIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.createdIp)}</span>` : ''}</td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fmtDt(a.modifiedAt)}${isAdmin()&&a.modifiedIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.modifiedIp)}</span>` : ''}</td>
       </tr>`;
@@ -548,7 +581,7 @@
   }
 
   function statusBadge(status) {
-    const cls = { '사용':'st-use', '차단완료':'st-done', '삭제':'st-del' };
+    const cls = { '사용':'st-use', '차단완료':'st-done', '최우선 차단대상':'bt-top', '후순위 차단대상':'bt-low', '검토필요 차단대상':'bt-rev' };
     const c = cls[status] || 'st-use';
     return `<span class="status-badge ${c}">${esc(status || '사용')}</span>`;
   }
@@ -557,6 +590,7 @@
     if (!bt) return '<span style="color:#cbd5e1;font-size:11px;">-</span>';
     if (bt.includes('최우선')) return `<span class="status-badge bt-top">${esc(bt)}</span>`;
     if (bt.includes('후순위')) return `<span class="status-badge bt-low">${esc(bt)}</span>`;
+    if (bt.includes('검토필요')) return `<span class="status-badge" style="background:#fef3c7;color:#92400e;">${esc(bt)}</span>`;
     return `<span class="status-badge" style="background:#f1f5f9;color:#475569;">${esc(bt)}</span>`;
   }
 
@@ -601,10 +635,42 @@
   function reviewResultBadge(rv) {
     if (!rv) return '<span style="color:#cbd5e1;font-size:11px;">-</span>';
     if (rv === '차단대상 제외') return `<span class="status-badge" style="background:#dbeafe;color:#1e40af;">${esc(rv)}</span>`;
+    if (rv === '차단확정') return `<span class="status-badge" style="background:#fee2e2;color:#991b1b;">${esc(rv)}</span>`;
+    if (rv === '판단불가') return `<span class="status-badge" style="background:#fef3c7;color:#92400e;">${esc(rv)}</span>`;
     return `<span class="status-badge" style="background:#f1f5f9;color:#475569;">${esc(rv)}</span>`;
   }
 
   // ── 인라인 편집 (비고, 팀, 담당자) ────────────────────────
+  // ── 상태확정 토글 ────────────────────────────────────────
+  async function bulkLock(lock) {
+    if (selectedIds.size === 0) { showToast('선택된 항목이 없습니다.','error'); return; }
+    // 차단완료 제외
+    const ids = Array.from(selectedIds).filter(id => {
+      const a = allApis.find(x=>x.id===id);
+      return a && a.status !== '차단완료';
+    });
+    if (!ids.length) { showToast('차단완료 항목은 확정/해제할 수 없습니다.','error'); return; }
+    if (!confirm(`${ids.length}개 항목을 ${lock?'상태 확정':'확정 해제'}하시겠습니까?`)) return;
+    try {
+      await fetch('/api/db/status', { method:'PATCH', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ ids, statusOverridden: lock }) });
+      ids.forEach(id => { const a=allApis.find(x=>x.id===id); if(a) a.statusOverridden=lock; });
+      clearSelection(); filterTable();
+      showToast(`${ids.length}개 ${lock?'확정':'해제'} 완료`,'success');
+    } catch(e) { showToast('변경 실패','error'); }
+  }
+
+  async function toggleLock(id, lock) {
+    try {
+      await fetch('/api/db/status', { method:'PATCH', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ ids:[id], statusOverridden: lock }) });
+      const a = allApis.find(x=>x.id===id);
+      if (a) a.statusOverridden = lock;
+      filterTable();
+      showToast(lock ? '상태 확정' : '확정 해제', 'success');
+    } catch(e) { showToast('변경 실패','error'); }
+  }
+
   function editField(td, id, field) {
     if (td.querySelector('input')) return;
     const old = td.textContent.trim();
@@ -625,10 +691,10 @@
   }
 
   // ── 정렬 ──────────────────────────────────────────────────
-  const colIndexMap = { repositoryName:2, businessName:3, teamName:4, managerName:5, apiPath:6,
-                        httpMethod:8, controllerName:9, methodName:10, programId:11,
-                        apiOperationValue:12, callCount:13, status:14, blockedDate:15,
-                        blockTarget:17, blockCriteria:18, reviewResult:20, lastAnalyzedAt:22, modifiedAt:23 };
+  const colIndexMap = { statusOverridden:2, repositoryName:3, businessName:4, teamName:5, managerName:6, apiPath:7,
+                        httpMethod:9, controllerName:10, methodName:11, programId:12,
+                        isDeprecated:14, apiOperationValue:15, callCount:16, callCountMonth:17, callCountWeek:18,
+                        status:19, blockCriteria:20, blockedDate:21, reviewResult:24, lastAnalyzedAt:26, modifiedAt:27 };
   function sortBy(key) {
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
@@ -688,16 +754,19 @@
   }
 
   // ── 차단대상기준 옵션 동적 생성 ──────────────────────────
-  const criteriaOptions = {
-    '최우선 차단대상': ['호출 0건 + 커밋1년경과', '호출 0건 + 커밋1년경과(침해사고 로그 제외)', 'IT담당자검토건', '기타'],
-    '후순위 차단대상': ['호출 0건 + 커밋1년미만', '호출 1~3건 + 커밋1년경과', '호출 4건이상 + 커밋1년경과', '기타']
+  function getCriteriaOptions() {
+    return {
+      '최우선 차단대상': ['호출 0건 + 커밋1년경과', '기타'],
+      '후순위 차단대상': ['호출 0건 + 커밋1년경과(침해사고 로그조회)', 'IT담당자검토건', '기타'],
+      '검토필요 차단대상': ['호출 0건 + 커밋1년미만', `호출 1~${reviewThreshold}건 + 커밋1년경과`, '기타']
+    };
   };
 
-  function onBulkBlockTargetChange() {
-    const bt = document.getElementById('bulkBlockTarget').value;
+  function onBulkStatusChange() {
+    const bt = document.getElementById('bulkStatus').value;
     const sel = document.getElementById('bulkBlockCriteria');
     sel.innerHTML = '<option value="__SKIP__">-- 차단대상기준 --</option>';
-    const opts = criteriaOptions[bt] || [];
+    const opts = getCriteriaOptions()[bt] || [];
     opts.forEach(o => {
       const opt = document.createElement('option');
       opt.value = o; opt.textContent = o;
@@ -715,9 +784,7 @@
     if (selectedIds.size === 0) { showToast('선택된 항목이 없습니다.', 'error'); return; }
 
     const statusVal = document.getElementById('bulkStatus').value;
-    const btVal     = document.getElementById('bulkBlockTarget').value;
     const bcVal     = document.getElementById('bulkBlockCriteria').value;
-
 
     const body = { ids: Array.from(selectedIds) };
     const parts = [];
@@ -726,13 +793,9 @@
       body.status = statusVal || null;
       parts.push('상태→' + (statusVal || '자동계산'));
     }
-    if (btVal !== '__SKIP__') {
-      body.blockTarget = btVal || null;
-      parts.push('차단대상→' + (btVal || '해제'));
-    }
     if (bcVal !== '__SKIP__') {
       body.blockCriteria = bcVal || null;
-      parts.push('기준→' + (bcVal || '해제'));
+      parts.push('차단기준→' + (bcVal || '해제'));
     }
     const teamVal = document.getElementById('bulkTeam').value.trim();
     const mgrVal  = document.getElementById('bulkManager').value.trim();
@@ -778,22 +841,25 @@
     for (let i = 1; i <= 5; i++) commitHeaders.push(`커밋날짜${i}`, `커밋터${i}`, `커밋내용${i}`);
     const headers = [
       '레포지토리','업무명','팀','담당자','URL 경로','Full URL',
-      'HTTP Method','컨트롤러','메소드명','프로그램ID',
+      'HTTP Method','컨트롤러파일경로','컨트롤러','메소드명','프로그램ID',
       'ApiOperation','Description주석','메소드주석','컨트롤러주석','RequestProperty','컨트롤러RequestProperty',
-      '관련 메뉴(또는 기능)','호출건수','상태','차단일자','차단근거',
-      '차단대상선정','차단대상선정기준','비고','현업검토결과','현업검토의견',
+      '관련 메뉴(또는 기능)','Deprecated','호출건수','상태','차단기준','차단일자','차단근거',
+      '비고','현업검토결과','현업검토의견',
       ...commitHeaders, '분석일시', '변경일시'
     ];
-    const blue='E0F2FE', yellow='FEF3C7', purple='E0E7FF', pink='FFE4E6', green='D1FAE5';
+    const blue='E0F2FE', yellow='FEF3C7', purple='E0E7FF', pink='FFE4E6';
+    const g1='D1FAE5', g2='DCFCE7', g3='ECFDF5', g4='F0FDF4', g5='F5FFF9';
     const headerColors = [
-      blue,blue,blue,blue,blue,blue,blue,blue,           // 레포~Method
-      yellow,yellow,yellow,                                // 컨트롤러~프로그램ID
-      yellow,yellow,yellow,yellow,yellow,yellow,           // 참고용 6개
-      purple,purple,purple,purple,purple,                  // 관련메뉴~차단근거
-      pink,pink,pink,pink,pink,                            // 차단대상~현업검토의견
-      green,green,green,green,green,green,green,green,green,green,green,green,green,green,green, // 커밋5×3
-      blue,blue                                            // 분석/변경일시
+      blue,blue,blue,blue,blue,blue,   // 1~6: 레포~Full URL
+      blue,                             // 7: HTTP Method
+      yellow,yellow,yellow,yellow,      // 8~11: 파일경로,컨트롤러,메소드,프로그램ID
+      yellow,yellow,yellow,yellow,yellow,yellow, // 12~17: 참고용 6개
+      purple,purple,purple,purple,      // 18~21: 메뉴,Deprecated,호출건수,상태
+      pink,pink,pink,pink,pink,pink,    // 22~27: 차단기준~현업검토의견
+      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 28~42: 커밋1~5
+      blue,blue                         // 43~44: 분석/변경일시
     ];
+    const groupBorders = new Set([6, 11, 17, 21, 27, 30, 33, 36, 39, 42]);
     const rows = details.map(a => {
       const cfg = repoConfigMap[a.repositoryName] || {};
       const commits = parseGitHistory(a.gitHistory);
@@ -811,18 +877,19 @@
         a.apiPath || '',
         a.fullUrl || '',
         a.httpMethod || '',
+        a.controllerFilePath || '',
         a.controllerName || '',
         a.methodName || '',
         a.programId || '',
         v(a.apiOperationValue), v(a.descriptionTag), v(a.fullComment),
         v(a.controllerComment), v(a.requestPropertyValue), v(a.controllerRequestPropertyValue),
         allDesc(a),
+        a.isDeprecated || 'N',
         a.callCount != null ? a.callCount : '',
         a.status || '',
+        a.blockCriteria || '',
         a.blockedDate || '',
         a.blockedReason || '',
-        a.blockTarget || '',
-        a.blockCriteria || '',
         a.memo || '',
         a.reviewResult || '',
         a.reviewOpinion || '',
@@ -831,7 +898,7 @@
       ];
     });
     const filename = `url-list-${document.getElementById('repoSelect').value || 'all'}`;
-    await exportXlsx(headers, headerColors, rows, filename, 5);
+    await exportXlsx(headers, headerColors, rows, filename, 5, groupBorders);
     showToast(`${filteredApis.length}개 URL 다운로드 완료`, 'success');
   }
 
@@ -840,11 +907,21 @@
     try { return JSON.parse(json); } catch(e) { return []; }
   }
 
-  async function exportXlsx(headers, headerColors, rows, filename, freezeCol) {
+  async function exportXlsx(headers, headerColors, rows, filename, freezeCol, groupBorders) {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Sheet1');
-    const thin = { style:'thin', color:{argb:'FFB0B0B0'} };
-    const border = { top:thin, left:thin, bottom:thin, right:thin };
+    const thin  = { style:'thin', color:{argb:'FFB0B0B0'} };
+    const thick = { style:'medium', color:{argb:'FF64748B'} };
+
+    function makeBorder(colIdx) {
+      // colIdx: 0-based column index
+      const gb = groupBorders || new Set();
+      return {
+        top: thin, bottom: thin,
+        left:  gb.has(colIdx - 1) ? thick : thin,
+        right: gb.has(colIdx) ? thick : thin
+      };
+    }
 
     // 헤더 행
     const hRow = ws.addRow(headers);
@@ -853,24 +930,17 @@
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF' + bg} };
       cell.font = { bold:true, size:10 };
       cell.alignment = { vertical:'middle', wrapText:true };
-      cell.border = border;
+      cell.border = makeBorder(colNum - 1);
     });
 
     // 데이터 행
     rows.forEach(r => {
       const dRow = ws.addRow(r);
-      dRow.eachCell({ includeEmpty:true }, (cell) => {
-        cell.border = border;
+      for (let c = 1; c <= headers.length; c++) {
+        const cell = dRow.getCell(c);
+        cell.border = makeBorder(c - 1);
         cell.font = { size:10 };
         cell.alignment = { vertical:'middle', wrapText:true };
-      });
-    });
-    // 빈 셀에도 border 적용
-    ws.eachRow((row, rowNum) => {
-      if (rowNum === 1) return;
-      for (let c = 1; c <= headers.length; c++) {
-        const cell = row.getCell(c);
-        if (!cell.border) { cell.border = border; cell.font = { size:10 }; }
       }
     });
 
@@ -952,6 +1022,7 @@
           <div class="detail-label">Full URL</div><div class="detail-value">${r.fullUrl ? `<a href="${esc(r.fullUrl)}" target="_blank">${esc(r.fullUrl)}</a>` : '-'}</div>
           <div class="detail-label">HTTP Method</div><div class="detail-value"><span class="badge badge-${r.httpMethod||'REQUEST'}">${r.httpMethod||'-'}</span></div>
           <div class="detail-label">컨트롤러</div><div class="detail-value">${esc(r.controllerName)}</div>
+          <div class="detail-label">파일경로</div><div class="detail-value" style="font-family:monospace;font-size:11px;">${esc(r.controllerFilePath || '-')}</div>
           <div class="detail-label">메소드명</div><div class="detail-value">${esc(r.methodName)}</div>
           <div class="detail-label">프로그램ID</div><div class="detail-value" style="font-family:monospace;">${esc(r.programId)}</div>
           <div class="detail-label">팀</div><div class="detail-value">${esc(r.teamOverride || cfg.team)}</div>
@@ -974,11 +1045,13 @@
         <div class="detail-section-title">상태 / 차단</div>
         <div class="detail-grid">
           <div class="detail-label">상태</div><div class="detail-value">${statusBadge(r.status)}${r.statusOverridden ? ' 🔒 수동설정' : ''}</div>
-          <div class="detail-label">호출건수</div><div class="detail-value">${r.callCount != null ? r.callCount.toLocaleString()+'건' : '미조회'}</div>
+          <div class="detail-label">총 호출건</div><div class="detail-value">${r.callCount != null ? r.callCount.toLocaleString()+'건' : '미조회'}</div>
+          <div class="detail-label">최근 1달 호출건</div><div class="detail-value">${r.callCountMonth != null ? r.callCountMonth.toLocaleString()+'건' : '미조회'}</div>
+          <div class="detail-label">최근 1주 호출건</div><div class="detail-value">${r.callCountWeek != null ? r.callCountWeek.toLocaleString()+'건' : '미조회'}</div>
           <div class="detail-label">차단일자</div><div class="detail-value">${esc(r.blockedDate || '-')}</div>
           <div class="detail-label">차단근거</div><div class="detail-value">${esc(r.blockedReason || '-')}</div>
-          <div class="detail-label">차단대상선정</div><div class="detail-value">${blockTargetBadge(r.blockTarget)}</div>
-          <div class="detail-label">차단대상기준</div><div class="detail-value">${esc(r.blockCriteria || '-')}</div>
+          <div class="detail-label">차단기준</div><div class="detail-value">${esc(r.blockCriteria || '-')}</div>
+          <div class="detail-label">Deprecated</div><div class="detail-value">${r.isDeprecated === 'Y' ? '예' : '아니오'}</div>
           <div class="detail-label">비고</div><div class="detail-value">${esc(r.memo || '-')}</div>
         </div>
       </div>
@@ -1004,7 +1077,6 @@
         <div class="detail-grid">
           <div class="detail-label">분석일시</div><div class="detail-value">${fmtDt(r.lastAnalyzedAt)}</div>
           <div class="detail-label">변경일시</div><div class="detail-value">${fmtDt(r.modifiedAt)}</div>
-          <div class="detail-label">Deprecated</div><div class="detail-value">${r.isDeprecated === 'Y' ? '예' : '아니오'}</div>
         </div>
       </div>
     `;

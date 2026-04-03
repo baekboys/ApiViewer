@@ -21,6 +21,8 @@ public interface ApiRecordSummary {
     String getBlockTarget();
     String getBlockCriteria();
     Long getCallCount();
+    Long getCallCountMonth();
+    Long getCallCountWeek();
     String getMethodName();
     String getControllerName();
     String getRepoPath();
@@ -31,6 +33,7 @@ public interface ApiRecordSummary {
     String getRequestPropertyValue();
     String getControllerRequestPropertyValue();
     String getFullUrl();
+    String getControllerFilePath();
     String getMemo();
     String getReviewResult();
     String getReviewOpinion();
@@ -38,6 +41,7 @@ public interface ApiRecordSummary {
     String getReviewManager();
     LocalDateTime getReviewedAt();
     LocalDate getBlockedDate();
+    String getBlockedReason();
     boolean isStatusChanged();
     String getStatusChangeLog();
     String getTeamOverride();

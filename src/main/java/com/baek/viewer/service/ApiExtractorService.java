@@ -301,6 +301,13 @@ public class ApiExtractorService {
                     } else {
                         info.setFullComment("-"); info.setDescriptionTag("-");
                     }
+                    // @Deprecated 라인에서 [URL차단작업] 정보 보충
+                    if (isDeprecated && (info.getFullComment().equals("-") || !info.getFullComment().contains("[URL차단작업]"))) {
+                        String depLine = extractDeprecatedLine(headArea);
+                        if (depLine != null && depLine.contains("[URL차단작업]")) {
+                            info.setFullComment(depLine);
+                        }
+                    }
 
                     // @ApiOperation 우선, 없으면 @Operation(summary) 폴백
                     Matcher aM = Pattern.compile("@ApiOperation\\s*\\(.*?value\\s*=\\s*\"([^\"]+)\".*?\\)",
@@ -370,6 +377,16 @@ public class ApiExtractorService {
             info.setDescriptionTag(dM.find() ? dM.group(2).trim() : "-");
         } else {
             info.setFullComment("-"); info.setDescriptionTag("-");
+        }
+        // @Deprecated 라인에서 [URL차단작업] 정보 보충
+        if ("Y".equals(info.getIsDeprecated()) && (info.getFullComment().equals("-") || !info.getFullComment().contains("[URL차단작업]"))) {
+            try {
+                String src = Files.readString(filePath, StandardCharsets.UTF_8);
+                String depLine = extractDeprecatedLine(src);
+                if (depLine != null && depLine.contains("[URL차단작업]")) {
+                    info.setFullComment(depLine);
+                }
+            } catch (Exception ignore) {}
         }
 
         info.setRequestPropertyValue(extractRequestPropertyFromNode(method));
@@ -490,6 +507,20 @@ public class ApiExtractorService {
     // ======================================================
     // 프로그램 ID 자동 추출 (ApiExcelExporter 동일 로직)
     // ======================================================
+
+    /** @Deprecated 라인에서 [URL차단작업] 이후 전체 텍스트 추출 */
+    private String extractDeprecatedLine(String source) {
+        if (source == null) return null;
+        Matcher m = Pattern.compile("@Deprecated\\s+(.+)", Pattern.MULTILINE).matcher(source);
+        if (m.find()) {
+            String line = m.group(1).trim();
+            if (line.contains("[URL차단작업]")) return line;
+        }
+        // 여러 줄에 걸친 경우: @Deprecated 다음 줄에 [URL차단작업]
+        Matcher m2 = Pattern.compile("@Deprecated[\\s\\S]*?(\\[URL차단작업\\].+)", Pattern.MULTILINE).matcher(source);
+        if (m2.find()) return m2.group(1).trim();
+        return null;
+    }
 
     private String autoExtractProgramId(String path) {
         if (path == null || path.isEmpty() || "/".equals(path)) return "-";

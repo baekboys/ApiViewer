@@ -129,7 +129,7 @@ public class ApiViewController {
         long start = System.currentTimeMillis();
         List<ApiRecordSummary> records;
         if (blockTargetOnly) {
-            records = recordRepository.findSummaryByBlockTargetIsNotNull();
+            records = recordRepository.findSummaryByStatusIn(List.of("최우선 차단대상","후순위 차단대상","검토필요 차단대상"));
         } else if (repository != null && !repository.isBlank()) {
             records = recordRepository.findSummaryByRepositoryName(repository);
         } else {
@@ -156,7 +156,7 @@ public class ApiViewController {
      * ids 외 필드가 존재하면 해당 필드를 변경합니다. null/빈값은 해제.
      */
     @PatchMapping("/db/status")
-    public ResponseEntity<?> updateStatus(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> updateStatus(@RequestBody Map<String, Object> body, HttpServletRequest httpReq) {
         try {
             @SuppressWarnings("unchecked")
             List<Integer> rawIds = (List<Integer>) body.get("ids");
@@ -165,11 +165,10 @@ public class ApiViewController {
             }
             List<Long> ids = rawIds.stream().map(i -> i.longValue()).toList();
 
-            // ids 제외한 나머지 필드를 전달
             Map<String, Object> fields = new LinkedHashMap<>(body);
             fields.remove("ids");
 
-            int updated = storageService.updateBulk(ids, fields);
+            int updated = storageService.updateBulk(ids, fields, getClientIp(httpReq));
             return ResponseEntity.ok(Map.of("updated", updated));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
@@ -211,6 +210,10 @@ public class ApiViewController {
             String ip = getClientIp(httpReq);
             ApiRecord r = recordRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("레코드를 찾을 수 없습니다: " + id));
+
+            if ("차단완료".equals(r.getStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "변경불가 상태의 레코드는 수정할 수 없습니다."));
+            }
 
             boolean viewerChanged = false;
             if (body.containsKey("memo"))            { r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null); viewerChanged = true; }
@@ -288,14 +291,28 @@ public class ApiViewController {
                         r -> r.getHttpMethod() != null ? r.getHttpMethod() : "?",
                         Collectors.counting()));
 
-        // 레포지토리별
-        Map<String, List<ApiRecord>> byRepoGroup = all.stream()
-                .collect(Collectors.groupingBy(ApiRecord::getRepositoryName));
+        // 레포지토리별 — (팀, 레포) 조합으로 그룹핑하여 팀이 다르면 별도 행
+        // effectiveTeam 함수
+        java.util.function.BiFunction<ApiRecord, Map<String, RepoConfig>, String> effectiveTeam = (r, cfgMap) -> {
+            if (r.getTeamOverride() != null && !r.getTeamOverride().isBlank()) return r.getTeamOverride();
+            RepoConfig c = cfgMap.get(r.getRepositoryName());
+            return (c != null && c.getTeamName() != null && !c.getTeamName().isBlank()) ? c.getTeamName() : "(팀 미지정)";
+        };
 
-        List<Map<String, Object>> byRepo = byRepoGroup.entrySet().stream()
-                .sorted(Comparator.comparingInt((Map.Entry<String, List<ApiRecord>> e) -> e.getValue().size()).reversed())
+        Map<String, List<ApiRecord>> byTeamRepoGroup = all.stream()
+                .collect(Collectors.groupingBy(r -> effectiveTeam.apply(r, repoConfigMap) + "|" + r.getRepositoryName()));
+
+        List<Map<String, Object>> byRepo = byTeamRepoGroup.entrySet().stream()
+                .sorted((a, b) -> {
+                    String[] ka = a.getKey().split("\\|", 2);
+                    String[] kb = b.getKey().split("\\|", 2);
+                    int tc = ka[0].compareTo(kb[0]);
+                    return tc != 0 ? tc : Integer.compare(b.getValue().size(), a.getValue().size());
+                })
                 .map(e -> {
-                    String repoName = e.getKey();
+                    String[] parts = e.getKey().split("\\|", 2);
+                    String teamVal = parts[0];
+                    String repoName = parts[1];
                     List<ApiRecord> records = e.getValue();
                     RepoConfig cfg = repoConfigMap.get(repoName);
 
@@ -309,14 +326,13 @@ public class ApiViewController {
                                     Collectors.counting()));
                     String lastDate = records.stream()
                             .filter(r -> r.getLastAnalyzedAt() != null)
-                            .map(r -> r.getLastAnalyzedAt().toString())
+                            .map(r -> r.getLastAnalyzedAt().toString().replace("T"," ").substring(0, Math.min(r.getLastAnalyzedAt().toString().length(), 16)))
                             .max(Comparator.naturalOrder()).orElse("-");
 
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("repo",          repoName);
                     m.put("count",         records.size());
-                    m.put("team",          cfg != null && cfg.getTeamName()      != null ? cfg.getTeamName()      : "-");
-                    m.put("manager",       cfg != null && cfg.getManagerName()   != null ? cfg.getManagerName()   : "-");
+                    m.put("team",          teamVal);
                     m.put("businessName",  cfg != null && cfg.getBusinessName()  != null ? cfg.getBusinessName()  : "-");
                     m.put("lastAnalyzedDate", lastDate);
                     m.put("statusDetail",  statusDetail);
@@ -324,12 +340,14 @@ public class ApiViewController {
                     return m;
                 }).collect(Collectors.toList());
 
-        // 팀별
+        // 팀별 (teamOverride 우선)
         Map<String, Long> byTeamCount = new LinkedHashMap<>();
         Map<String, Map<String, Long>> byTeamStatus = new LinkedHashMap<>();
         all.forEach(r -> {
             RepoConfig cfg = repoConfigMap.get(r.getRepositoryName());
-            String team = (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
+            String team = (r.getTeamOverride() != null && !r.getTeamOverride().isBlank())
+                    ? r.getTeamOverride()
+                    : (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
                     ? cfg.getTeamName() : "(팀 미지정)";
             byTeamCount.merge(team, 1L, Long::sum);
             String status = r.getStatus() != null ? r.getStatus() : "사용";
@@ -345,15 +363,19 @@ public class ApiViewController {
                     return m;
                 }).collect(Collectors.toList());
 
-        // 담당자별 (팀 포함)
+        // 담당자별 (managerOverride/teamOverride 우선)
         Map<String, Long> byManagerCount = new LinkedHashMap<>();
         Map<String, Map<String, Long>> byManagerStatus = new LinkedHashMap<>();
         Map<String, String> managerToTeam = new LinkedHashMap<>();
         all.forEach(r -> {
             RepoConfig cfg = repoConfigMap.get(r.getRepositoryName());
-            String mgr  = (cfg != null && cfg.getManagerName() != null && !cfg.getManagerName().isBlank())
+            String mgr = (r.getManagerOverride() != null && !r.getManagerOverride().isBlank())
+                    ? r.getManagerOverride()
+                    : (cfg != null && cfg.getManagerName() != null && !cfg.getManagerName().isBlank())
                     ? cfg.getManagerName() : "(미지정)";
-            String team = (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
+            String team = (r.getTeamOverride() != null && !r.getTeamOverride().isBlank())
+                    ? r.getTeamOverride()
+                    : (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
                     ? cfg.getTeamName() : "(팀 미지정)";
             byManagerCount.merge(mgr, 1L, Long::sum);
             managerToTeam.putIfAbsent(mgr, team);
@@ -371,18 +393,9 @@ public class ApiViewController {
                     return m;
                 }).collect(Collectors.toList());
 
-        // 차단대상별
-        Map<String, Long> byBlockTarget = new LinkedHashMap<>();
-        all.forEach(r -> {
-            String bt = r.getBlockTarget();
-            String key = (bt != null && !bt.isBlank()) ? bt : "(미지정)";
-            byBlockTarget.merge(key, 1L, Long::sum);
-        });
-
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("total",         all.size());
         result.put("byStatus",      byStatus);
-        result.put("byBlockTarget", byBlockTarget);
         result.put("byMethod",      byMethod);
         result.put("byRepo",        byRepo);
         result.put("byTeam",        byTeam);
@@ -443,5 +456,14 @@ public class ApiViewController {
         } catch (IOException e) {
             return ResponseEntity.ok(Map.of("date", date, "content", "로그 읽기 실패: " + e.getMessage()));
         }
+    }
+
+    /** 전체 분석 데이터 삭제 */
+    @DeleteMapping("/db/delete-all")
+    public ResponseEntity<?> deleteAllRecords() {
+        long count = recordRepository.count();
+        recordRepository.deleteAll();
+        log.info("[데이터 초기화] {}건 삭제", count);
+        return ResponseEntity.ok(Map.of("deleted", count));
     }
 }

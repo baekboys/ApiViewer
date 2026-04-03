@@ -173,6 +173,17 @@
     </div>
   </div>
 
+  <!-- 데이터 초기화 -->
+  <div class="card" style="border:1px solid #fca5a5;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#ef4444;"></span>분석 데이터 초기화
+      <span style="font-size:11px;font-weight:400;color:#ef4444;margin-left:6px;">DB에 저장된 모든 분석 데이터를 삭제합니다. 이 작업은 되돌릴 수 없습니다.</span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-end;">
+      <button class="btn" style="background:#ef4444;color:#fff;height:34px;" onclick="deleteAllData()">전체 분석 데이터 삭제</button>
+    </div>
+  </div>
+
 </div>
 
 <!-- 레포 편집 모달 -->
@@ -500,6 +511,22 @@
     } catch(e) {
       el.textContent = '로그 조회 실패: ' + e.message;
     }
+  }
+
+  // ── 데이터 초기화 ──────────────────────────────────────────
+  async function deleteAllData() {
+    if (!confirm('정말로 모든 분석 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+    const pw = prompt('관리자 비밀번호를 다시 입력하세요:');
+    if (!pw) return;
+    try {
+      const pwRes = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
+      const pwData = await pwRes.json();
+      if (!pwData.valid) { showToast('비밀번호가 일치하지 않습니다.', 'error'); return; }
+      const res = await fetch('/api/db/delete-all', { method:'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '삭제 실패');
+      showToast(`${data.deleted}건 삭제 완료`, 'success');
+    } catch(e) { showToast(e.message || '삭제 실패', 'error'); }
   }
 
   // 페이지 로드 시 로그 날짜 목록 조회 + 오늘 날짜 기본 선택

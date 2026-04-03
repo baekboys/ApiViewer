@@ -121,6 +121,7 @@
     <div class="stat-pill"><span>전체</span><strong id="rTotal">0</strong></div>
     <div class="stat-pill"><span>최우선</span><strong id="rTop" style="color:#dc2626;">0</strong></div>
     <div class="stat-pill"><span>후순위</span><strong id="rLow" style="color:#ea580c;">0</strong></div>
+    <div class="stat-pill"><span>검토필요</span><strong id="rReview" style="color:#d97706;">0</strong></div>
     <div class="stat-pill"><span>검토완료</span><strong id="rReviewed" style="color:var(--primary);">0</strong></div>
     <div class="stat-pill"><span>미검토</span><strong id="rPending" style="color:var(--text-muted);">0</strong></div>
   </div>
@@ -133,11 +134,14 @@
       <option value="">전체 차단대상</option>
       <option value="최우선 차단대상">최우선 차단대상</option>
       <option value="후순위 차단대상">후순위 차단대상</option>
+      <option value="검토필요 차단대상">검토필요 차단대상</option>
     </select>
     <select id="rvFilter" onchange="filterTable()">
       <option value="">전체 검토결과</option>
       <option value="미검토">미검토</option>
       <option value="차단대상 제외">차단대상 제외</option>
+      <option value="차단확정">차단확정</option>
+      <option value="판단불가">판단불가</option>
     </select>
     <span class="filter-count" id="filterCount"></span>
   </div>
@@ -149,6 +153,8 @@
     <select id="bulkReviewResult">
       <option value="__SKIP__">-- 선택 --</option>
       <option value="차단대상 제외">차단대상 제외</option>
+      <option value="차단확정">차단확정</option>
+      <option value="판단불가">판단불가</option>
       <option value="">해제</option>
     </select>
     <label>검토의견</label>
@@ -173,8 +179,8 @@
         <th class="hg-desc" style="min-width:300px;">관련 메뉴(또는 기능)</th>
         <th class="hg-desc">호출건수</th>
         <th class="hg-desc">비고</th>
-        <th class="hg-block">차단대상선정</th>
-        <th class="hg-block">차단대상선정기준</th>
+        <th class="hg-block">상태</th>
+        <th class="hg-block">차단기준</th>
         <th class="hg-review">현업검토결과</th>
         <th class="hg-review">현업검토의견</th>
         <th class="hg-review">현업 팀</th>
@@ -235,11 +241,12 @@
   }
 
   function renderStats() {
-    let top=0,low=0,reviewed=0;
-    allApis.forEach(a => { if(a.blockTarget==='최우선 차단대상')top++; if(a.blockTarget==='후순위 차단대상')low++; if(a.reviewResult)reviewed++; });
+    let top=0,low=0,rev=0,reviewed=0;
+    allApis.forEach(a => { if(a.status==='최우선 차단대상')top++; if(a.status==='후순위 차단대상')low++; if(a.status==='검토필요 차단대상')rev++; if(a.reviewResult)reviewed++; });
     document.getElementById('rTotal').textContent = allApis.length;
     document.getElementById('rTop').textContent = top;
     document.getElementById('rLow').textContent = low;
+    document.getElementById('rReview').textContent = rev;
     document.getElementById('rReviewed').textContent = reviewed;
     document.getElementById('rPending').textContent = allApis.length - reviewed;
   }
@@ -253,10 +260,10 @@
     filteredApis = allApis.filter(a => {
       const cfg = repoConfigMap[a.repositoryName]||{};
       const text = [a.apiPath,a.apiOperationValue,a.descriptionTag,a.memo].join(' ').toLowerCase();
-      const teamText = [cfg.team,a.reviewTeam].join(' ').toLowerCase();
-      const mgrText  = [cfg.manager,a.reviewManager].join(' ').toLowerCase();
+      const teamText = [a.teamOverride||cfg.team,a.reviewTeam].join(' ').toLowerCase();
+      const mgrText  = [a.managerOverride||cfg.manager,a.reviewManager].join(' ').toLowerCase();
       const rvOk = !rv||(rv==='미검토'?!a.reviewResult:a.reviewResult===rv);
-      return (!q||text.includes(q))&&(!qTeam||teamText.includes(qTeam))&&(!qMgr||mgrText.includes(qMgr))&&(!bt||a.blockTarget===bt)&&rvOk;
+      return (!q||text.includes(q))&&(!qTeam||teamText.includes(qTeam))&&(!qMgr||mgrText.includes(qMgr))&&(!bt||a.status===bt)&&rvOk;
     });
     document.getElementById('filterCount').textContent = `${filteredApis.length} / ${allApis.length}건`;
     renderRows(filteredApis);
@@ -276,18 +283,20 @@
       return `<tr class="${rowCls}" id="row-${a.id}">
         <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;"><input type="checkbox" data-id="${a.id}" ${checked} onchange="toggleRow(this)"></td>
         <td class="sk" style="left:36px;min-width:100px;font-size:12px;font-weight:700;">${esc(cfg.businessName || a.repositoryName)}</td>
-        <td class="sk" style="left:136px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(cfg.team)}</td>
-        <td class="sk" style="left:216px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(cfg.manager)}</td>
+        <td class="sk" style="left:136px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
+        <td class="sk" style="left:216px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.managerOverride || cfg.manager)}</td>
         <td class="sk sk-last" style="left:286px;min-width:200px;"><div class="api-path">${esc(a.apiPath)}</div></td>
         <td>${a.fullUrl ? `<a href="${esc(a.fullUrl)}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;padding:2px 6px;border:1px solid var(--primary);border-radius:4px;white-space:nowrap;">열기 ↗</a>` : '<span style="color:#cbd5e1;">-</span>'}</td>
         <td class="api-op" style="font-size:11px;max-width:160px;">${esc(desc)}</td>
         <td style="text-align:right;font-size:12px;">${a.callCount!=null?a.callCount.toLocaleString():'<span style="color:#cbd5e1;">-</span>'}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:120px;">${esc(a.memo||'')}</td>
-        <td>${btBadge(a.blockTarget)}</td>
+        <td>${statusBadge(a.status)}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria||'')}</td>
         <td><select class="edit-select" data-id="${a.id}" data-field="reviewResult" onchange="saveField(this)">
           <option value="">-- 선택 --</option>
           <option value="차단대상 제외" ${a.reviewResult==='차단대상 제외'?'selected':''}>차단대상 제외</option>
+          <option value="차단확정" ${a.reviewResult==='차단확정'?'selected':''}>차단확정</option>
+          <option value="판단불가" ${a.reviewResult==='판단불가'?'selected':''}>판단불가</option>
         </select></td>
         <td><input class="edit-input" type="text" value="${esc(a.reviewOpinion||'')}" data-id="${a.id}" data-field="reviewOpinion" placeholder="의견..." onblur="saveField(this)" onkeydown="if(event.key==='Enter')this.blur();"></td>
         <td><input class="edit-input" type="text" value="${esc(a.reviewTeam||'')}" data-id="${a.id}" data-field="reviewTeam" placeholder="팀명" style="width:80px;" onblur="saveField(this)" onkeydown="if(event.key==='Enter')this.blur();"></td>
@@ -337,14 +346,14 @@
     }catch(e){showToast(e.message||'변경 실패','error');}
   }
 
-  function btBadge(bt){if(!bt)return'-';if(bt.includes('최우선'))return`<span class="status-badge bt-top">${esc(bt)}</span>`;if(bt.includes('후순위'))return`<span class="status-badge bt-low">${esc(bt)}</span>`;return esc(bt);}
+  function statusBadge(s){if(!s||s==='사용'||s==='차단완료')return'-';if(s.includes('최우선'))return`<span class="status-badge bt-top">${esc(s)}</span>`;if(s.includes('후순위'))return`<span class="status-badge bt-low">${esc(s)}</span>`;if(s.includes('검토필요'))return`<span class="status-badge" style="background:#fef3c7;color:#92400e;">${esc(s)}</span>`;return esc(s);}
 
   async function downloadExcel() {
     if(!filteredApis.length){showToast('다운로드할 데이터가 없습니다.','error');return;}
-    const h=['레포지토리','업무명','팀','담당자','URL 경로','Full URL','관련 메뉴(또는 기능)','호출건수','비고','차단대상선정','차단대상선정기준','현업검토결과','현업검토의견','현업 팀','현업 담당자','현업검토일시'];
+    const h=['레포지토리','업무명','팀','담당자','URL 경로','Full URL','관련 메뉴(또는 기능)','호출건수','비고','상태','차단기준','현업검토결과','현업검토의견','현업 팀','현업 담당자','현업검토일시'];
     const blue='E0F2FE',purple='E0E7FF',pink='FFE4E6',yellow='FEF3C7';
     const hColors=[blue,blue,blue,blue,blue,blue,purple,purple,purple,pink,pink,yellow,yellow,yellow,yellow,yellow];
-    const rows=filteredApis.map(a=>{const c=repoConfigMap[a.repositoryName]||{};const desc=a.apiOperationValue&&a.apiOperationValue!=='-'?a.apiOperationValue:(a.descriptionTag&&a.descriptionTag!=='-'?a.descriptionTag:'');return[a.repositoryName||'',c.businessName||'',c.team||'',c.manager||'',a.apiPath||'',a.fullUrl||'',desc,a.callCount!=null?a.callCount:'',a.memo||'',a.blockTarget||'',a.blockCriteria||'',a.reviewResult||'',a.reviewOpinion||'',a.reviewTeam||'',a.reviewManager||'',a.reviewedAt?a.reviewedAt.replace('T',' ').substring(0,16):''];});
+    const rows=filteredApis.map(a=>{const c=repoConfigMap[a.repositoryName]||{};const desc=a.apiOperationValue&&a.apiOperationValue!=='-'?a.apiOperationValue:(a.descriptionTag&&a.descriptionTag!=='-'?a.descriptionTag:'');return[a.repositoryName||'',c.businessName||'',a.teamOverride||c.team||'',a.managerOverride||c.manager||'',a.apiPath||'',a.fullUrl||'',desc,a.callCount!=null?a.callCount:'',a.memo||'',a.status||'',a.blockCriteria||'',a.reviewResult||'',a.reviewOpinion||'',a.reviewTeam||'',a.reviewManager||'',a.reviewedAt?a.reviewedAt.replace('T',' ').substring(0,16):''];});
     const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet('Sheet1');
     const thin={style:'thin',color:{argb:'FFB0B0B0'}};const border={top:thin,left:thin,bottom:thin,right:thin};
     const hRow=ws.addRow(h);

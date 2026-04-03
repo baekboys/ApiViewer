@@ -68,7 +68,10 @@ public class ApiStorageService {
                 if (!r.isStatusOverridden()) {
                     String newStatus = calculateStatus(r, reviewThreshold);
                     if (!Objects.equals(oldStatus, newStatus)) {
-                        appendChangeLog(r, oldStatus + "→" + newStatus + ": 재추출 시 상태 변경 감지");
+                        // 변경불가로 바뀐 건은 알림 불필요 (분석에 의한 차단완료는 확정)
+                        if (!"차단완료".equals(newStatus)) {
+                            appendChangeLog(r, oldStatus + " → " + newStatus);
+                        }
                     }
                     r.setStatus(newStatus);
                 }
@@ -136,6 +139,10 @@ public class ApiStorageService {
         r.setControllerRequestPropertyValue(a.getControllerRequestPropertyValue());
         r.setFullUrl(a.getFullUrl());
         r.setGitHistory(serializeGitHistory(a));
+        // controllerFilePath: /{repoName}/{repoPath}
+        if (a.getRepoPath() != null && r.getRepositoryName() != null) {
+            r.setControllerFilePath("/" + r.getRepositoryName() + "/" + a.getRepoPath());
+        }
     }
 
     /** fullComment에서 [URL차단작업][YYYY-MM-DD] 패턴의 날짜 파싱 */
@@ -145,11 +152,13 @@ public class ApiStorageService {
         return m.find() ? LocalDate.parse(m.group(1)) : null;
     }
 
-    /** fullComment에서 차단근거 파싱: [URL차단작업][YYYY-MM-DD] 뒤의 텍스트 */
+    /** fullComment에서 차단근거 파싱: [URL차단작업][YYYY-MM-DD] 뒤의 텍스트를 그대로 저장 */
     private String parseBlockedReason(String fullComment) {
         if (fullComment == null) return null;
         Matcher m = BLOCKED_REASON_PATTERN.matcher(fullComment);
-        return m.find() ? m.group(1).trim() : null;
+        if (!m.find()) return null;
+        String rest = m.group(1).trim();
+        return rest.isEmpty() ? null : rest;
     }
 
     /** 상태 변경 로그 추가 (기존 로그에 이어붙임) */
@@ -211,8 +220,8 @@ public class ApiStorageService {
      * - updateStatus=false: status 변경 안 함, updateBlock=false: 차단대상 변경 안 함
      */
     @Transactional
-    public int updateBulk(List<Long> ids, Map<String, Object> fields) {
-        log.info("[일괄 변경] 대상={}건, 필드={}", ids.size(), fields.keySet());
+    public int updateBulk(List<Long> ids, Map<String, Object> fields, String clientIp) {
+        log.info("[일괄 변경] 대상={}건, 필드={}, ip={}", ids.size(), fields.keySet(), clientIp);
         int reviewThreshold = getReviewThreshold();
         int updated = 0;
         for (Long id : ids) {
@@ -220,15 +229,29 @@ public class ApiStorageService {
             if (opt.isEmpty()) continue;
             ApiRecord r = opt.get();
 
+            // 변경불가 건은 일체 수정 불가
+            if ("차단완료".equals(r.getStatus())) continue;
+
             if (fields.containsKey("status")) {
-                String status = fields.get("status") != null ? fields.get("status").toString() : null;
-                if (status == null || status.isBlank()) {
-                    r.setStatusOverridden(false);
-                    r.setStatus(calculateStatus(r, reviewThreshold));
+                // 상태확정된 건은 상태 변경 불가 (확정 토글이 아닌 경우)
+                if (r.isStatusOverridden() && !fields.containsKey("statusOverridden")) {
+                    // skip status change
                 } else {
-                    r.setStatus(status);
-                    r.setStatusOverridden(true);
+                    String status = fields.get("status") != null ? fields.get("status").toString() : null;
+                    if (status == null || status.isBlank()) {
+                        r.setStatusOverridden(false);
+                        r.setStatus(calculateStatus(r, reviewThreshold));
+                    } else {
+                        r.setStatus(status);
+                    }
                 }
+            }
+
+            // 상태확정 토글 (statusOverridden 직접 설정)
+            if (fields.containsKey("statusOverridden")) {
+                Object val = fields.get("statusOverridden");
+                boolean locked = val instanceof Boolean ? (Boolean) val : "true".equals(String.valueOf(val));
+                r.setStatusOverridden(locked);
             }
 
             if (fields.containsKey("blockTarget"))
@@ -247,6 +270,8 @@ public class ApiStorageService {
             if (fields.containsKey("reviewManager")) { r.setReviewManager(toNullableStr(fields.get("reviewManager"))); reviewChanged = true; }
             if (reviewChanged) r.setReviewedAt(java.time.LocalDateTime.now());
 
+            r.setModifiedAt(java.time.LocalDateTime.now());
+            if (clientIp != null) r.setModifiedIp(clientIp);
             repository.save(r);
             updated++;
         }
@@ -262,16 +287,34 @@ public class ApiStorageService {
     /** 기존 호환용 — 상태만 변경 */
     @Transactional
     public int updateStatus(List<Long> ids, String status) {
-        return updateBulk(ids, Map.of("status", status != null ? status : ""));
+        return updateBulk(ids, Map.of("status", status != null ? status : ""), null);
     }
 
     // ── 상태 계산 ────────────────────────────────────────────────────────────
 
     String calculateStatus(ApiRecord r, int reviewThreshold) {
-        // 차단완료: fullComment에 [URL차단작업] 포함 AND @Deprecated 어노테이션 있음
+        // 1. 변경불가: fullComment에 [URL차단작업] 포함 AND @Deprecated
         if ("Y".equals(r.getIsDeprecated()) && containsBlockText(r.getFullComment())) {
             return "차단완료";
         }
+
+        Long call = r.getCallCount();
+        boolean callZero = (call != null && call == 0);
+        boolean callLow  = (call != null && call >= 1 && call <= reviewThreshold);
+        boolean commitOld = areAllCommitsOlderThanOneYear(r.getGitHistory());
+
+        // 2. 최우선 차단대상: 호출 0건 + 커밋 1년 경과
+        if (callZero && commitOld) {
+            return "최우선 차단대상";
+        }
+        // 3. 검토필요 차단대상: 호출 0건 + 커밋 1년 미만 OR 호출 1~N건 + 커밋 1년 경과
+        if (callZero && !commitOld) {
+            return "검토필요 차단대상";
+        }
+        if (callLow && commitOld) {
+            return "검토필요 차단대상";
+        }
+        // 4. 사용: 그 외
         return "사용";
     }
 

@@ -7,6 +7,8 @@ import com.baek.viewer.repository.ApiRecordRepository;
 import com.baek.viewer.repository.GlobalConfigRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class ApiStorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiStorageService.class);
 
     private final ApiRecordRepository repository;
     private final GlobalConfigRepository globalConfigRepository;
@@ -41,6 +45,7 @@ public class ApiStorageService {
      */
     @Transactional
     public int save(String repositoryName, List<ApiInfo> apis, String clientIp) {
+        log.info("[DB 저장 시작] repo={}, 건수={}, ip={}", repositoryName, apis.size(), clientIp);
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int reviewThreshold = getReviewThreshold();
         int saved = 0;
@@ -111,6 +116,7 @@ public class ApiStorageService {
             }
         }
 
+        log.info("[DB 저장 완료] repo={}, 저장건수={}/{}", repositoryName, saved, apis.size());
         return saved;
     }
 
@@ -162,6 +168,7 @@ public class ApiStorageService {
      */
     @Transactional
     public void updateCallCounts(String repoName, Map<String, Long> pathToCount) {
+        log.info("[호출건수 반영] repo={}, 매핑건수={}", repoName, pathToCount.size());
         int reviewThreshold = getReviewThreshold();
         List<ApiRecord> records = repository.findByRepositoryName(repoName);
 
@@ -205,6 +212,7 @@ public class ApiStorageService {
      */
     @Transactional
     public int updateBulk(List<Long> ids, Map<String, Object> fields) {
+        log.info("[일괄 변경] 대상={}건, 필드={}", ids.size(), fields.keySet());
         int reviewThreshold = getReviewThreshold();
         int updated = 0;
         for (Long id : ids) {

@@ -302,7 +302,8 @@
       const sel = document.getElementById('repoConfigSelect');
       allRepos.forEach(r => {
         const opt = document.createElement('option');
-        opt.value = r.id; opt.textContent = r.repoName;
+        opt.value = r.id;
+        opt.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
         sel.appendChild(opt);
       });
     } catch(e) {}

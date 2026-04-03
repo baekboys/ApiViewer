@@ -261,5 +261,7 @@ src/main/resources/static/
 - 기존 DB 레코드에 새 컬럼 추가 시 해당 컬럼은 null로 표시됨
 - git_history가 null인 레코드는 viewer에서 "이력 없음"으로 표시
 
-## 소스 압축 시
-- 깃허브, IntelliJ, 클로드 설정은 압축에서 제외
+## 소스반입을 위한 압축 규칙
+- target / .git / .idea / .claude / 클로드 설정 / .sh / .bat / data(H2 DB) 등 설정은 압축에서 제외
+- 다운로드 폴더에 zip 압축파일 생성
+- 파일이 존재 시 덮어쓰기 가능

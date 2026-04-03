@@ -14,15 +14,23 @@ import com.baek.viewer.service.ApiExtractorService;
 import com.baek.viewer.service.ApiStorageService;
 import com.baek.viewer.service.WhatapService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.nio.file.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
 public class ApiViewController {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiViewController.class);
 
     private final ApiExtractorService extractorService;
     private final WhatapService whatapService;
@@ -70,11 +78,14 @@ public class ApiViewController {
     public ResponseEntity<?> extract(@RequestBody ExtractRequest request, HttpServletRequest httpReq) {
         try {
             request.setClientIp(getClientIp(httpReq));
+            log.info("[추출 시작] repo={}, ip={}", request.getRepositoryName(), request.getClientIp());
             extractorService.startExtractAsync(request);
             return ResponseEntity.accepted().body(Map.of("message", "추출 시작됨"));
         } catch (IllegalStateException e) {
+            log.warn("[추출 실패] 중복 실행: {}", e.getMessage());
             return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
+            log.error("[추출 오류] {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -115,6 +126,7 @@ public class ApiViewController {
     @GetMapping("/db/apis")
     public ResponseEntity<?> dbApis(@RequestParam(required = false) String repository,
                                      @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly) {
+        long start = System.currentTimeMillis();
         List<ApiRecordSummary> records;
         if (blockTargetOnly) {
             records = recordRepository.findSummaryByBlockTargetIsNotNull();
@@ -123,6 +135,8 @@ public class ApiViewController {
         } else {
             records = recordRepository.findAllSummary();
         }
+        log.info("[목록 조회] repo={}, blockTargetOnly={}, 건수={}, 소요={}ms",
+                repository, blockTargetOnly, records.size(), System.currentTimeMillis() - start);
         Map<String, Object> response = new HashMap<>();
         response.put("total", records.size());
         response.put("apis", records);
@@ -386,6 +400,48 @@ public class ApiViewController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ── 로그 조회 API ──────────────────────────────────────────
+
+    /** 로그 파일이 존재하는 날짜 목록 */
+    @GetMapping("/logs/dates")
+    public ResponseEntity<?> logDates() {
+        try {
+            Path logDir = Paths.get("./logs");
+            if (!Files.exists(logDir)) return ResponseEntity.ok(List.of());
+            List<String> dates = Files.list(logDir)
+                    .map(p -> p.getFileName().toString())
+                    .filter(n -> n.startsWith("app-") && n.endsWith(".log"))
+                    .map(n -> n.replace("app-", "").replace(".log", ""))
+                    .sorted(Comparator.reverseOrder())
+                    .collect(Collectors.toList());
+            // 오늘 로그 (app.log)도 포함
+            String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+            if (Files.exists(logDir.resolve("app.log")) && !dates.contains(today)) {
+                dates.add(0, today);
+            }
+            return ResponseEntity.ok(dates);
+        } catch (IOException e) {
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /** 특정 날짜의 로그 내용 조회 */
+    @GetMapping("/logs/view")
+    public ResponseEntity<?> logView(@RequestParam String date) {
+        try {
+            Path logDir = Paths.get("./logs");
+            String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+            Path logFile = date.equals(today) ? logDir.resolve("app.log") : logDir.resolve("app-" + date + ".log");
+            if (!Files.exists(logFile)) {
+                return ResponseEntity.ok(Map.of("date", date, "content", "로그 파일이 없습니다."));
+            }
+            String content = Files.readString(logFile);
+            return ResponseEntity.ok(Map.of("date", date, "content", content));
+        } catch (IOException e) {
+            return ResponseEntity.ok(Map.of("date", date, "content", "로그 읽기 실패: " + e.getMessage()));
         }
     }
 }

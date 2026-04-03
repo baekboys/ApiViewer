@@ -2,6 +2,7 @@ package com.baek.viewer.controller;
 
 import com.baek.viewer.model.ApiInfo;
 import com.baek.viewer.model.ApiRecord;
+import com.baek.viewer.model.ApiRecordSummary;
 import com.baek.viewer.model.ExtractRequest;
 import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.model.WhatapRequest;
@@ -110,22 +111,30 @@ public class ApiViewController {
         return ResponseEntity.ok(recordRepository.findAllRepositoryNames());
     }
 
-    /** DB에서 API 목록 조회 (repository 미입력 시 전체, blockTargetOnly=true면 차단대상만) */
+    /** DB에서 API 목록 조회 — 경량 프로젝션 (fullComment, controllerComment, blockedReason 제외) */
     @GetMapping("/db/apis")
     public ResponseEntity<?> dbApis(@RequestParam(required = false) String repository,
                                      @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly) {
-        List<ApiRecord> records;
+        List<ApiRecordSummary> records;
         if (blockTargetOnly) {
-            records = recordRepository.findByBlockTargetIsNotNull();
+            records = recordRepository.findSummaryByBlockTargetIsNotNull();
         } else if (repository != null && !repository.isBlank()) {
-            records = recordRepository.findByRepositoryName(repository);
+            records = recordRepository.findSummaryByRepositoryName(repository);
         } else {
-            records = recordRepository.findAll();
+            records = recordRepository.findAllSummary();
         }
         Map<String, Object> response = new HashMap<>();
         response.put("total", records.size());
         response.put("apis", records);
         return ResponseEntity.ok(response);
+    }
+
+    /** 단건 상세 조회 (전체 필드 포함) */
+    @GetMapping("/db/record/{id}")
+    public ResponseEntity<?> getRecord(@PathVariable Long id) {
+        return recordRepository.findById(id)
+                .map(r -> ResponseEntity.ok((Object) r))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     /** 일괄 변경 (상태/차단대상/차단대상기준/현업검토 등)

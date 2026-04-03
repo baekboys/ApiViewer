@@ -260,3 +260,6 @@ src/main/resources/static/
 - H2 `ddl-auto=update` → 엔티티 변경 시 컬럼 자동 추가 (기존 데이터 보존)
 - 기존 DB 레코드에 새 컬럼 추가 시 해당 컬럼은 null로 표시됨
 - git_history가 null인 레코드는 viewer에서 "이력 없음"으로 표시
+
+## 소스 압축 시
+- 깃허브, IntelliJ, 클로드 설정은 압축에서 제외

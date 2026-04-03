@@ -5,9 +5,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "api_record", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"repository_name", "api_path", "http_method"})
-})
+@Table(name = "api_record",
+    uniqueConstraints = { @UniqueConstraint(columnNames = {"repository_name", "api_path", "http_method"}) },
+    indexes = { @Index(name = "idx_repo_name", columnList = "repository_name") })
 public class ApiRecord {
 
     @Id

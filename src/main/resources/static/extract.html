@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Viewer — API 추출</title>
+  <title>URL Viewer — URL 분석</title>
   <style>
     :root {
       --bg: #f4f6f9; --card: #ffffff; --primary: #3b82f6; --primary-hover: #2563eb;
@@ -122,18 +122,31 @@
 </head>
 <body>
 
+<script>
+(async function guard() {
+  if (sessionStorage.getItem('isAdmin') === 'true') return;
+  const pw = prompt('관리자 비밀번호를 입력하세요:');
+  if (!pw) { location.href = '/'; return; }
+  try {
+    const res = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
+    const d = await res.json();
+    if (d.valid) { sessionStorage.setItem('isAdmin','true'); }
+    else { alert('비밀번호가 일치하지 않습니다.'); location.href = '/'; }
+  } catch(e) { alert('인증 실패'); location.href = '/'; }
+})();
+</script>
 <div class="header">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
-  <h1>API Viewer</h1>
+  <h1>URL Viewer</h1>
   <div class="header-right">
     <span id="whatapBadge" class="tag" style="display:none">Whatap 연동됨</span>
     <a href="/"             class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link nav-active">🔍 API 추출</a>
+    <a href="/extract.html" class="nav-link nav-active">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link">📋 이력 조회</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
-    <a href="#" class="nav-link" onclick="goSettings(event)">⚙️ 설정</a>
+    <a href="/settings.html" class="nav-link">⚙️ 설정</a>
   </div>
 </div>
 
@@ -142,7 +155,7 @@
   <!-- ─── API 추출 설정 ─── -->
   <div class="card">
     <div class="card-title">
-      <span class="dot dot-blue"></span>API 추출 설정
+      <span class="dot dot-blue"></span>URL 분석 설정
       <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
         <span style="font-size:11px;color:var(--text-muted);font-weight:400;">레포지토리 선택</span>
         <select id="repoConfigSelect" onchange="onRepoSelect()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);min-width:180px;">
@@ -170,7 +183,7 @@
         <label class="field">도메인 (DOMAIN)
           <input id="domain" type="text" placeholder="https://api.example.com">
         </label>
-        <label class="field">API 경로 프리픽스
+        <label class="field">URL 경로 프리픽스
           <input id="apiPathPrefix" type="text" placeholder="/APP">
         </label>
         <label class="field">Git 실행 경로
@@ -196,7 +209,7 @@
     <div class="whatap-header" onclick="toggleWhatap()">
       <div class="card-title" style="margin-bottom:0;">
         <span class="dot dot-purple"></span>Whatap APM 호출건수 조회
-        <span style="font-size:10px;font-weight:400;color:var(--text-muted);">활성화하면 추출된 API의 실제 호출건수를 가져옵니다</span>
+        <span style="font-size:10px;font-weight:400;color:var(--text-muted);">활성화하면 추출된 URL의 실제 호출건수를 가져옵니다</span>
       </div>
       <span class="toggle-arrow" id="whatapArrow">▼</span>
     </div>
@@ -345,21 +358,6 @@
   let progressTimer = null;
 
   async function doExtract() {
-    // 비밀번호 확인 (관리자면 스킵)
-    if (sessionStorage.getItem('isAdmin') === 'true') { /* skip */ }
-    else {
-    const pw = prompt('추출 비밀번호를 입력하세요:');
-    if (!pw) return;
-    try {
-      const pwRes = await fetch('/api/verify-password', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})
-      });
-      const pwData = await pwRes.json();
-      if (!pwData.valid) { showToast('비밀번호가 일치하지 않습니다.','error'); return; }
-      sessionStorage.setItem('isAdmin','true');
-    } catch(e) { showToast('비밀번호 확인 실패','error'); return; }
-    } // end of password check
-
     const selVal = document.getElementById('repoConfigSelect').value;
 
     // 초기화
@@ -396,7 +394,7 @@
       if (errorCount > 0) {
         showResult('fail', `전체 추출 완료 — 성공 ${repos.length - errorCount}개, 실패 ${errorCount}개, 총 ${totalSaved}개 저장`);
       } else {
-        showResult('ok', `전체 추출 완료 — ${repos.length}개 레포, 총 ${totalSaved}개 API 저장`);
+        showResult('ok', `전체 추출 완료 — ${repos.length}개 레포, 총 ${totalSaved}개 URL 저장`);
       }
       addLocalLog('INFO', `전체 추출 종료`);
 
@@ -419,7 +417,7 @@
           showResult('fail', `추출 오류: ${result.error}`);
         } else {
           const msg = result.savedCount >= 0
-            ? `추출 완료 — ${result.savedCount}개 API 저장`
+            ? `추출 완료 — ${result.savedCount}개 URL 저장`
             : `추출 완료`;
           showResult('ok', msg);
         }
@@ -667,18 +665,6 @@
     }
   }
 
-  async function goSettings(e) {
-    e.preventDefault();
-    if (sessionStorage.getItem('isAdmin')==='true') { location.href='/settings.html'; return; }
-    const pw = prompt('관리자 비밀번호를 입력하세요:');
-    if (!pw) return;
-    try {
-      const res = await fetch('/api/verify-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
-      const d = await res.json();
-      if (d.valid) { sessionStorage.setItem('isAdmin','true'); location.href='/settings.html'; }
-      else showToast('비밀번호가 일치하지 않습니다.','error');
-    } catch(e) { showToast('확인 실패','error'); }
-  }
 
   initRepoConfigs();
 

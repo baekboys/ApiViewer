@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Viewer — 설정 관리</title>
+  <title>URL Viewer — 설정 관리</title>
   <style>
     :root {
       --bg:#f4f6f9; --card:#fff; --primary:#3b82f6; --primary-hover:#2563eb;
@@ -77,15 +77,28 @@
 </head>
 <body>
 
+<script>
+(async function guard() {
+  if (sessionStorage.getItem('isAdmin') === 'true') return;
+  const pw = prompt('관리자 비밀번호를 입력하세요:');
+  if (!pw) { location.href = '/'; return; }
+  try {
+    const res = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
+    const d = await res.json();
+    if (d.valid) { sessionStorage.setItem('isAdmin','true'); }
+    else { alert('비밀번호가 일치하지 않습니다.'); location.href = '/'; }
+  } catch(e) { alert('인증 실패'); location.href = '/'; }
+})();
+</script>
 <div class="header">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
-  <h1>API Viewer</h1>
+  <h1>URL Viewer</h1>
   <span class="header-sub">설정 관리</span>
   <div class="header-right">
     <a href="/"             class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link">🔍 API 추출</a>
+    <a href="/extract.html" class="nav-link">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link">📋 이력 조회</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
     <a href="/settings.html"class="nav-link nav-active">⚙️ 설정</a>
@@ -169,7 +182,7 @@
         <label class="field">Git 실행 경로
           <input id="f_gitBinPath" type="text" placeholder="git">
         </label>
-        <label class="field">API 경로 프리픽스
+        <label class="field">URL 경로 프리픽스
           <input id="f_apiPathPrefix" type="text" placeholder="/APP">
         </label>
         <label class="field">팀명

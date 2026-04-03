@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Viewer — 대시보드</title>
+  <title>URL Viewer — 대시보드</title>
   <style>
     :root {
       --bg:#f4f6f9; --card:#fff; --primary:#3b82f6; --primary-hover:#2563eb;
@@ -144,21 +144,22 @@
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
-  <h1>API Viewer</h1>
+  <h1>URL Viewer</h1>
   <span class="header-sub">대시보드</span>
   <div class="header-right">
     <a href="/"             class="nav-link nav-active">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link">🔍 API 추출</a>
+    <a href="/extract.html" class="nav-link" id="navExtract" style="display:none;">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link">📋 이력 조회</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
-    <a href="#" class="nav-link" onclick="goSettings(event)">⚙️ 설정</a>
+    <a href="/settings.html" class="nav-link" id="navSettings" style="display:none;">⚙️ 설정</a>
+    <button class="nav-link" id="adminBtn" onclick="toggleAdmin()" style="background:none;cursor:pointer;">🔑 관리자</button>
   </div>
 </div>
 
 <div class="main">
 
   <div class="top-bar">
-    <h2>API 현황 대시보드</h2>
+    <h2>URL 현황 대시보드</h2>
     <div style="display:flex;align-items:center;gap:12px;">
       <span class="last-updated" id="lastUpdated"></span>
       <button class="btn-refresh" onclick="loadStats()">↻ 새로고침</button>
@@ -175,7 +176,7 @@
     <!-- ── 요약 카드 ── -->
     <div class="summary-grid">
       <div class="sum-card c-total">
-        <div class="sum-label">전체 API</div>
+        <div class="sum-label">전체 URL</div>
         <div class="sum-value" id="sTotal">0</div>
         <div class="sum-sub" id="sRepoCount"></div>
       </div>
@@ -505,18 +506,25 @@
     setTimeout(() => t.classList.remove('show'), 3000);
   }
 
-  async function goSettings(e) {
-    e.preventDefault();
-    if (sessionStorage.getItem('isAdmin')==='true') { location.href='/settings.html'; return; }
+  function isAdmin() { return sessionStorage.getItem('isAdmin') === 'true'; }
+  function applyAdminUI() {
+    const admin = isAdmin();
+    document.getElementById('navExtract').style.display = admin ? '' : 'none';
+    document.getElementById('navSettings').style.display = admin ? '' : 'none';
+    document.getElementById('adminBtn').textContent = admin ? '🔓 관리자 해제' : '🔑 관리자';
+  }
+  async function toggleAdmin() {
+    if (isAdmin()) { sessionStorage.removeItem('isAdmin'); applyAdminUI(); showToast('관리자 모드 해제','info'); return; }
     const pw = prompt('관리자 비밀번호를 입력하세요:');
     if (!pw) return;
     try {
       const res = await fetch('/api/verify-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
       const d = await res.json();
-      if (d.valid) { sessionStorage.setItem('isAdmin','true'); location.href='/settings.html'; }
+      if (d.valid) { sessionStorage.setItem('isAdmin','true'); applyAdminUI(); showToast('관리자 모드 활성화','success'); }
       else showToast('비밀번호 불일치','error');
     } catch(e) { showToast('확인 실패','error'); }
   }
+  applyAdminUI();
   loadStats();
 </script>
 </body>

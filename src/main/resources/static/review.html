@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Viewer — 현업 검토</title>
+  <title>URL Viewer — 현업 검토</title>
   <style>
     :root {
       --bg:#f4f6f9; --card:#fff; --primary:#3b82f6; --primary-hover:#2563eb;
@@ -82,24 +82,26 @@
     .btn-cancel{background:#475569;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;}
     .btn-cancel:hover{background:#334155;}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
 <div class="header">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-  <h1>API Viewer</h1>
+  <h1>URL Viewer</h1>
   <span class="header-sub">현업 검토</span>
   <div class="header-right">
     <a href="/" class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link">🔍 API 추출</a>
+    <a href="/extract.html" class="nav-link" id="navExtract" style="display:none;">🔍 URL 분석</a>
     <a href="/viewer.html" class="nav-link">📋 이력 조회</a>
     <a href="/review.html" class="nav-link nav-active">📝 현업 검토</a>
-    <a href="#" class="nav-link" onclick="goSettings(event)">⚙️ 설정</a>
+    <a href="/settings.html" class="nav-link" id="navSettings" style="display:none;">⚙️ 설정</a>
+    <button class="nav-link" id="adminBtn" onclick="toggleAdmin()" style="background:none;cursor:pointer;">🔑 관리자</button>
   </div>
 </div>
 <div class="main">
   <div class="guide-box">
-    <strong>차단대상 API 현업 검토</strong>
-    차단대상으로 분류된 API 목록입니다. 검토 후 <b>현업검토결과</b>와 <b>현업검토의견</b>을 입력해 주세요.<br>
+    <strong>차단대상 URL 현업 검토</strong>
+    차단대상으로 분류된 URL 목록입니다. 검토 후 <b>현업검토결과</b>와 <b>현업검토의견</b>을 입력해 주세요.<br>
     차단이 부적절한 경우 "차단대상 제외"를 선택하고 사유를 기입해 주세요. 체크박스로 여러 건을 선택하여 일괄 변경할 수도 있습니다.
   </div>
 
@@ -124,7 +126,7 @@
   </div>
 
   <div class="filter-bar" id="filterBar" style="display:none">
-    <input type="text" id="searchInput" placeholder="API 경로, 레포지토리, 팀, 담당자 검색..." oninput="filterTable()">
+    <input type="text" id="searchInput" placeholder="URL 경로, 레포지토리, 팀, 담당자 검색..." oninput="filterTable()">
     <select id="btFilter" onchange="filterTable()">
       <option value="">전체 차단대상</option>
       <option value="최우선 차단대상">최우선 차단대상</option>
@@ -164,7 +166,7 @@
         <th class="hg-info sticky-h" style="left:36px;min-width:100px;">업무명</th>
         <th class="hg-info sticky-h" style="left:136px;min-width:80px;">팀</th>
         <th class="hg-info sticky-h" style="left:216px;min-width:70px;">담당자</th>
-        <th class="hg-info sticky-h sticky-last" style="left:286px;min-width:200px;">API 경로</th>
+        <th class="hg-info sticky-h sticky-last" style="left:286px;min-width:200px;">URL 경로</th>
         <th class="hg-info">URL 호출</th>
         <th class="hg-desc" style="min-width:300px;">내용</th>
         <th class="hg-desc">호출건수</th>
@@ -223,7 +225,7 @@
       document.getElementById('statsBar').style.display = 'flex';
       document.getElementById('filterBar').style.display = 'flex';
       document.getElementById('excelBtn').style.display = 'inline-block';
-      showToast(`${allApis.length}개 차단대상 API 조회 완료`, 'success');
+      showToast(`${allApis.length}개 차단대상 URL 조회 완료`, 'success');
     } catch(e) {
       showToast('조회 실패','error');
       document.getElementById('tbody').innerHTML = '<tr><td colspan="16"><div class="state-box">조회 오류</div></td></tr>';
@@ -331,25 +333,42 @@
 
   function btBadge(bt){if(!bt)return'-';if(bt.includes('최우선'))return`<span class="status-badge bt-top">${esc(bt)}</span>`;if(bt.includes('후순위'))return`<span class="status-badge bt-low">${esc(bt)}</span>`;return esc(bt);}
 
-  function downloadExcel() {
+  async function downloadExcel() {
     if(!filteredApis.length){showToast('다운로드할 데이터가 없습니다.','error');return;}
-    const h=['레포지토리','업무명','팀','담당자','API 경로','Full URL','내용','호출건수','비고','차단대상선정','차단대상선정기준','현업검토결과','현업검토의견','현업 팀','현업 담당자','현업검토일시'];
+    const h=['레포지토리','업무명','팀','담당자','URL 경로','Full URL','내용','호출건수','비고','차단대상선정','차단대상선정기준','현업검토결과','현업검토의견','현업 팀','현업 담당자','현업검토일시'];
+    const blue='E0F2FE',purple='E0E7FF',pink='FFE4E6',yellow='FEF3C7';
+    const hColors=[blue,blue,blue,blue,blue,blue,purple,purple,purple,pink,pink,yellow,yellow,yellow,yellow,yellow];
     const rows=filteredApis.map(a=>{const c=repoConfigMap[a.repositoryName]||{};const desc=a.apiOperationValue&&a.apiOperationValue!=='-'?a.apiOperationValue:(a.descriptionTag&&a.descriptionTag!=='-'?a.descriptionTag:'');return[a.repositoryName||'',c.businessName||'',c.team||'',c.manager||'',a.apiPath||'',a.fullUrl||'',desc,a.callCount!=null?a.callCount:'',a.memo||'',a.blockTarget||'',a.blockCriteria||'',a.reviewResult||'',a.reviewOpinion||'',a.reviewTeam||'',a.reviewManager||'',a.reviewedAt?a.reviewedAt.replace('T',' ').substring(0,16):''];});
-    const csv=[h,...rows].map(r=>r.map(c=>{const s=String(c).replace(/"/g,'""');return(s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s}"`:s;}).join(',')).join('\r\n');
-    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`review-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);
+    const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet('Sheet1');
+    const thin={style:'thin',color:{argb:'FFB0B0B0'}};const border={top:thin,left:thin,bottom:thin,right:thin};
+    const hRow=ws.addRow(h);
+    hRow.eachCell((cell,colNum)=>{const bg=hColors[colNum-1]||'F1F5F9';cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+bg}};cell.font={bold:true,size:10};cell.alignment={vertical:'middle',wrapText:true};cell.border=border;});
+    rows.forEach(r=>{const dRow=ws.addRow(r);dRow.eachCell({includeEmpty:true},(cell)=>{cell.border=border;cell.font={size:10};cell.alignment={vertical:'middle',wrapText:true};});});
+    ws.eachRow((row,rowNum)=>{if(rowNum===1)return;for(let c=1;c<=h.length;c++){const cell=row.getCell(c);if(!cell.border){cell.border=border;cell.font={size:10};}}});
+    ws.columns=h.map(hd=>({width:Math.max(hd.length*1.8+2,8)}));
+    ws.views=[{state:'frozen',xSplit:5,ySplit:1}]; // URL 경로(5열)까지 틀고정
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`review-${new Date().toISOString().slice(0,10)}.xlsx`;a.click();URL.revokeObjectURL(url);
     showToast(`${filteredApis.length}건 다운로드 완료`,'success');
   }
 
   function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>t.classList.remove('show'),3000);}
   function isAdmin(){return sessionStorage.getItem('isAdmin')==='true';}
-  async function goSettings(e){
-    e.preventDefault();
-    if(isAdmin()){location.href='/settings.html';return;}
+  function applyAdminUI(){
+    const admin=isAdmin();
+    document.getElementById('navExtract').style.display=admin?'':'none';
+    document.getElementById('navSettings').style.display=admin?'':'none';
+    document.getElementById('adminBtn').textContent=admin?'🔓 관리자 해제':'🔑 관리자';
+    if(typeof renderRows==='function'&&filteredApis.length) renderRows(filteredApis);
+  }
+  async function toggleAdmin(){
+    if(isAdmin()){sessionStorage.removeItem('isAdmin');applyAdminUI();showToast('관리자 모드 해제','info');return;}
     const pw=prompt('관리자 비밀번호를 입력하세요:');if(!pw)return;
     try{const res=await fetch('/api/verify-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});const d=await res.json();
-    if(d.valid){sessionStorage.setItem('isAdmin','true');location.href='/settings.html';}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
+    if(d.valid){sessionStorage.setItem('isAdmin','true');applyAdminUI();showToast('관리자 모드 활성화','success');}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
   }
+  applyAdminUI();
   loadReviewData();
 </script>
 </body>

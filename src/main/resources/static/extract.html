@@ -130,7 +130,7 @@
   try {
     const res = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
     const d = await res.json();
-    if (d.valid) { sessionStorage.setItem('isAdmin','true'); }
+    if (d.valid) { sessionStorage.setItem('isAdmin','true'); sessionStorage.setItem('adminToken',d.token); }
     else { alert('비밀번호가 일치하지 않습니다.'); location.href = '/'; }
   } catch(e) { alert('인증 실패'); location.href = '/'; }
 })();
@@ -436,7 +436,7 @@
       try {
         const res = await fetch('/api/extract', {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          headers: {'Content-Type':'application/json', 'X-Admin-Token': sessionStorage.getItem('adminToken')||''},
           body: JSON.stringify({ rootPath, repositoryName, domain, apiPathPrefix, gitBinPath, pathConstants })
         });
         const data = await res.json();

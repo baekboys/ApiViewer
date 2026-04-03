@@ -378,10 +378,10 @@
     if(typeof renderRows==='function'&&filteredApis.length) renderRows(filteredApis);
   }
   async function toggleAdmin(){
-    if(isAdmin()){sessionStorage.removeItem('isAdmin');applyAdminUI();showToast('관리자 모드 해제','info');return;}
+    if(isAdmin()){sessionStorage.removeItem('isAdmin');sessionStorage.removeItem('adminToken');applyAdminUI();showToast('관리자 모드 해제','info');return;}
     const pw=prompt('관리자 비밀번호를 입력하세요:');if(!pw)return;
     try{const res=await fetch('/api/verify-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});const d=await res.json();
-    if(d.valid){sessionStorage.setItem('isAdmin','true');applyAdminUI();showToast('관리자 모드 활성화','success');}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
+    if(d.valid){sessionStorage.setItem('isAdmin','true');sessionStorage.setItem('adminToken',d.token);applyAdminUI();showToast('관리자 모드 활성화','success');}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
   }
   applyAdminUI();
   loadReviewData();

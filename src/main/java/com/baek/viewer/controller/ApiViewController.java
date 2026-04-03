@@ -38,22 +38,25 @@ public class ApiViewController {
     private final RepoConfigRepository repoConfigRepository;
     private final GlobalConfigRepository globalConfigRepository;
     private final ApiStorageService storageService;
+    private final com.baek.viewer.service.AuthService authService;
 
     public ApiViewController(ApiExtractorService extractorService,
                              WhatapService whatapService,
                              ApiRecordRepository recordRepository,
                              RepoConfigRepository repoConfigRepository,
                              GlobalConfigRepository globalConfigRepository,
-                             ApiStorageService storageService) {
+                             ApiStorageService storageService,
+                             com.baek.viewer.service.AuthService authService) {
         this.extractorService = extractorService;
         this.whatapService = whatapService;
         this.recordRepository = recordRepository;
         this.repoConfigRepository = repoConfigRepository;
         this.globalConfigRepository = globalConfigRepository;
         this.storageService = storageService;
+        this.authService = authService;
     }
 
-    /** 추출 비밀번호 확인 */
+    /** 비밀번호 확인 → 토큰 발급 */
     @PostMapping("/verify-password")
     public ResponseEntity<?> verifyPassword(@RequestBody Map<String, String> body) {
         String input = body.get("password");
@@ -61,7 +64,12 @@ public class ApiViewController {
                 .map(g -> g.getPassword()).orElse(null);
         if (stored == null || stored.isBlank()) stored = "lotte1!";
         boolean ok = stored.equals(input);
-        return ResponseEntity.ok(Map.of("valid", ok));
+        if (ok) {
+            String token = authService.issueToken();
+            log.info("[인증 성공] 토큰 발급");
+            return ResponseEntity.ok(Map.of("valid", true, "token", token));
+        }
+        return ResponseEntity.ok(Map.of("valid", false));
     }
 
     private String getClientIp(HttpServletRequest req) {

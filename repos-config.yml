@@ -20,7 +20,7 @@ repositories:
     gitBinPath: git                               # git 실행 경로 (기본값: git)
     teamName: IT카드개발팀                          # 관리 팀명
     managerName: 백명선                            # 관리 담당자
-    businessName: 카드회원관리                      # 업무명
+    businessName: 로카2.0                      # 업무명
     apiPathPrefix: /APP                           # API 경로 앞에 붙일 프리픽스
     pathConstants: "Constants.MEMBER_VERSION=/v1, ApiConst.BASE_URL=/api/v2"  # 상수 치환
     whatap:

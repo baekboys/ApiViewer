@@ -58,7 +58,10 @@ public class ApiViewController {
     private String getClientIp(HttpServletRequest req) {
         String ip = req.getHeader("X-Forwarded-For");
         if (ip == null || ip.isBlank()) ip = req.getRemoteAddr();
-        return ip.split(",")[0].trim();
+        ip = ip.split(",")[0].trim();
+        // IPv6 localhost → IPv4 변환
+        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) ip = "127.0.0.1";
+        return ip;
     }
 
     /** 추출 실행 (비동기) */

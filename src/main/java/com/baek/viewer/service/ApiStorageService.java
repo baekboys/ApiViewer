@@ -94,6 +94,23 @@ public class ApiStorageService {
             repository.save(existing.get());
             saved++;
         }
+
+        // ④ DB에 있지만 추출 결과에 없는 건 → "삭제" 처리 (차단완료 제외)
+        Set<String> extractedKeys = apis.stream()
+                .map(a -> a.getApiPath() + "|" + a.getHttpMethod())
+                .collect(java.util.stream.Collectors.toSet());
+        List<ApiRecord> allInRepo = repository.findByRepositoryName(repositoryName);
+        for (ApiRecord r : allInRepo) {
+            if ("차단완료".equals(r.getStatus()) || "삭제".equals(r.getStatus())) continue;
+            String key = r.getApiPath() + "|" + r.getHttpMethod();
+            if (!extractedKeys.contains(key)) {
+                String oldStatus = r.getStatus();
+                r.setStatus("삭제");
+                r.setStatusOverridden(true);
+                appendChangeLog(r, oldStatus + "→삭제: 재추출 시 소스에서 미발견");
+            }
+        }
+
         return saved;
     }
 

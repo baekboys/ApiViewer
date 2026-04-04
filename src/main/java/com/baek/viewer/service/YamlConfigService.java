@@ -5,6 +5,8 @@ import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.model.ReposYamlConfig;
 import com.baek.viewer.repository.GlobalConfigRepository;
 import com.baek.viewer.repository.RepoConfigRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,8 @@ import java.util.Optional;
 
 @Service
 public class YamlConfigService {
+
+    private static final Logger log = LoggerFactory.getLogger(YamlConfigService.class);
 
     private final RepoConfigRepository repoRepo;
     private final GlobalConfigRepository globalRepo;
@@ -44,6 +48,7 @@ public class YamlConfigService {
      */
     @Transactional
     public Map<String, Object> importFromYaml(String filePath) throws Exception {
+        log.info("[YAML 임포트] 파일 경로={}", filePath);
         Yaml yaml = new Yaml(new Constructor(ReposYamlConfig.class, new LoaderOptions()));
 
         ReposYamlConfig config;
@@ -104,6 +109,8 @@ public class YamlConfigService {
                 if (isNew) added++; else updated++;
             }
         }
+
+        log.info("[YAML 임포트 완료] 레포 {}개 발견, 추가={}, 업데이트={}", importedNames.size(), added, updated);
 
         Map<String, Object> result = new HashMap<>();
         result.put("added", added);

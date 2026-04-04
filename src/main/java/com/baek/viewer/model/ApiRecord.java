@@ -83,6 +83,10 @@ public class ApiRecord {
     @Column(name = "is_deprecated", length = 1)
     private String isDeprecated;
 
+    /** 메소드 첫 줄에 UnsupportedOperationException throw 여부 */
+    @Column(name = "has_url_block", length = 1)
+    private String hasUrlBlock;
+
     @Column(name = "program_id")
     private String programId;
 
@@ -197,6 +201,8 @@ public class ApiRecord {
     public void setRepoPath(String repoPath) { this.repoPath = repoPath; }
     public String getIsDeprecated() { return isDeprecated; }
     public void setIsDeprecated(String isDeprecated) { this.isDeprecated = isDeprecated; }
+    public String getHasUrlBlock() { return hasUrlBlock; }
+    public void setHasUrlBlock(String hasUrlBlock) { this.hasUrlBlock = hasUrlBlock; }
     public String getProgramId() { return programId; }
     public void setProgramId(String programId) { this.programId = programId; }
     public String getApiOperationValue() { return apiOperationValue; }

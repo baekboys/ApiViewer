@@ -3,11 +3,15 @@ package com.baek.viewer.config;
 import com.baek.viewer.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
 public class AdminInterceptor implements HandlerInterceptor {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminInterceptor.class);
 
     private final AuthService authService;
 
@@ -30,6 +34,7 @@ public class AdminInterceptor implements HandlerInterceptor {
         String token = request.getHeader("X-Admin-Token");
         if (authService.isValid(token)) return true;
 
+        log.warn("[인증 차단] 401 {} {} (IP={})", request.getMethod(), uri, request.getRemoteAddr());
         response.setStatus(401);
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write("{\"error\":\"관리자 인증이 필요합니다.\"}");

@@ -130,6 +130,7 @@ public class ApiStorageService {
         r.setControllerName(a.getControllerName());
         r.setRepoPath(a.getRepoPath());
         r.setIsDeprecated(a.getIsDeprecated());
+        r.setHasUrlBlock(a.getHasUrlBlock());
         r.setProgramId(a.getProgramId());
         r.setApiOperationValue(a.getApiOperationValue());
         r.setDescriptionTag(a.getDescriptionTag());
@@ -210,6 +211,7 @@ public class ApiStorageService {
             }
             repository.save(r);
         }
+        log.info("[호출건수 반영 완료] repo={}, 처리 레코드={}건", repoName, records.size());
     }
 
     /**
@@ -275,6 +277,7 @@ public class ApiStorageService {
             repository.save(r);
             updated++;
         }
+        log.info("[일괄 변경 완료] 대상={}건, 변경={}건", ids.size(), updated);
         return updated;
     }
 
@@ -293,8 +296,10 @@ public class ApiStorageService {
     // ── 상태 계산 ────────────────────────────────────────────────────────────
 
     String calculateStatus(ApiRecord r, int reviewThreshold) {
-        // 1. 변경불가: fullComment에 [URL차단작업] 포함 AND @Deprecated
-        if ("Y".equals(r.getIsDeprecated()) && containsBlockText(r.getFullComment())) {
+        // 1. 차단완료: 3가지 모두 충족 (①@Deprecated ②[URL차단작업] ③UnsupportedOperationException)
+        if ("Y".equals(r.getIsDeprecated())
+                && containsBlockText(r.getFullComment())
+                && "Y".equals(r.getHasUrlBlock())) {
             return "차단완료";
         }
 

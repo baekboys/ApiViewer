@@ -7,6 +7,8 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ApiExtractorService {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExtractorService.class);
 
     private static final List<String> MAPPING_ANNS = Arrays.asList(
             "RequestMapping", "GetMapping", "PostMapping", "PutMapping", "DeleteMapping", "PatchMapping");
@@ -76,6 +80,7 @@ public class ApiExtractorService {
     public List<ApiInfo> extract(ExtractRequest req) {
         if (extracting) throw new IllegalStateException("이미 추출 중입니다.");
         extracting = true;
+        log.info("[추출 시작] rootPath={}, repo={}", req.getRootPath(), req.getRepositoryName());
 
         String rootPath = req.getRootPath();
         String domain = req.getDomain() != null ? req.getDomain() : "";
@@ -123,6 +128,7 @@ public class ApiExtractorService {
         } catch (Exception e) {
             lastError = e.getMessage();
             addLog("ERROR", "추출 실패: " + e.getMessage());
+            log.error("[추출 실패] rootPath={}, 오류={}", rootPath, e.getMessage(), e);
             extracting = false;
             throw new RuntimeException("추출 실패: " + e.getMessage(), e);
         }
@@ -138,6 +144,7 @@ public class ApiExtractorService {
 
         cachedApis = sorted;
         addLog("INFO", "추출 완료 — 총 " + sorted.size() + "개 API");
+        log.info("[추출 완료] 총 {}개 API, 파일 {}개 처리", sorted.size(), totalFiles);
 
         // DB 저장 (레포지토리명이 있을 때만)
         String repoName = req.getRepositoryName();
@@ -168,6 +175,7 @@ public class ApiExtractorService {
             return extractWithJavaParser(path, rel, git, apiPathPrefix, pathConstantsMap);
         } catch (Exception e) {
             addLog("WARN", path.getFileName() + " — JavaParser 실패 (" + e.getClass().getSimpleName() + "), Regex 폴백 적용");
+            log.warn("[Regex 폴백] 파일={}, 사유={}", path.getFileName(), e.getMessage());
             return extractWithRegex(path, rel, git, apiPathPrefix, pathConstantsMap);
         }
     }
@@ -286,6 +294,8 @@ public class ApiExtractorService {
                     info.setControllerName(filePath.getFileName().toString());
                     info.setRepoPath(relPath.replace("\\", "/"));
                     info.setIsDeprecated(isDeprecated ? "Y" : "N");
+                    String mBody = afterMapping.substring(mName.end(), Math.min(mName.end() + 500, afterMapping.length()));
+                    info.setHasUrlBlock(detectUrlBlockRegex(mBody) ? "Y" : "N");
                     info.setProgramId(autoExtractProgramId(finalPath));
                     info.setControllerComment(controllerComment);
                     info.setGit1(git.get(0)); info.setGit2(git.get(1)); info.setGit3(git.get(2));
@@ -334,6 +344,8 @@ public class ApiExtractorService {
                     info.setControllerName(filePath.getFileName().toString());
                     info.setRepoPath(relPath.replace("\\", "/"));
                     info.setIsDeprecated(isDeprecated ? "Y" : "N");
+                    String mBody2 = afterMapping.substring(mName.end(), Math.min(mName.end() + 500, afterMapping.length()));
+                    info.setHasUrlBlock(detectUrlBlockRegex(mBody2) ? "Y" : "N");
                     info.setProgramId(autoExtractProgramId(finalPath));
                     info.setControllerComment(controllerComment);
                     info.setGit1(git.get(0)); info.setGit2(git.get(1)); info.setGit3(git.get(2));
@@ -363,6 +375,7 @@ public class ApiExtractorService {
         info.setControllerName(filePath.getFileName().toString());
         info.setRepoPath(relPath.replace("\\", "/"));
         info.setIsDeprecated(method.isAnnotationPresent("Deprecated") ? "Y" : "N");
+        info.setHasUrlBlock(detectUrlBlock(method) ? "Y" : "N");
         info.setProgramId(autoExtractProgramId(finalPath));
         info.setControllerComment(controllerComment);
         info.setControllerRequestPropertyValue(controllerRequestProperty);
@@ -507,6 +520,25 @@ public class ApiExtractorService {
     // ======================================================
     // 프로그램 ID 자동 추출 (ApiExcelExporter 동일 로직)
     // ======================================================
+
+    /**
+     * JavaParser: 메소드 본문 첫 statement가 UnsupportedOperationException throw인지 판단.
+     * if(true) throw new UnsupportedOperationException("..."); 패턴 포함.
+     */
+    private boolean detectUrlBlock(MethodDeclaration method) {
+        if (method.getBody().isEmpty()) return false;
+        var stmts = method.getBody().get().getStatements();
+        if (stmts.isEmpty()) return false;
+        String first = stmts.get(0).toString();
+        return first.contains("UnsupportedOperationException");
+    }
+
+    /** Regex 폴백: 메소드 본문 초반에서 UnsupportedOperationException throw 패턴 검색 */
+    private boolean detectUrlBlockRegex(String methodBodySnippet) {
+        if (methodBodySnippet == null) return false;
+        return Pattern.compile("throw\\s+new\\s+UnsupportedOperationException", Pattern.CASE_INSENSITIVE)
+                .matcher(methodBodySnippet).find();
+    }
 
     /** @Deprecated 라인에서 [URL차단작업] 이후 전체 텍스트 추출 */
     private String extractDeprecatedLine(String source) {

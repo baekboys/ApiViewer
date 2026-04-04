@@ -4,6 +4,8 @@ import com.baek.viewer.model.WhatapRequest;
 import com.baek.viewer.model.WhatapResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 @Service
 public class WhatapService {
 
+    private static final Logger log = LoggerFactory.getLogger(WhatapService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     // ──────────────────────────────────────────────────────────────────
@@ -27,6 +30,7 @@ public class WhatapService {
 
     public WhatapResult fetchStats(WhatapRequest req) {
         validate(req);
+        log.info("[Whatap 조회 시작] pcode={}, 기간={} ~ {}, 필터={}", req.getPcode(), req.getStartDate(), req.getEndDate(), req.getFilters());
 
         List<FetchSegment> segments = generateSegments(req.getStartDate(), req.getEndDate());
         Map<String, long[]> rawMap = new ConcurrentHashMap<>();
@@ -56,6 +60,7 @@ public class WhatapService {
             totals.put(e.getKey(), sum);
         }
 
+        log.info("[Whatap 조회 완료] {}개 구간, 수집 API {}건", segments.size(), totals.size());
         String msg = String.format("%d개 구간 완료 · 수집 API %d건", segments.size(), totals.size());
         return new WhatapResult(totals, segments.size(), totals.size(), msg);
     }
@@ -129,10 +134,10 @@ public class WhatapService {
                     }
                 }
             } else {
-                System.err.printf("[Whatap] HTTP %d - 구간: %s%n", response.statusCode(), seg.label);
+                log.warn("[Whatap] HTTP {} - 구간: {}", response.statusCode(), seg.label);
             }
         } catch (Exception e) {
-            System.err.printf("[Whatap] 오류 - 구간: %s, %s%n", seg.label, e.getMessage());
+            log.error("[Whatap] 오류 - 구간: {}, {}", seg.label, e.getMessage());
         }
     }
 

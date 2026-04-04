@@ -69,6 +69,7 @@ public class ApiViewController {
             log.info("[인증 성공] 토큰 발급");
             return ResponseEntity.ok(Map.of("valid", true, "token", token));
         }
+        log.warn("[인증 실패] 비밀번호 불일치");
         return ResponseEntity.ok(Map.of("valid", false));
     }
 
@@ -154,6 +155,7 @@ public class ApiViewController {
     /** 단건 상세 조회 (전체 필드 포함) */
     @GetMapping("/db/record/{id}")
     public ResponseEntity<?> getRecord(@PathVariable Long id) {
+        log.info("[단건 조회] GET /api/db/record/{}", id);
         return recordRepository.findById(id)
                 .map(r -> ResponseEntity.ok((Object) r))
                 .orElse(ResponseEntity.notFound().build());
@@ -203,8 +205,10 @@ public class ApiViewController {
                     cleared++;
                 }
             }
+            log.info("[상태변경 플래그 해제] 대상={}건, 해제={}건", rawIds.size(), cleared);
             return ResponseEntity.ok(Map.of("cleared", cleared));
         } catch (Exception e) {
+            log.error("[상태변경 플래그 해제 실패] {}", e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
@@ -243,8 +247,10 @@ public class ApiViewController {
             }
 
             recordRepository.save(r);
+            log.info("[레코드 수정] id={}, 필드={}", id, body.keySet());
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
+            log.error("[레코드 수정 실패] id={}, 오류={}", id, e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
@@ -281,6 +287,7 @@ public class ApiViewController {
     /** DB 전체 통계 */
     @GetMapping("/db/stats")
     public ResponseEntity<?> dbStats() {
+        log.info("[통계 조회] GET /api/db/stats");
         List<ApiRecord> all = recordRepository.findAll();
 
         // repoName → RepoConfig 매핑
@@ -415,11 +422,15 @@ public class ApiViewController {
     @PostMapping("/whatap/stats")
     public ResponseEntity<?> whatapStats(@RequestBody WhatapRequest request) {
         try {
+            log.info("[Whatap 조회 요청] pcode={}", request.getPcode());
             WhatapResult result = whatapService.fetchStats(request);
+            log.info("[Whatap 조회 응답] 수집 API {}건", result.getApiCount());
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
+            log.warn("[Whatap 조회 실패] 입력 오류: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
+            log.error("[Whatap 조회 실패] {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
@@ -429,6 +440,7 @@ public class ApiViewController {
     /** 로그 파일이 존재하는 날짜 목록 */
     @GetMapping("/logs/dates")
     public ResponseEntity<?> logDates() {
+        log.info("[로그 날짜 조회] GET /api/logs/dates");
         try {
             Path logDir = Paths.get("./logs");
             if (!Files.exists(logDir)) return ResponseEntity.ok(List.of());
@@ -452,6 +464,7 @@ public class ApiViewController {
     /** 특정 날짜의 로그 내용 조회 */
     @GetMapping("/logs/view")
     public ResponseEntity<?> logView(@RequestParam String date) {
+        log.info("[로그 조회] GET /api/logs/view date={}", date);
         try {
             Path logDir = Paths.get("./logs");
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
@@ -469,6 +482,7 @@ public class ApiViewController {
     /** 전체 분석 데이터 삭제 */
     @DeleteMapping("/db/delete-all")
     public ResponseEntity<?> deleteAllRecords() {
+        log.warn("[데이터 전체 삭제] DELETE /api/db/delete-all 요청");
         long count = recordRepository.count();
         recordRepository.deleteAll();
         log.info("[데이터 초기화] {}건 삭제", count);

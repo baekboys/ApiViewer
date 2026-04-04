@@ -21,6 +21,7 @@ public class ApiInfo {
     private String[] git4 = {"-", "-", "No History"};
     private String[] git5 = {"-", "-", "No History"};
     private Long callCount; // Whatap 호출건수 (null = 미조회)
+    private String hasUrlBlock = "N"; // 메소드 첫 줄에 UnsupportedOperationException throw 여부
 
     public String getApiPath() { return apiPath; }
     public void setApiPath(String apiPath) { this.apiPath = apiPath; }
@@ -81,4 +82,6 @@ public class ApiInfo {
 
     public Long getCallCount() { return callCount; }
     public void setCallCount(Long callCount) { this.callCount = callCount; }
+    public String getHasUrlBlock() { return hasUrlBlock; }
+    public void setHasUrlBlock(String hasUrlBlock) { this.hasUrlBlock = hasUrlBlock; }
 }

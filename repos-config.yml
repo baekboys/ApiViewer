@@ -14,16 +14,16 @@ global:
 # 레포지토리별 설정 목록
 repositories:
 
-  - repoName: my-project
-    domain: https://api.example.com
+  - repoName: spring-petclinic
+    domain: https://api.petclinic.com
     rootPath: /Users/baegmyeongseon/Downloads/개발_코드/spring-petclinic
     gitBinPath: git
-    gitPullEnabled: "Y"
+    gitPullEnabled: "N"
     teamName: IT카드개발팀
     managerName: 백명선
-    businessName: 로카2.0
-    apiPathPrefix: /APP
-    pathConstants: "Constants.MEMBER_VERSION=/v1, ApiConst.BASE_URL=/api/v2"
+    businessName: 펫클리닉
+    apiPathPrefix: ""
+    pathConstants: ""
     whatap:
       enabled: N
       url: ""
@@ -33,14 +33,90 @@ repositories:
       okindsName: ""
       cookie: ""
 
-  - repoName: another-project
-    domain: https://api2.example.com
-    rootPath: /Users/.../another-project/src/main/java
+  - repoName: mall-tiny
+    domain: https://api.mall-tiny.com
+    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/mall-tiny
+    gitBinPath: git
+    gitPullEnabled: "Y"
+    teamName: IT커머스개발팀
+    managerName: 김민수
+    businessName: 쇼핑몰(경량)
+    apiPathPrefix: ""
+    pathConstants: ""
+    whatap:
+      enabled: N
+      url: ""
+      pcode: 8
+      filter: ""
+      okinds: ""
+      okindsName: ""
+      cookie: ""
+
+  - repoName: mall-admin
+    domain: https://admin.mall.com
+    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/mall/mall-admin
     gitBinPath: git
     gitPullEnabled: "N"
-    teamName: IT개발팀
-    managerName: 홍길동
-    businessName: 기업대출관리
+    teamName: IT커머스개발팀
+    managerName: 이정우
+    businessName: 쇼핑몰관리자
+    apiPathPrefix: ""
+    pathConstants: ""
+    whatap:
+      enabled: N
+      url: ""
+      pcode: 8
+      filter: ""
+      okinds: ""
+      okindsName: ""
+      cookie: ""
+
+  - repoName: mall-portal
+    domain: https://portal.mall.com
+    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/mall/mall-portal
+    gitBinPath: git
+    gitPullEnabled: "N"
+    teamName: IT커머스개발팀
+    managerName: 박수진
+    businessName: 쇼핑몰포털
+    apiPathPrefix: ""
+    pathConstants: ""
+    whatap:
+      enabled: N
+      url: ""
+      pcode: 8
+      filter: ""
+      okinds: ""
+      okindsName: ""
+      cookie: ""
+
+  - repoName: mall-search
+    domain: https://search.mall.com
+    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/mall/mall-search
+    gitBinPath: git
+    gitPullEnabled: "N"
+    teamName: IT인프라팀
+    managerName: 최영호
+    businessName: 쇼핑몰검색
+    apiPathPrefix: ""
+    pathConstants: ""
+    whatap:
+      enabled: N
+      url: ""
+      pcode: 8
+      filter: ""
+      okinds: ""
+      okindsName: ""
+      cookie: ""
+
+  - repoName: spring-mvc-showcase
+    domain: https://mvc.example.com
+    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/spring-mvc-showcase
+    gitBinPath: git
+    gitPullEnabled: "Y"
+    teamName: IT기반기술팀
+    managerName: 정하늘
+    businessName: MVC샘플
     apiPathPrefix: ""
     pathConstants: ""
     whatap:

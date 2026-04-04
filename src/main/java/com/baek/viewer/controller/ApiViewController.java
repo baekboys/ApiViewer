@@ -437,22 +437,21 @@ public class ApiViewController {
 
     // ── 로그 조회 API ──────────────────────────────────────────
 
-    /** 로그 파일이 존재하는 날짜 목록 */
+    /** 로그 파일이 존재하는 날짜 목록 (type: system/business) */
     @GetMapping("/logs/dates")
-    public ResponseEntity<?> logDates() {
-        log.info("[로그 날짜 조회] GET /api/logs/dates");
+    public ResponseEntity<?> logDates(@RequestParam(defaultValue = "business") String type) {
+        String prefix = "system".equals(type) ? "system" : "business";
         try {
             Path logDir = Paths.get("./logs");
             if (!Files.exists(logDir)) return ResponseEntity.ok(List.of());
             List<String> dates = Files.list(logDir)
                     .map(p -> p.getFileName().toString())
-                    .filter(n -> n.startsWith("app-") && n.endsWith(".log"))
-                    .map(n -> n.replace("app-", "").replace(".log", ""))
+                    .filter(n -> n.startsWith(prefix + "-") && n.endsWith(".log"))
+                    .map(n -> n.replace(prefix + "-", "").replace(".log", ""))
                     .sorted(Comparator.reverseOrder())
                     .collect(Collectors.toList());
-            // 오늘 로그 (app.log)도 포함
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
-            if (Files.exists(logDir.resolve("app.log")) && !dates.contains(today)) {
+            if (Files.exists(logDir.resolve(prefix + ".log")) && !dates.contains(today)) {
                 dates.add(0, today);
             }
             return ResponseEntity.ok(dates);
@@ -461,14 +460,16 @@ public class ApiViewController {
         }
     }
 
-    /** 특정 날짜의 로그 내용 조회 */
+    /** 특정 날짜의 로그 내용 조회 (type: system/business) */
     @GetMapping("/logs/view")
-    public ResponseEntity<?> logView(@RequestParam String date) {
-        log.info("[로그 조회] GET /api/logs/view date={}", date);
+    public ResponseEntity<?> logView(@RequestParam String date,
+                                      @RequestParam(defaultValue = "business") String type) {
+        String prefix = "system".equals(type) ? "system" : "business";
+        log.info("[로그 조회] type={}, date={}", prefix, date);
         try {
             Path logDir = Paths.get("./logs");
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
-            Path logFile = date.equals(today) ? logDir.resolve("app.log") : logDir.resolve("app-" + date + ".log");
+            Path logFile = date.equals(today) ? logDir.resolve(prefix + ".log") : logDir.resolve(prefix + "-" + date + ".log");
             if (!Files.exists(logFile)) {
                 return ResponseEntity.ok(Map.of("date", date, "content", "로그 파일이 없습니다."));
             }

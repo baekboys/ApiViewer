@@ -218,11 +218,15 @@
       <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">일자별 서버 로그를 확인합니다.</span>
     </div>
     <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:12px;">
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-blue" id="logTabBiz" style="height:34px;" onclick="switchLogType('business')">비즈니스 로그</button>
+        <button class="btn btn-ghost" id="logTabSys" style="height:34px;" onclick="switchLogType('system')">시스템 로그</button>
+      </div>
       <label class="field">날짜 선택
         <input id="logDate" type="date" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
       </label>
-      <button class="btn btn-blue" style="height:34px;" onclick="loadLog()">로그 조회</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="loadLogDates()">날짜 목록 새로고침</button>
+      <button class="btn btn-blue" style="height:34px;" onclick="loadLog()">조회</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="loadLogDates()">새로고침</button>
     </div>
     <div id="logDatesBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
     <div id="logContent" style="background:#1e293b;color:#e2e8f0;border-radius:8px;padding:16px;font-family:'Consolas',monospace;font-size:11px;line-height:1.6;max-height:500px;overflow:auto;white-space:pre-wrap;word-break:break-all;">
@@ -586,9 +590,19 @@
   });
 
   // ── 로그 뷰어 ─────────────────────────────────────────────
+  let logType = 'business';
+
+  function switchLogType(type) {
+    logType = type;
+    document.getElementById('logTabBiz').className = type==='business' ? 'btn btn-blue' : 'btn btn-ghost';
+    document.getElementById('logTabSys').className = type==='system' ? 'btn btn-blue' : 'btn btn-ghost';
+    loadLogDates();
+    document.getElementById('logContent').textContent = '날짜를 선택하고 조회를 클릭하세요.';
+  }
+
   async function loadLogDates() {
     try {
-      const res = await fetch('/api/logs/dates', {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
+      const res = await fetch(`/api/logs/dates?type=${logType}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
       const dates = await res.json();
       const bar = document.getElementById('logDatesBar');
       bar.innerHTML = dates.map(d =>
@@ -609,7 +623,7 @@
     const el = document.getElementById('logContent');
     el.textContent = '로그 조회 중...';
     try {
-      const res = await fetch(`/api/logs/view?date=${date}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
+      const res = await fetch(`/api/logs/view?date=${date}&type=${logType}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
       const data = await res.json();
       el.textContent = data.content || '(빈 로그)';
       el.scrollTop = el.scrollHeight;

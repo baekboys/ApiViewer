@@ -132,7 +132,7 @@
     thead th.hg-ref   { background:#fef3c7; text-transform:none; }  /* 참고용 주석 컬럼: 노랑, 대소문자 유지 */
     thead th.hg-desc  { background:#e0e7ff; }  /* 내용~차단근거: 보라 */
     thead th.hg-block { background:#ffe4e6; }  /* 차단대상선정~현업검토결과: 분홍 */
-    thead th.hg-git   { background:#d1fae5; }  /* 커밋1~5: 초록 */
+    thead th.hg-git   { background:#d1fae5; }  /* 변경이력1~5: 초록 */
     /* sticky 헤더+바디 */
     thead th.sticky-h { position:sticky; z-index:4; background:#e0f2fe; border-right:1px solid #bfdbfe; }
     tbody td.sk { position:sticky; z-index:1; background:var(--card); border-right:1px solid var(--border); }
@@ -305,7 +305,7 @@
           <th class="hg-dev" onclick="sortBy('controllerName')">컨트롤러 <span class="sort-icon">↕</span></th>
           <th class="hg-dev" onclick="sortBy('methodName')">메소드명 <span class="sort-icon">↕</span></th>
           <th class="hg-dev" onclick="sortBy('programId')">프로그램ID <span class="sort-icon">↕</span></th>
-          <th class="hg-dev no-sort">최근커밋</th>
+          <th class="hg-dev no-sort">최근변경</th>
           <th class="hg-dev" onclick="sortBy('isDeprecated')">Deprecated <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('apiOperationValue')">관련 메뉴(또는 기능) <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('callCount')">총 호출건 <span class="sort-icon">↕</span></th>
@@ -756,9 +756,9 @@
   // ── 차단대상기준 옵션 동적 생성 ──────────────────────────
   function getCriteriaOptions() {
     return {
-      '최우선 차단대상': ['호출 0건 + 커밋1년경과', '기타'],
-      '후순위 차단대상': ['호출 0건 + 커밋1년경과(침해사고 로그조회)', 'IT담당자검토건', '기타'],
-      '검토필요 차단대상': ['호출 0건 + 커밋1년미만', `호출 1~${reviewThreshold}건 + 커밋1년경과`, '기타']
+      '최우선 차단대상': ['호출 0건 + 소스변경1년경과', '기타'],
+      '후순위 차단대상': ['호출 0건 + 소스변경1년경과(침해사고 로그조회)', 'IT담당자검토건', '기타'],
+      '검토필요 차단대상': ['호출 0건 + 소스변경1년미만', `호출 1~${reviewThreshold}건 + 소스변경1년경과`, '기타']
     };
   };
 
@@ -838,7 +838,7 @@
     }
 
     const commitHeaders = [];
-    for (let i = 1; i <= 5; i++) commitHeaders.push(`커밋날짜${i}`, `커밋터${i}`, `커밋내용${i}`);
+    for (let i = 1; i <= 5; i++) commitHeaders.push(`변경일${i}`, `변경자${i}`, `변경내용${i}`);
     // 0        1      2   3     4        5        6
     // 레포     업무명 팀  담당자 URL경로  FullURL  Method
     // 7            8         9       10          11~16 (참고용6개)
@@ -847,7 +847,7 @@
     // 메뉴      Deprecated  총호출건  1달호출건   1주호출건
     // 22    23      24      25      26    27        28
     // 상태  차단기준 차단일자 차단근거 비고  검토결과  검토의견
-    // 29~43 커밋1~5(각3열)  44  45
+    // 29~43 변경이력1~5(각3열)  44  45
     //                       분석 변경
     const headers = [
       '레포지토리','업무명','팀','담당자','URL 경로','Full URL',
@@ -869,10 +869,10 @@
       purple,                            // 22: 상태
       pink,pink,pink,                    // 23~25: 차단기준,차단일자,차단근거
       pink,pink,pink,                    // 26~28: 비고,검토결과,검토의견
-      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 29~43: 커밋1~5
+      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 29~43: 변경이력1~5
       blue,blue                          // 44~45: 분석/변경일시
     ];
-    // 색 변경 경계: Method|파일경로(6), 참고용끝|메뉴(16), 상태|차단기준(22), 차단근거|비고(25->그대로pink), 검토의견|커밋(28), 커밋간(31,34,37,40), 커밋5|분석(43)
+    // 색 변경 경계: Method|파일경로(6), 참고용끝|메뉴(16), 상태|차단기준(22), 차단근거|비고(25->그대로pink), 검토의견|커밋(28), 변경이력간(31,34,37,40), 변경이력5|분석(43)
     const groupBorders = new Set([6, 16, 22, 28, 31, 34, 37, 40, 43]);
     const rows = details.map(a => {
       const cfg = repoConfigMap[a.repositoryName] || {};
@@ -1082,9 +1082,9 @@
         </div>
       </div>
       <div class="detail-section">
-        <div class="detail-section-title">Git 커밋 이력 (최근 5개)</div>
+        <div class="detail-section-title">소스 변경 이력 (최근 5개)</div>
         <table class="detail-git-table">
-          <thead><tr><th>#</th><th>날짜</th><th>커밋터</th><th>내용</th></tr></thead>
+          <thead><tr><th>#</th><th>날짜</th><th>변경자</th><th>내용</th></tr></thead>
           <tbody>${gitRows}</tbody>
         </table>
       </div>

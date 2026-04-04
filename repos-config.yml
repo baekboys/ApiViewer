@@ -6,36 +6,38 @@
 # 공통 설정 (모든 레포지토리에 공유)
 global:
   period:
-    startDate: "20250201"    # 조회 시작일 (YYYYMMDD)
-    endDate: "20260220"      # 조회 종료일 (YYYYMMDD)
-  reviewThreshold: 3         # 차단검토필요 판단 호출건수 기준 (이 값 이하이면서 커밋 1년 초과 시)
-  password: "lotte1!"        # API 추출 비밀번호
+    startDate: "20250201"
+    endDate: "20260220"
+  reviewThreshold: 3
+  password: "lotte1!"
 
 # 레포지토리별 설정 목록
 repositories:
 
-  - repoName: my-project                          # 레포지토리명 (고유값, DB 저장 키)
-    domain: https://api.example.com               # 도메인 주소 (API 테스트 편의용)
-    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/spring-petclinic    # ★ 필수: 소스코드 경로
-    gitBinPath: git                               # git 실행 경로 (기본값: git)
-    teamName: IT카드개발팀                          # 관리 팀명
-    managerName: 백명선                            # 관리 담당자
-    businessName: 로카2.0                      # 업무명
-    apiPathPrefix: /APP                           # API 경로 앞에 붙일 프리픽스
-    pathConstants: "Constants.MEMBER_VERSION=/v1, ApiConst.BASE_URL=/api/v2"  # 상수 치환
+  - repoName: my-project
+    domain: https://api.example.com
+    rootPath: /Users/baegmyeongseon/Downloads/개발_코드/spring-petclinic
+    gitBinPath: git
+    gitPullEnabled: "Y"
+    teamName: IT카드개발팀
+    managerName: 백명선
+    businessName: 로카2.0
+    apiPathPrefix: /APP
+    pathConstants: "Constants.MEMBER_VERSION=/v1, ApiConst.BASE_URL=/api/v2"
     whatap:
-      enabled: N                                  # Whatap 활성화 여부 (Y/N)
-      url: ""                                     # Whatap API 주소
-      pcode: 8                                    # 프로젝트 코드
-      filter: ""                                  # 서비스 필터 (쉼표 구분, 빈칸=전체)
-      okinds: ""                                  # Agent 그룹 ID (쉼표 구분)
-      okindsName: ""                              # Agent 그룹 명칭
-      cookie: ""                                  # Whatap 세션 쿠키
+      enabled: N
+      url: ""
+      pcode: 8
+      filter: ""
+      okinds: ""
+      okindsName: ""
+      cookie: ""
 
   - repoName: another-project
     domain: https://api2.example.com
     rootPath: /Users/.../another-project/src/main/java
     gitBinPath: git
+    gitPullEnabled: "N"
     teamName: IT개발팀
     managerName: 홍길동
     businessName: 기업대출관리

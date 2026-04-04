@@ -269,6 +269,12 @@
         <label class="field">Git 실행 경로
           <input id="f_gitBinPath" type="text" placeholder="git">
         </label>
+        <label class="field">분석 시 Git Pull
+          <select id="f_gitPullEnabled">
+            <option value="Y">Y (Pull 후 분석)</option>
+            <option value="N">N (Pull 안 함)</option>
+          </select>
+        </label>
         <label class="field">URL 경로 프리픽스
           <input id="f_apiPathPrefix" type="text" placeholder="/APP">
         </label>
@@ -454,6 +460,7 @@
      'apiPathPrefix','pathConstants','whatapUrl','whatapFilter','whatapOkinds',
      'whatapOkindsName','whatapCookie'].forEach(k => document.getElementById('f_'+k).value = '');
     document.getElementById('f_whatapEnabled').value = 'N';
+    document.getElementById('f_gitPullEnabled').value = 'Y';
     document.getElementById('f_whatapPcode').value = '8';
   }
 
@@ -462,6 +469,7 @@
     document.getElementById('f_domain').value           = r.domain           || '';
     document.getElementById('f_rootPath').value         = r.rootPath         || '';
     document.getElementById('f_gitBinPath').value       = r.gitBinPath       || '';
+    document.getElementById('f_gitPullEnabled').value   = r.gitPullEnabled   || 'Y';
     document.getElementById('f_teamName').value         = r.teamName         || '';
     document.getElementById('f_managerName').value      = r.managerName      || '';
     document.getElementById('f_businessName').value     = r.businessName     || '';
@@ -486,6 +494,7 @@
       repoName, rootPath,
       domain:           document.getElementById('f_domain').value.trim(),
       gitBinPath:       document.getElementById('f_gitBinPath').value.trim(),
+      gitPullEnabled:   document.getElementById('f_gitPullEnabled').value,
       teamName:         document.getElementById('f_teamName').value.trim(),
       managerName:      document.getElementById('f_managerName').value.trim(),
       businessName:     document.getElementById('f_businessName').value.trim(),

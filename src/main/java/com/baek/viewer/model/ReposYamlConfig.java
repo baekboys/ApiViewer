@@ -41,6 +41,7 @@ public class ReposYamlConfig {
         private String domain;
         private String rootPath;
         private String gitBinPath;
+        private String gitPullEnabled = "Y";
         private String teamName;
         private String managerName;
         private String businessName;
@@ -56,6 +57,8 @@ public class ReposYamlConfig {
         public void setRootPath(String rootPath) { this.rootPath = rootPath; }
         public String getGitBinPath() { return gitBinPath; }
         public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
+        public String getGitPullEnabled() { return gitPullEnabled; }
+        public void setGitPullEnabled(String gitPullEnabled) { this.gitPullEnabled = gitPullEnabled; }
         public String getTeamName() { return teamName; }
         public void setTeamName(String teamName) { this.teamName = teamName; }
         public String getManagerName() { return managerName; }

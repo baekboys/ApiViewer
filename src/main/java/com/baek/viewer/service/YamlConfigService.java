@@ -99,6 +99,7 @@ public class YamlConfigService {
                 rc.setDomain(entry.getDomain());
                 rc.setRootPath(entry.getRootPath());
                 rc.setGitBinPath(entry.getGitBinPath());
+                rc.setGitPullEnabled(entry.getGitPullEnabled() != null ? entry.getGitPullEnabled() : "Y");
                 rc.setTeamName(entry.getTeamName());
                 rc.setManagerName(entry.getManagerName());
                 rc.setBusinessName(entry.getBusinessName());

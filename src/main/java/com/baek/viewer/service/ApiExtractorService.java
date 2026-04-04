@@ -33,10 +33,13 @@ public class ApiExtractorService {
 
     private final ApiStorageService storageService;
     private final MockApmService mockApmService;
+    private final com.baek.viewer.repository.RepoConfigRepository repoConfigRepository;
 
-    public ApiExtractorService(ApiStorageService storageService, MockApmService mockApmService) {
+    public ApiExtractorService(ApiStorageService storageService, MockApmService mockApmService,
+                               com.baek.viewer.repository.RepoConfigRepository repoConfigRepository) {
         this.storageService = storageService;
         this.mockApmService = mockApmService;
+        this.repoConfigRepository = repoConfigRepository;
     }
 
     private volatile List<ApiInfo> cachedApis = new ArrayList<>();
@@ -102,6 +105,37 @@ public class ApiExtractorService {
         try {
             Path root = Paths.get(rootPath);
             if (!Files.exists(root)) throw new IllegalArgumentException("경로가 존재하지 않습니다: " + rootPath);
+
+            // Git Pull (설정에서 활성화된 경우만)
+            String repoName = req.getRepositoryName();
+            boolean doPull = true;
+            if (repoName != null && !repoName.isBlank()) {
+                var rcOpt = repoConfigRepository.findByRepoName(repoName);
+                if (rcOpt.isPresent() && "N".equals(rcOpt.get().getGitPullEnabled())) {
+                    doPull = false;
+                    addLog("INFO", "Git Pull 건너뜀 (설정에서 비활성화)");
+                    log.info("[Git Pull 건너뜀] repo={}", repoName);
+                }
+            }
+            if (doPull) {
+                try {
+                    addLog("INFO", "Git Pull 실행 중...");
+                    ProcessBuilder pb = new ProcessBuilder(gitBin, "pull");
+                    pb.directory(root.toFile());
+                    pb.redirectErrorStream(true);
+                    Process proc = pb.start();
+                    StringBuilder output = new StringBuilder();
+                    try (var br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()))) {
+                        String line; while ((line = br.readLine()) != null) output.append(line).append(" ");
+                    }
+                    int exitCode = proc.waitFor();
+                    addLog(exitCode == 0 ? "OK" : "WARN", "Git Pull 완료 (exit=" + exitCode + ") " + output.toString().trim());
+                    log.info("[Git Pull] exit={}, output={}", exitCode, output.toString().trim());
+                } catch (Exception gitEx) {
+                    addLog("WARN", "Git Pull 실패 (분석은 계속): " + gitEx.getMessage());
+                    log.warn("[Git Pull 실패] {}", gitEx.getMessage());
+                }
+            }
 
             List<Path> controllerFiles = Files.walk(root)
                     .filter(p -> p.toString().endsWith(".java") &&

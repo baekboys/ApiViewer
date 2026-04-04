@@ -22,6 +22,10 @@ public class RepoConfig {
     @Column(name = "git_bin_path")
     private String gitBinPath;
 
+    /** 분석 시 git pull 수행 여부 (Y/N, 기본 Y) */
+    @Column(name = "git_pull_enabled", length = 1)
+    private String gitPullEnabled = "Y";
+
     @Column(name = "team_name")
     private String teamName;
 
@@ -68,6 +72,8 @@ public class RepoConfig {
     public void setRootPath(String rootPath) { this.rootPath = rootPath; }
     public String getGitBinPath() { return gitBinPath; }
     public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
+    public String getGitPullEnabled() { return gitPullEnabled; }
+    public void setGitPullEnabled(String gitPullEnabled) { this.gitPullEnabled = gitPullEnabled; }
     public String getTeamName() { return teamName; }
     public void setTeamName(String teamName) { this.teamName = teamName; }
     public String getManagerName() { return managerName; }

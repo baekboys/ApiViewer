@@ -676,7 +676,7 @@
     const old = td.textContent.trim();
     td.innerHTML = `<input type="text" value="${esc(old)}" style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
       onblur="saveFieldInline(this,${id},'${field}')"
-      onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
+      onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
     td.querySelector('input').focus();
   }
   async function saveFieldInline(input, id, field) {
@@ -1104,7 +1104,14 @@
     setTimeout(() => t.classList.remove('show'), 3500);
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Enter' && !document.getElementById('detailModal').style.display.includes('flex')) loadApis(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    // 인라인 편집 중이면 무시 (input/select 포커스)
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (document.getElementById('detailModal').style.display.includes('flex')) return;
+    loadApis();
+  });
 
   function isAdmin() { return sessionStorage.getItem('isAdmin') === 'true'; }
   function applyAdminUI() {

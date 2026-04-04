@@ -20,6 +20,7 @@ public class ReposYamlConfig {
         private String password;
         private String gitBinPath;
         private List<WhatapProfile> whatapProfiles;
+        private List<JenniferProfile> jenniferProfiles;
 
         public PeriodGlobal getPeriod() { return period; }
         public void setPeriod(PeriodGlobal period) { this.period = period; }
@@ -31,6 +32,8 @@ public class ReposYamlConfig {
         public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
         public List<WhatapProfile> getWhatapProfiles() { return whatapProfiles; }
         public void setWhatapProfiles(List<WhatapProfile> whatapProfiles) { this.whatapProfiles = whatapProfiles; }
+        public List<JenniferProfile> getJenniferProfiles() { return jenniferProfiles; }
+        public void setJenniferProfiles(List<JenniferProfile> jenniferProfiles) { this.jenniferProfiles = jenniferProfiles; }
     }
 
     public static class PeriodGlobal {
@@ -56,6 +59,20 @@ public class ReposYamlConfig {
         public void setCookie(String cookie) { this.cookie = cookie; }
     }
 
+    /** 제니퍼 공통 프로필 (URL/Bearer토큰 공유) */
+    public static class JenniferProfile {
+        private String name;
+        private String url;
+        private String bearerToken;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
+        public String getBearerToken() { return bearerToken; }
+        public void setBearerToken(String bearerToken) { this.bearerToken = bearerToken; }
+    }
+
     // ── 레포별 설정 ────────────────────────────────────────
     public static class RepoEntry {
         private String repoName;
@@ -69,6 +86,7 @@ public class ReposYamlConfig {
         private String apiPathPrefix;
         private String pathConstants;
         private WhatapEntry whatap;
+        private JenniferEntry jennifer;
 
         public String getRepoName() { return repoName; }
         public void setRepoName(String repoName) { this.repoName = repoName; }
@@ -92,6 +110,8 @@ public class ReposYamlConfig {
         public void setPathConstants(String pathConstants) { this.pathConstants = pathConstants; }
         public WhatapEntry getWhatap() { return whatap; }
         public void setWhatap(WhatapEntry whatap) { this.whatap = whatap; }
+        public JenniferEntry getJennifer() { return jennifer; }
+        public void setJennifer(JenniferEntry jennifer) { this.jennifer = jennifer; }
     }
 
     public static class WhatapEntry {
@@ -120,5 +140,27 @@ public class ReposYamlConfig {
         public void setOkindsName(String okindsName) { this.okindsName = okindsName; }
         public String getCookie() { return cookie; }
         public void setCookie(String cookie) { this.cookie = cookie; }
+    }
+
+    public static class JenniferEntry {
+        private String enabled = "N";
+        private String profileName;
+        private String url;
+        private Integer sid;
+        private String filter;
+        private String bearerToken;
+
+        public String getEnabled() { return enabled; }
+        public void setEnabled(String enabled) { this.enabled = enabled; }
+        public String getProfileName() { return profileName; }
+        public void setProfileName(String profileName) { this.profileName = profileName; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
+        public Integer getSid() { return sid; }
+        public void setSid(Integer sid) { this.sid = sid; }
+        public String getFilter() { return filter; }
+        public void setFilter(String filter) { this.filter = filter; }
+        public String getBearerToken() { return bearerToken; }
+        public void setBearerToken(String bearerToken) { this.bearerToken = bearerToken; }
     }
 }

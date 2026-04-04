@@ -62,6 +62,22 @@ public class RepoConfig {
     @Column(name = "whatap_cookie", columnDefinition = "TEXT")
     private String whatapCookie;
 
+    // ── 제니퍼 설정 ──
+    @Column(name = "jennifer_enabled", length = 1)
+    private String jenniferEnabled = "N";
+
+    @Column(name = "jennifer_url", length = 500)
+    private String jenniferUrl;
+
+    @Column(name = "jennifer_sid")
+    private Integer jenniferSid;
+
+    @Column(name = "jennifer_filter", length = 200)
+    private String jenniferFilter;
+
+    @Column(name = "jennifer_bearer_token", columnDefinition = "TEXT")
+    private String jenniferBearerToken;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getRepoName() { return repoName; }
@@ -98,4 +114,14 @@ public class RepoConfig {
     public void setWhatapOkindsName(String whatapOkindsName) { this.whatapOkindsName = whatapOkindsName; }
     public String getWhatapCookie() { return whatapCookie; }
     public void setWhatapCookie(String whatapCookie) { this.whatapCookie = whatapCookie; }
+    public String getJenniferEnabled() { return jenniferEnabled; }
+    public void setJenniferEnabled(String jenniferEnabled) { this.jenniferEnabled = jenniferEnabled; }
+    public String getJenniferUrl() { return jenniferUrl; }
+    public void setJenniferUrl(String jenniferUrl) { this.jenniferUrl = jenniferUrl; }
+    public Integer getJenniferSid() { return jenniferSid; }
+    public void setJenniferSid(Integer jenniferSid) { this.jenniferSid = jenniferSid; }
+    public String getJenniferFilter() { return jenniferFilter; }
+    public void setJenniferFilter(String jenniferFilter) { this.jenniferFilter = jenniferFilter; }
+    public String getJenniferBearerToken() { return jenniferBearerToken; }
+    public void setJenniferBearerToken(String jenniferBearerToken) { this.jenniferBearerToken = jenniferBearerToken; }
 }

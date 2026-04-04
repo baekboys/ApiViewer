@@ -94,6 +94,12 @@ public class YamlConfigService {
                 if (p.getName() != null) profileMap.put(p.getName(), p);
             }
         }
+        Map<String, ReposYamlConfig.JenniferProfile> jenniferProfileMap = new java.util.HashMap<>();
+        if (config.getGlobal() != null && config.getGlobal().getJenniferProfiles() != null) {
+            for (ReposYamlConfig.JenniferProfile p : config.getGlobal().getJenniferProfiles()) {
+                if (p.getName() != null) jenniferProfileMap.put(p.getName(), p);
+            }
+        }
 
         // 레포별 설정 저장
         List<String> importedNames = new ArrayList<>();
@@ -136,6 +142,24 @@ public class YamlConfigService {
                     }
                     rc.setWhatapUrl(resolvedUrl);
                     rc.setWhatapCookie(resolvedCookie);
+                }
+
+                // 제니퍼 설정
+                if (entry.getJennifer() != null) {
+                    ReposYamlConfig.JenniferEntry j = entry.getJennifer();
+                    rc.setJenniferEnabled(j.getEnabled());
+                    rc.setJenniferSid(j.getSid());
+                    rc.setJenniferFilter(j.getFilter());
+
+                    String jUrl = j.getUrl();
+                    String jToken = j.getBearerToken();
+                    if (j.getProfileName() != null && jenniferProfileMap.containsKey(j.getProfileName())) {
+                        ReposYamlConfig.JenniferProfile jp = jenniferProfileMap.get(j.getProfileName());
+                        if (jUrl == null || jUrl.isBlank()) jUrl = jp.getUrl();
+                        if (jToken == null || jToken.isBlank()) jToken = jp.getBearerToken();
+                    }
+                    rc.setJenniferUrl(jUrl);
+                    rc.setJenniferBearerToken(jToken);
                 }
 
                 repoRepo.save(rc);

@@ -75,4 +75,11 @@ public class ApmController {
             "period", Map.of("from", fromDate.toString(), "to", toDate.toString())
         ));
     }
+
+    /** Mock 데이터 삭제 */
+    @DeleteMapping("/mock/{repoName}")
+    public ResponseEntity<?> deleteMock(@PathVariable String repoName) {
+        log.info("[APM Mock] 삭제 요청: repo={}", repoName);
+        return ResponseEntity.ok(mockApmService.deleteMockData(repoName));
+    }
 }

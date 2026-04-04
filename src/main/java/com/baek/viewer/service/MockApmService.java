@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.stream.Collectors;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -47,18 +48,29 @@ public class MockApmService {
             "TimeoutException: Read timed out"
         };
 
+        // 일부 API는 호출이력 없음 (테스트용): 랜덤 3개 선택
+        Set<String> noCallApis = new HashSet<>();
+        List<ApiRecord> candidates = records.stream()
+                .filter(r -> !"차단완료".equals(r.getStatus()))
+                .collect(java.util.stream.Collectors.toList());
+        Collections.shuffle(candidates);
+        for (int i = 0; i < Math.min(3, candidates.size()); i++) {
+            noCallApis.add(candidates.get(i).getApiPath());
+        }
+        log.info("[Mock APM] 호출이력 없는 API {}개: {}", noCallApis.size(), noCallApis);
+
         for (ApiRecord rec : records) {
             for (int d = 0; d < days; d++) {
                 LocalDate date = today.minusDays(d);
 
-                // 이미 데이터가 있으면 건너뜀
                 if (!apmRepo.findByRepositoryNameAndApiPathAndCallDate(repoName, rec.getApiPath(), date).isEmpty()) {
                     continue;
                 }
 
-                // 차단완료면 호출 0건
+                // 차단완료 또는 이력없음 대상이면 호출 0건
                 boolean isBlocked = "차단완료".equals(rec.getStatus());
-                long callCount = isBlocked ? 0 : ThreadLocalRandom.current().nextLong(0, 150);
+                boolean noCall = noCallApis.contains(rec.getApiPath());
+                long callCount = (isBlocked || noCall) ? 0 : ThreadLocalRandom.current().nextLong(0, 150);
                 long errorCount = callCount > 0 ? ThreadLocalRandom.current().nextLong(0, Math.max(1, callCount / 20)) : 0;
                 String errorMsg = errorCount > 0 ? errorMessages[ThreadLocalRandom.current().nextInt(errorMessages.length)] : null;
 
@@ -135,5 +147,16 @@ public class MockApmService {
     /** 레포별 APM 일별 데이터 조회 */
     public List<ApmCallData> getCallData(String repoName, LocalDate from, LocalDate to) {
         return apmRepo.findByRepositoryNameAndCallDateBetweenOrderByCallDateDesc(repoName, from, to);
+    }
+
+    /** Mock 데이터 삭제 */
+    @Transactional
+    public Map<String, Object> deleteMockData(String repoName) {
+        log.info("[Mock APM] 데이터 삭제: repo={}", repoName);
+        long before = apmRepo.count();
+        apmRepo.deleteByRepositoryName(repoName);
+        long deleted = before - apmRepo.count();
+        log.info("[Mock APM] 삭제 완료: {}건", deleted);
+        return Map.of("deleted", deleted);
     }
 }

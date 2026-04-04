@@ -273,8 +273,9 @@
   async function loadRepoConfig(id) {
     if (!id) return;
     try {
-      const res = await fetch(`/api/config/repos/${id}`);
+      const res = await fetch(`/api/config/repos/${id}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
       const r = await res.json();
+      if (!res.ok) throw new Error(r.error || '설정 조회 실패');
 
       document.getElementById('rootPath').value       = r.rootPath       || '';
       document.getElementById('repositoryName').value = r.repoName       || '';

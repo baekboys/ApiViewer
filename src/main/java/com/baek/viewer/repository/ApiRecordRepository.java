@@ -21,6 +21,10 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long> {
 
     List<ApiRecord> findByBlockTargetIsNotNull();
 
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    void deleteByRepositoryName(String repositoryName);
+
     // ── 경량 목록 조회 (fullComment, controllerComment, blockedReason 제외) ──
     @Query("SELECT r FROM ApiRecord r")
     List<ApiRecordSummary> findAllSummary();

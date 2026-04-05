@@ -38,6 +38,8 @@
     label.field input,label.field select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);transition:border .15s;}
     label.field input:focus,label.field select:focus{border-color:var(--primary);box-shadow:0 0 0 2px #3b82f620;}
     label.field input.danger:focus{border-color:var(--danger);box-shadow:0 0 0 2px #ef444420;}
+    input::placeholder, textarea::placeholder { color:#cbd5e1; opacity:1; font-style:italic; font-weight:400; }
+    input:focus::placeholder { color:#e2e8f0; }
     .field-hint{font-size:10px;color:var(--text-muted);font-weight:400;margin-top:2px;}
 
     /* 버튼 */
@@ -107,40 +109,47 @@
 
 <div class="main">
 
-  <!-- YAML 임포트 -->
-  <div class="card">
-    <div class="card-title"><span class="dot" style="background:var(--purple);"></span>YAML 파일에서 설정 가져오기</div>
-    <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
-      <label class="field" style="flex:1;min-width:200px;">서버 파일 경로
-        <input id="yamlFilePath" type="text" placeholder="repos-config.yml 절대 경로" style="font-family:monospace;">
-      </label>
-      <button class="btn btn-blue" onclick="importYaml()" style="background:var(--purple);height:34px;">경로에서 가져오기</button>
-      <span style="color:var(--text-muted);font-size:11px;padding-bottom:8px;">또는</span>
-      <label class="field">
-        <input id="yamlFileInput" type="file" accept=".yml,.yaml" onchange="importYamlFile()" style="font-size:12px;">
-      </label>
-    </div>
-    <span class="field-hint" style="margin-top:4px;display:block;">레포지토리명 기준으로 기존 항목은 업데이트, 신규 항목은 추가됩니다.</span>
-  </div>
-
   <!-- 공통 설정 -->
   <div class="card">
     <div class="card-title"><span class="dot dot-blue"></span>공통 설정 (모든 레포지토리에 적용)</div>
-    <div class="field-row col2">
-      <label class="field">Whatap 조회 시작일
-        <input id="gStartDate" type="text" placeholder="20250101">
-        <span class="field-hint">형식: YYYYMMDD</span>
-      </label>
-      <label class="field">Whatap 조회 종료일
-        <input id="gEndDate" type="text" placeholder="20261231">
-        <span class="field-hint">형식: YYYYMMDD</span>
-      </label>
+    <div class="field-row" style="grid-template-columns:200px;margin-bottom:14px;">
       <label class="field">차단검토 기준 호출건수
-        <input id="gReviewThreshold" type="number" min="0" placeholder="3" style="width:100px;">
+        <input id="gReviewThreshold" type="number" min="0" placeholder="3">
         <span class="field-hint">이 값 이하이면서 소스변경 1년 초과 시 차단검토필요</span>
       </label>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+
+    <!-- 팀 목록 -->
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">
+        팀 목록 <span style="font-weight:400;text-transform:none;">(담당자/현업검토 입력 시 자동완성용)</span>
+      </div>
+      <div id="teamsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="text" id="newTeamInput" placeholder="팀명 입력 후 Enter" style="flex:1;max-width:260px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeam();}">
+        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addTeam()">+ 추가</button>
+      </div>
+    </div>
+
+    <!-- 와탭 공통 프로필 -->
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">
+        Whatap 공통 프로필 <span style="font-weight:400;text-transform:none;">(레포에서 profileName으로 참조)</span>
+      </div>
+      <div id="whatapProfileList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addWhatapProfileRow()">+ 와탭 프로필 추가</button>
+    </div>
+
+    <!-- 제니퍼 공통 프로필 -->
+    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">
+        Jennifer 공통 프로필 <span style="font-weight:400;text-transform:none;">(레포에서 profileName으로 참조)</span>
+      </div>
+      <div id="jenniferProfileList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addJenniferProfileRow()">+ 제니퍼 프로필 추가</button>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:14px;">
       <button class="btn btn-blue" onclick="saveGlobal()">공통 설정 저장</button>
     </div>
   </div>
@@ -151,54 +160,10 @@
       <span class="dot dot-green"></span>레포지토리별 설정
       <div style="margin-left:auto;display:flex;gap:6px;">
         <button class="btn btn-blue" style="height:28px;padding:4px 14px;font-size:12px;" onclick="openModal()">+ 레포 추가</button>
-        <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;" onclick="syncYaml()">🔄 YAML 동기화</button>
       </div>
     </div>
     <div class="repo-list" id="repoList">
       <div class="empty-repos">등록된 레포지토리가 없습니다.</div>
-    </div>
-  </div>
-
-  <!-- APM 호출건수 관리 -->
-  <div class="card">
-    <div class="card-title" style="margin-bottom:12px;">
-      <span class="dot" style="background:#0ea5e9;"></span>APM 호출건수 관리
-      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">Mock 데이터 생성 또는 실제 APM 데이터 집계</span>
-    </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
-      <label class="field">레포지토리
-        <select id="apmRepoSelect" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;"></select>
-      </label>
-      <label class="field">기간 (일)
-        <input id="apmDays" type="number" value="90" min="1" max="365" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:70px;">
-      </label>
-      <button class="btn" style="background:#0ea5e9;color:#fff;height:34px;" onclick="generateMock()">Mock 데이터 생성</button>
-      <button class="btn btn-blue" style="height:34px;" onclick="aggregateApm()">호출건수 집계 반영</button>
-      <button class="btn" style="background:#ef4444;color:#fff;height:34px;" onclick="deleteMock()">Mock 데이터 삭제</button>
-    </div>
-    <div id="apmResult" style="font-size:12px;color:var(--text-muted);"></div>
-    <div id="apmDataWrap" style="display:none;margin-top:12px;">
-      <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;">
-        <label class="field">조회 시작일 <input id="apmFrom" type="date" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"></label>
-        <label class="field">조회 종료일 <input id="apmTo" type="date" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"></label>
-        <button class="btn btn-ghost" style="height:30px;" onclick="loadApmData()">조회</button>
-      </div>
-      <div style="max-height:400px;overflow:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;" id="apmTable">
-          <thead style="position:sticky;top:0;background:#f1f5f9;">
-            <tr>
-              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);">API 경로</th>
-              <th style="padding:6px 8px;text-align:left;">일자</th>
-              <th style="padding:6px 8px;text-align:right;">호출건수</th>
-              <th style="padding:6px 8px;text-align:right;">에러건수</th>
-              <th style="padding:6px 8px;text-align:left;">에러내용</th>
-              <th style="padding:6px 8px;text-align:left;">클래스명</th>
-              <th style="padding:6px 8px;text-align:left;">소스</th>
-            </tr>
-          </thead>
-          <tbody id="apmTbody"></tbody>
-        </table>
-      </div>
     </div>
   </div>
 
@@ -207,6 +172,10 @@
     <div class="card-title" style="margin-bottom:12px;">
       <span class="dot" style="background:#8b5cf6;"></span>주기성 배치 스케줄
       <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">Git Pull & 분석, APM 호출건수 수집 등 자동 실행 주기를 설정합니다.</span>
+      <div style="margin-left:auto;display:flex;gap:6px;">
+        <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;" onclick="loadSchedules()">🔄 새로고침</button>
+        <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;" onclick="resetSchedules()">기본값 재생성</button>
+      </div>
     </div>
     <div id="scheduleList" style="display:flex;flex-direction:column;gap:12px;">로딩 중...</div>
   </div>
@@ -227,6 +196,7 @@
       </label>
       <button class="btn btn-blue" style="height:34px;" onclick="loadLog()">조회</button>
       <button class="btn btn-ghost" style="height:34px;" onclick="loadLogDates()">새로고침</button>
+      <button class="btn btn-ghost" id="tailBtn" style="height:34px;" onclick="toggleTailing()">⚪ 실시간 OFF</button>
     </div>
     <div id="logDatesBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
     <div id="logContent" style="background:#1e293b;color:#e2e8f0;border-radius:8px;padding:16px;font-family:'Consolas',monospace;font-size:11px;line-height:1.6;max-height:500px;overflow:auto;white-space:pre-wrap;word-break:break-all;">
@@ -237,12 +207,23 @@
   <!-- 데이터 초기화 -->
   <div class="card" style="border:1px solid #fca5a5;">
     <div class="card-title" style="margin-bottom:12px;">
-      <span class="dot" style="background:#ef4444;"></span>분석 데이터 초기화
-      <span style="font-size:11px;font-weight:400;color:#ef4444;margin-left:6px;">DB에 저장된 모든 분석 데이터를 삭제합니다. 이 작업은 되돌릴 수 없습니다.</span>
+      <span class="dot" style="background:#ef4444;"></span>데이터 삭제
+      <span style="font-size:11px;font-weight:400;color:#ef4444;margin-left:6px;">이 작업은 되돌릴 수 없습니다. 비밀번호 재확인 후 실행됩니다.</span>
     </div>
-    <div style="display:flex;gap:12px;align-items:flex-end;">
-      <button class="btn" style="background:#ef4444;color:#fff;height:34px;" onclick="deleteAllData()">전체 분석 데이터 삭제</button>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <label class="field" style="min-width:220px;">대상 레포지토리
+        <select id="delRepoSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <option value="ALL">(전체 레포)</option>
+        </select>
+      </label>
+      <button class="btn" style="background:#ef4444;color:#fff;height:34px;" onclick="deleteAnalysisData()">🗑 분석데이터 삭제</button>
+      <button class="btn" style="background:#dc2626;color:#fff;height:34px;" onclick="deleteCallHistoryData()">🗑 호출이력 데이터 삭제 (MOCK 포함)</button>
     </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+      <b>분석데이터</b>: URL 추출/분석 결과 (api_record) &nbsp; · &nbsp;
+      <b>호출이력</b>: APM 수집 데이터 (apm_call_data, MOCK/WHATAP/JENNIFER 모두)
+    </div>
+    <div id="delResult" style="margin-top:8px;font-size:12px;"></div>
   </div>
 
 </div>
@@ -298,35 +279,72 @@
         </label>
       </div>
 
+      <div class="modal-section">프로그램ID별 담당자 매핑</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+        프로그램ID가 API 경로에 포함되면 해당 담당자를 자동 배정합니다. 매핑이 없으면 위 담당자(팀 대표)가 적용됩니다.
+      </div>
+      <div id="mappingList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addMappingRow()">+ 매핑 추가</button>
+
       <div class="modal-section">Whatap APM 설정</div>
-      <div class="field-row col2">
-        <label class="field">Whatap 활성화
+      <div class="field-row col3">
+        <label class="field">활성화
           <select id="f_whatapEnabled">
             <option value="N">N (비활성)</option>
             <option value="Y">Y (활성)</option>
           </select>
         </label>
-        <label class="field">Whatap URL
-          <input id="f_whatapUrl" type="text" placeholder="https://whatap.io/api/...">
+        <label class="field">공통 프로필 참조 (profileName)
+          <input id="f_whatapProfileName" type="text" placeholder="운영 / 개발 (공통설정 프로필명)">
         </label>
-      </div>
-      <div class="field-row col3">
         <label class="field">프로젝트 코드 (pcode)
           <input id="f_whatapPcode" type="number" placeholder="8">
         </label>
-        <label class="field">서비스 필터
+      </div>
+      <div class="field-row col3">
+        <label class="field">서비스 필터 (filter)
           <input id="f_whatapFilter" type="text" placeholder="/app, /api">
         </label>
         <label class="field">Agent OKINDS
           <input id="f_whatapOkinds" type="text" placeholder="123, 456">
         </label>
-      </div>
-      <div class="field-row col2">
         <label class="field">OKINDS 명칭
           <input id="f_whatapOkindsName" type="text" placeholder="메인서버">
         </label>
-        <label class="field">쿠키 (Cookie)
-          <input id="f_whatapCookie" class="danger" type="password" placeholder="브라우저 개발자도구에서 복사">
+      </div>
+      <div class="field-row col2">
+        <label class="field">URL (개별 지정 시만)
+          <input id="f_whatapUrl" type="text" placeholder="비워두면 공통 프로필 사용">
+        </label>
+        <label class="field">쿠키 (개별 지정 시만)
+          <input id="f_whatapCookie" type="text" placeholder="비워두면 공통 프로필 사용" style="font-family:monospace;font-size:11px;">
+        </label>
+      </div>
+
+      <div class="modal-section">Jennifer APM 설정</div>
+      <div class="field-row col3">
+        <label class="field">활성화
+          <select id="f_jenniferEnabled">
+            <option value="N">N (비활성)</option>
+            <option value="Y">Y (활성)</option>
+          </select>
+        </label>
+        <label class="field">공통 프로필 참조 (profileName)
+          <input id="f_jenniferProfileName" type="text" placeholder="운영 / 개발 (공통설정 프로필명)">
+        </label>
+        <label class="field">시스템 ID (sid)
+          <input id="f_jenniferSid" type="number" placeholder="1001">
+        </label>
+      </div>
+      <div class="field-row col3">
+        <label class="field">서비스 필터 (filter)
+          <input id="f_jenniferFilter" type="text" placeholder="">
+        </label>
+        <label class="field">URL (개별 지정 시만)
+          <input id="f_jenniferUrl" type="text" placeholder="비워두면 공통 프로필 사용">
+        </label>
+        <label class="field">Bearer Token (개별 지정 시만)
+          <input id="f_jenniferBearerToken" type="text" placeholder="비워두면 공통 프로필 사용" style="font-family:monospace;font-size:11px;">
         </label>
       </div>
     </div>
@@ -344,65 +362,125 @@
 
   // ── 초기 로드 ─────────────────────────────────────────────
   async function init() {
-    // 기본 YAML 경로 추천 (현재 URL 기준 프로젝트 루트 추정)
-    document.getElementById('yamlFilePath').placeholder =
-      window.location.hostname === 'localhost' ? 'repos-config.yml 절대 경로 입력' : '';
     await Promise.all([loadGlobal(), loadRepos()]);
-  }
-
-  async function importYaml() {
-    const filePath = document.getElementById('yamlFilePath').value.trim();
-    if (!filePath) { showToast('파일 경로를 입력하세요.', 'error'); return; }
-    await doImport(filePath, event.target, 'YAML 가져오기');
-  }
-
-  async function syncYaml() {
-    await doImport('', event.target, '🔄 YAML 동기화');
-  }
-
-  async function doImport(filePath, btn, label) {
-    btn.disabled = true; btn.textContent = '동기화 중...';
-    try {
-      const res = await fetch('/api/config/import-yaml', {
-        method: 'POST',
-        headers: adminHeaders(),
-        body: JSON.stringify({ filePath })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '실패');
-      await Promise.all([loadGlobal(), loadRepos()]);
-      showToast(`완료 — 추가 ${data.added}개, 업데이트 ${data.updated}개`, 'success');
-    } catch(e) {
-      showToast(e.message, 'error');
-    } finally {
-      btn.disabled = false; btn.textContent = label;
-    }
   }
 
   async function loadGlobal() {
     try {
       const res = await fetch('/api/config/global');
       const g = await res.json();
-      document.getElementById('gStartDate').value        = g.startDate        || '';
-      document.getElementById('gEndDate').value          = g.endDate          || '';
       document.getElementById('gReviewThreshold').value  = g.reviewThreshold  ?? 3;
+      // 팀 목록 로드
+      document.getElementById('teamsList').innerHTML = '';
+      try {
+        const teams = g.teams ? JSON.parse(g.teams) : [];
+        teams.forEach(t => renderTeamTag(t));
+      } catch(e) {}
+      // 프로필 로드
+      document.getElementById('whatapProfileList').innerHTML = '';
+      document.getElementById('jenniferProfileList').innerHTML = '';
+      try {
+        const wp = g.whatapProfiles ? JSON.parse(g.whatapProfiles) : [];
+        wp.forEach(p => addWhatapProfileRow(p.name, p.url, p.cookie));
+      } catch(e) {}
+      try {
+        const jp = g.jenniferProfiles ? JSON.parse(g.jenniferProfiles) : [];
+        jp.forEach(p => addJenniferProfileRow(p.name, p.url, p.bearerToken));
+      } catch(e) {}
     } catch(e) {}
   }
 
+  // ── 팀 목록 관리 ────────────────────────────────────────
+  function renderTeamTag(name) {
+    const list = document.getElementById('teamsList');
+    const tag = document.createElement('span');
+    tag.className = 'team-tag';
+    tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px 4px 10px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:12px;font-size:11px;color:#3730a3;font-weight:600;';
+    tag.innerHTML = `<span>${esc(name)}</span><button type="button" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;" onclick="this.parentElement.remove()">×</button>`;
+    tag.dataset.name = name;
+    list.appendChild(tag);
+  }
+
+  function addTeam() {
+    const input = document.getElementById('newTeamInput');
+    const name = input.value.trim();
+    if (!name) return;
+    // 중복 체크
+    const existing = Array.from(document.querySelectorAll('#teamsList .team-tag')).map(t => t.dataset.name);
+    if (existing.includes(name)) { showToast('이미 등록된 팀명입니다.', 'error'); return; }
+    renderTeamTag(name);
+    input.value = '';
+    input.focus();
+  }
+
+  function collectTeams() {
+    return Array.from(document.querySelectorAll('#teamsList .team-tag')).map(t => t.dataset.name);
+  }
+
   async function saveGlobal() {
+    const wpList = collectWhatapProfiles();
+    const jpList = collectJenniferProfiles();
     const body = {
       id: 1,
-      startDate:       document.getElementById('gStartDate').value.trim(),
-      endDate:         document.getElementById('gEndDate').value.trim(),
-      reviewThreshold: parseInt(document.getElementById('gReviewThreshold').value) || 3
+      reviewThreshold: parseInt(document.getElementById('gReviewThreshold').value) || 3,
+      teams: (() => { const t = collectTeams(); return t.length ? JSON.stringify(t) : null; })(),
+      whatapProfiles: wpList.length ? JSON.stringify(wpList) : null,
+      jenniferProfiles: jpList.length ? JSON.stringify(jpList) : null
     };
     try {
-      const res = await fetch('/api/config/global', {
-        method: 'PUT', headers: adminHeaders(), body: JSON.stringify(body)
+      const res = await adminFetch('/api/config/global', {
+        method: 'PUT', body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error();
       showToast('공통 설정 저장 완료', 'success');
     } catch(e) { showToast('저장 실패', 'error'); }
+  }
+
+  // ── 공통 프로필 ────────────────────────────────────────
+  function addWhatapProfileRow(name, url, cookie) {
+    const list = document.getElementById('whatapProfileList');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    row.innerHTML = `
+      <input type="text" class="wp-name" value="${esc(name||'')}" placeholder="프로필명 (예: 운영)" style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <input type="text" class="wp-url" value="${esc(url||'')}" placeholder="Whatap URL" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <input type="text" class="wp-cookie" value="${esc(cookie||'')}" placeholder="Cookie" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:monospace;">
+      <button type="button" class="btn btn-ghost" style="padding:2px 8px;font-size:16px;height:auto;color:var(--danger);" onclick="this.parentElement.remove()">×</button>`;
+    list.appendChild(row);
+  }
+
+  function addJenniferProfileRow(name, url, bearerToken) {
+    const list = document.getElementById('jenniferProfileList');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    row.innerHTML = `
+      <input type="text" class="jp-name" value="${esc(name||'')}" placeholder="프로필명 (예: 운영)" style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <input type="text" class="jp-url" value="${esc(url||'')}" placeholder="Jennifer URL" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <input type="text" class="jp-token" value="${esc(bearerToken||'')}" placeholder="Bearer Token" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:monospace;">
+      <button type="button" class="btn btn-ghost" style="padding:2px 8px;font-size:16px;height:auto;color:var(--danger);" onclick="this.parentElement.remove()">×</button>`;
+    list.appendChild(row);
+  }
+
+  function collectWhatapProfiles() {
+    const arr = [];
+    document.querySelectorAll('#whatapProfileList > div').forEach(row => {
+      const name = row.querySelector('.wp-name').value.trim();
+      const url = row.querySelector('.wp-url').value.trim();
+      const cookie = row.querySelector('.wp-cookie').value.trim();
+      if (name) arr.push({name, url, cookie});
+    });
+    return arr;
+  }
+
+  function collectJenniferProfiles() {
+    const arr = [];
+    document.querySelectorAll('#jenniferProfileList > div').forEach(row => {
+      const name = row.querySelector('.jp-name').value.trim();
+      const url = row.querySelector('.jp-url').value.trim();
+      const bearerToken = row.querySelector('.jp-token').value.trim();
+      if (name) arr.push({name, url, bearerToken});
+    });
+    return arr;
   }
 
   // ── 레포 목록 ─────────────────────────────────────────────
@@ -427,10 +505,10 @@
           <span>📁 ${esc(r.rootPath || '-')}</span>
           <span>🌐 ${esc(r.domain || '-')}</span>
           ${r.teamName ? `<span>👥 ${esc(r.teamName)}</span>` : ''}
-          ${r.managerName ? `<span>👤 ${esc(r.managerName)}</span>` : ''}
+          ${r.managerName ? `<span>👤 ${esc(r.managerName)}${mappingBadge(r.managerMappings)}</span>` : ''}
           ${r.businessName ? `<span>📝 ${esc(r.businessName)}</span>` : ''}
           ${r.apiPathPrefix ? `<span>🔗 prefix: ${esc(r.apiPathPrefix)}</span>` : ''}
-          <span>Whatap: <b style="color:${r.whatapEnabled==='Y'?'var(--success)':'var(--text-muted)'}">${r.whatapEnabled||'N'}</b></span>
+          ${apmBadge(r)}
         </div>
         <div class="repo-actions">
           <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px;" onclick="openModal(${r.id})">편집</button>
@@ -441,17 +519,19 @@
   }
 
   // ── 모달 ──────────────────────────────────────────────────
-  function openModal(id = null) {
+  async function openModal(id = null) {
     editingId = id;
     document.getElementById('modalTitle').textContent = id ? '레포지토리 편집' : '레포지토리 추가';
     clearForm();
-
-    if (id) {
-      fetch(`/api/config/repos/${id}`)
-        .then(r => r.json())
-        .then(r => fillForm(r));
-    }
     document.getElementById('modalOverlay').classList.add('show');
+    if (id) {
+      try {
+        const res = await adminFetch(`/api/config/repos/${id}`, { method:'GET' });
+        if (!res.ok) throw new Error('설정 조회 실패 (' + res.status + ')');
+        const r = await res.json();
+        fillForm(r);
+      } catch(e) { showToast(e.message || '설정 조회 실패', 'error'); }
+    }
   }
 
   function closeModal() {
@@ -459,13 +539,75 @@
     editingId = null;
   }
 
+  // APM source 배지 (MOCK=황색, WHATAP=청색, JENNIFER=보라)
+  function sourceBadge(source) {
+    const s = source || 'MOCK';
+    const colors = {
+      MOCK:     { bg:'#fef3c7', fg:'#92400e' },
+      WHATAP:   { bg:'#dbeafe', fg:'#1e40af' },
+      JENNIFER: { bg:'#ede9fe', fg:'#6d28d9' }
+    };
+    const c = colors[s] || { bg:'#f1f5f9', fg:'#475569' };
+    return `<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${c.bg};color:${c.fg};font-weight:600;">${esc(s)}</span>`;
+  }
+
+  // APM 배지: 0개면 경고, 1개면 정상, 2개면 중복 경고
+  function apmBadge(r) {
+    const w = r.whatapEnabled === 'Y';
+    const j = r.jenniferEnabled === 'Y';
+    if (w && j) return `<span style="color:var(--danger);font-weight:600;">⚠ APM: whatap + jennifer (중복)</span>`;
+    if (w)      return `<span>APM: <b style="color:var(--success);">whatap</b></span>`;
+    if (j)      return `<span>APM: <b style="color:var(--success);">jennifer</b></span>`;
+    return `<span style="color:#ca8a04;font-weight:600;">⚠ APM 미설정</span>`;
+  }
+
+  // 매핑 건수 배지 (JSON 파싱 실패 시 경고 표시)
+  function mappingBadge(json) {
+    if (!json) return '';
+    try {
+      const m = JSON.parse(json);
+      return Array.isArray(m) && m.length ? ` <span style="color:var(--primary);font-weight:600;">(+${m.length}건 매핑)</span>` : '';
+    } catch(e) {
+      console.warn('managerMappings 파싱 실패:', e, json);
+      return ' <span style="color:var(--danger);">(매핑 데이터 오류)</span>';
+    }
+  }
+
+  // ── 프로그램ID별 담당자 매핑 ──────────────────────────────
+  function addMappingRow(pid, mname) {
+    const list = document.getElementById('mappingList');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    row.innerHTML = `
+      <input type="text" class="mp-pid" value="${esc(pid||'')}" placeholder="프로그램ID (예: CARD)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <input type="text" class="mp-mgr" value="${esc(mname||'')}" placeholder="담당자 (예: 김철수)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <button type="button" class="btn btn-ghost" style="padding:2px 8px;font-size:16px;height:auto;color:var(--danger);" onclick="this.parentElement.remove()">×</button>`;
+    list.appendChild(row);
+  }
+
+  function collectMappings() {
+    const rows = document.querySelectorAll('#mappingList > div');
+    const arr = [];
+    rows.forEach(row => {
+      const pid = row.querySelector('.mp-pid').value.trim();
+      const mgr = row.querySelector('.mp-mgr').value.trim();
+      if (pid && mgr) arr.push({programId: pid, managerName: mgr});
+    });
+    return arr.length ? JSON.stringify(arr) : null;
+  }
+
   function clearForm() {
     ['repoName','domain','rootPath','gitBinPath','teamName','managerName','businessName',
-     'apiPathPrefix','pathConstants','whatapUrl','whatapFilter','whatapOkinds',
-     'whatapOkindsName','whatapCookie'].forEach(k => document.getElementById('f_'+k).value = '');
+     'apiPathPrefix','pathConstants','whatapProfileName','whatapUrl','whatapFilter','whatapOkinds',
+     'whatapOkindsName','whatapCookie','jenniferProfileName','jenniferUrl','jenniferFilter',
+     'jenniferBearerToken','jenniferSid'].forEach(k => {
+       const el = document.getElementById('f_'+k); if (el) el.value = '';
+     });
     document.getElementById('f_whatapEnabled').value = 'N';
+    document.getElementById('f_jenniferEnabled').value = 'N';
     document.getElementById('f_gitPullEnabled').value = 'Y';
     document.getElementById('f_whatapPcode').value = '8';
+    document.getElementById('mappingList').innerHTML = '';
   }
 
   function fillForm(r) {
@@ -479,13 +621,30 @@
     document.getElementById('f_businessName').value     = r.businessName     || '';
     document.getElementById('f_apiPathPrefix').value    = r.apiPathPrefix    || '';
     document.getElementById('f_pathConstants').value    = r.pathConstants    || '';
-    document.getElementById('f_whatapEnabled').value    = r.whatapEnabled    || 'N';
-    document.getElementById('f_whatapUrl').value        = r.whatapUrl        || '';
-    document.getElementById('f_whatapPcode').value      = r.whatapPcode      || 8;
-    document.getElementById('f_whatapFilter').value     = r.whatapFilter     || '';
-    document.getElementById('f_whatapOkinds').value     = r.whatapOkinds     || '';
-    document.getElementById('f_whatapOkindsName').value = r.whatapOkindsName || '';
-    document.getElementById('f_whatapCookie').value     = r.whatapCookie     || '';
+    // Whatap
+    document.getElementById('f_whatapEnabled').value     = r.whatapEnabled     || 'N';
+    document.getElementById('f_whatapProfileName').value = r.whatapProfileName || '';
+    document.getElementById('f_whatapUrl').value         = r.whatapUrl         || '';
+    document.getElementById('f_whatapPcode').value       = r.whatapPcode       || 8;
+    document.getElementById('f_whatapFilter').value      = r.whatapFilter      || '';
+    document.getElementById('f_whatapOkinds').value      = r.whatapOkinds      || '';
+    document.getElementById('f_whatapOkindsName').value  = r.whatapOkindsName  || '';
+    document.getElementById('f_whatapCookie').value      = r.whatapCookie      || '';
+    // Jennifer
+    document.getElementById('f_jenniferEnabled').value     = r.jenniferEnabled     || 'N';
+    document.getElementById('f_jenniferProfileName').value = r.jenniferProfileName || '';
+    document.getElementById('f_jenniferUrl').value         = r.jenniferUrl         || '';
+    document.getElementById('f_jenniferSid').value         = r.jenniferSid         || '';
+    document.getElementById('f_jenniferFilter').value      = r.jenniferFilter      || '';
+    document.getElementById('f_jenniferBearerToken').value = r.jenniferBearerToken || '';
+    // 프로그램ID별 담당자 매핑 로드
+    document.getElementById('mappingList').innerHTML = '';
+    if (r.managerMappings) {
+      try {
+        const mappings = JSON.parse(r.managerMappings);
+        mappings.forEach(m => addMappingRow(m.programId, m.managerName));
+      } catch(e) {}
+    }
   }
 
   async function saveRepo() {
@@ -504,19 +663,27 @@
       businessName:     document.getElementById('f_businessName').value.trim(),
       apiPathPrefix:    document.getElementById('f_apiPathPrefix').value.trim(),
       pathConstants:    document.getElementById('f_pathConstants').value.trim(),
-      whatapEnabled:    document.getElementById('f_whatapEnabled').value,
-      whatapUrl:        document.getElementById('f_whatapUrl').value.trim(),
-      whatapPcode:      parseInt(document.getElementById('f_whatapPcode').value) || 8,
-      whatapFilter:     document.getElementById('f_whatapFilter').value.trim(),
-      whatapOkinds:     document.getElementById('f_whatapOkinds').value.trim(),
-      whatapOkindsName: document.getElementById('f_whatapOkindsName').value.trim(),
-      whatapCookie:     document.getElementById('f_whatapCookie').value.trim()
+      whatapEnabled:      document.getElementById('f_whatapEnabled').value,
+      whatapProfileName:  document.getElementById('f_whatapProfileName').value.trim() || null,
+      whatapUrl:          document.getElementById('f_whatapUrl').value.trim(),
+      whatapPcode:        parseInt(document.getElementById('f_whatapPcode').value) || 8,
+      whatapFilter:       document.getElementById('f_whatapFilter').value.trim(),
+      whatapOkinds:       document.getElementById('f_whatapOkinds').value.trim(),
+      whatapOkindsName:   document.getElementById('f_whatapOkindsName').value.trim(),
+      whatapCookie:       document.getElementById('f_whatapCookie').value.trim(),
+      jenniferEnabled:    document.getElementById('f_jenniferEnabled').value,
+      jenniferProfileName:document.getElementById('f_jenniferProfileName').value.trim() || null,
+      jenniferUrl:        document.getElementById('f_jenniferUrl').value.trim(),
+      jenniferSid:        parseInt(document.getElementById('f_jenniferSid').value) || null,
+      jenniferFilter:     document.getElementById('f_jenniferFilter').value.trim(),
+      jenniferBearerToken:document.getElementById('f_jenniferBearerToken').value.trim(),
+      managerMappings: collectMappings()
     };
 
     try {
       const url    = editingId ? `/api/config/repos/${editingId}` : '/api/config/repos';
       const method = editingId ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: adminHeaders(), body: JSON.stringify(body) });
+      const res = await adminFetch(url, { method, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '저장 실패');
       closeModal();
@@ -530,7 +697,7 @@
     if (repoCards.length <= 1) { showToast('최소 1개의 레포지토리는 유지해야 합니다.', 'error'); return; }
     if (!confirm(`"${name}" 레포지토리 설정을 삭제하시겠습니까?`)) return;
     try {
-      const res = await fetch(`/api/config/repos/${id}`, { method: 'DELETE', headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''} });
+      const res = await adminFetch(`/api/config/repos/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
       await loadRepos();
       showToast('삭제 완료', 'success');
@@ -540,32 +707,16 @@
   // ── 레포 복사 ─────────────────────────────────────────────
   async function copyRepo(id) {
     try {
-      const res = await fetch(`/api/config/repos/${id}`);
+      const res = await adminFetch(`/api/config/repos/${id}`, { method:'GET' });
+      if (!res.ok) throw new Error('복사 실패 (' + res.status + ')');
       const r = await res.json();
-      openModal(); // 신규 모드
+      await openModal(); // 신규 모드
       setTimeout(() => {
         fillForm(r);
-        document.getElementById('f_repoName').value = r.repoName + '-copy';
-      }, 100);
-    } catch(e) { showToast('복사 실패','error'); }
-  }
-
-  // ── YAML 파일 업로드 ──────────────────────────────────────
-  async function importYamlFile() {
-    const fileInput = document.getElementById('yamlFileInput');
-    const file = fileInput.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const res = await fetch('/api/config/import-yaml-content', {
-        method: 'POST', headers: adminHeaders(), body: JSON.stringify({ content: text })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '임포트 실패');
-      showToast(`추가 ${data.added}개, 업데이트 ${data.updated}개`, 'success');
-      await loadRepos();
-    } catch(e) { showToast(e.message, 'error'); }
-    fileInput.value = '';
+        document.getElementById('f_repoName').value = (r.repoName || '') + '-copy';
+        editingId = null; // 신규로 저장되도록
+      }, 50);
+    } catch(e) { showToast(e.message || '복사 실패','error'); }
   }
 
   // ── 헬퍼 ──────────────────────────────────────────────────
@@ -576,6 +727,38 @@
 
   function adminHeaders(extra={}) {
     return Object.assign({'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''}, extra);
+  }
+
+  // 401 응답 시 비밀번호 재입력 → 토큰 갱신
+  async function reAuth() {
+    const pw = prompt('관리자 토큰이 만료되었습니다. 비밀번호를 다시 입력하세요:');
+    if (!pw) return false;
+    try {
+      const res = await fetch('/api/verify-password', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})
+      });
+      const d = await res.json();
+      if (d.valid) {
+        sessionStorage.setItem('adminToken', d.token);
+        showToast('재인증 성공', 'success');
+        return true;
+      }
+      showToast('비밀번호가 일치하지 않습니다.', 'error');
+      return false;
+    } catch(e) { showToast('재인증 실패', 'error'); return false; }
+  }
+
+  // admin 인증이 필요한 fetch 래퍼: 401이면 1회 재인증 후 재시도
+  async function adminFetch(url, options = {}) {
+    options.headers = Object.assign({'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''}, options.headers||{});
+    let res = await fetch(url, options);
+    if (res.status === 401) {
+      const ok = await reAuth();
+      if (!ok) return res;
+      options.headers['X-Admin-Token'] = sessionStorage.getItem('adminToken')||'';
+      res = await fetch(url, options);
+    }
+    return res;
   }
 
   function showToast(msg, type='success') {
@@ -593,6 +776,7 @@
   let logType = 'business';
 
   function switchLogType(type) {
+    if (tailTimer) toggleTailing();
     logType = type;
     document.getElementById('logTabBiz').className = type==='business' ? 'btn btn-blue' : 'btn btn-ghost';
     document.getElementById('logTabSys').className = type==='system' ? 'btn btn-blue' : 'btn btn-ghost';
@@ -617,103 +801,68 @@
     loadLog();
   }
 
-  async function loadLog() {
+  async function loadLog(quiet) {
     const date = document.getElementById('logDate').value;
-    if (!date) { showToast('날짜를 선택하세요.', 'error'); return; }
+    if (!date) { if (!quiet) showToast('날짜를 선택하세요.', 'error'); return; }
     const el = document.getElementById('logContent');
-    el.textContent = '로그 조회 중...';
+    if (!quiet) el.textContent = '로그 조회 중...';
+    // 사용자가 바닥에 있었는지 확인 (이후 자동 스크롤 여부 결정)
+    const atBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 40;
     try {
-      const res = await fetch(`/api/logs/view?date=${date}&type=${logType}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
+      const res = await fetch(`/api/logs/view?date=${date}&type=${logType}&quiet=${quiet?'true':'false'}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
       const data = await res.json();
-      el.textContent = data.content || '(빈 로그)';
-      el.scrollTop = el.scrollHeight;
+      const newContent = data.content || '(빈 로그)';
+      if (el.textContent !== newContent) {
+        el.textContent = newContent;
+        if (atBottom || !quiet) el.scrollTop = el.scrollHeight;
+      }
     } catch(e) {
-      el.textContent = '로그 조회 실패: ' + e.message;
+      if (!quiet) el.textContent = '로그 조회 실패: ' + e.message;
     }
   }
 
-  // ── APM 관리 ──────────────────────────────────────────────
-  async function initApmRepos() {
-    try {
-      const res = await fetch('/api/config/repos');
-      const repos = await res.json();
-      const sel = document.getElementById('apmRepoSelect');
-      sel.innerHTML = repos.map(r => `<option value="${esc(r.repoName)}">${esc(r.repoName)} | ${esc(r.businessName||'')}</option>`).join('');
-    } catch(e) {}
+  // ── 실시간 tailing ────────────────────────────────────────
+  let tailTimer = null;
+  function toggleTailing() {
+    const btn = document.getElementById('tailBtn');
+    if (tailTimer) {
+      clearInterval(tailTimer); tailTimer = null;
+      btn.textContent = '⚪ 실시간 OFF';
+      btn.classList.remove('btn-red');
+      btn.style.background = '';
+      btn.style.color = '';
+      showToast('실시간 모드 종료', 'info');
+      return;
+    }
+    // 오늘 날짜 자동 설정
     const today = new Date().toISOString().slice(0,10);
-    document.getElementById('apmFrom').value = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
-    document.getElementById('apmTo').value = today;
+    document.getElementById('logDate').value = today;
+    loadLog();
+    tailTimer = setInterval(() => loadLog(true), 2000);
+    btn.textContent = '🔴 실시간 ON (2초)';
+    btn.style.background = '#ef4444';
+    btn.style.color = '#fff';
+    showToast('실시간 tailing 시작 (2초 주기)', 'success');
   }
 
-  async function generateMock() {
-    const repoName = document.getElementById('apmRepoSelect').value;
-    const days = parseInt(document.getElementById('apmDays').value) || 90;
-    if (!repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
-    document.getElementById('apmResult').textContent = 'Mock 데이터 생성 중...';
-    try {
-      const res = await fetch('/api/apm/mock/generate', { method:'POST', headers:adminHeaders(), body:JSON.stringify({repoName, days}) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      document.getElementById('apmResult').innerHTML = `<span style="color:var(--success);">Mock 생성 완료: ${data.generated}건 (API ${data.apis}개 × ${data.days}일)</span>`;
-      document.getElementById('apmDataWrap').style.display = 'block';
-      showToast(`Mock ${data.generated}건 생성`,'success');
-    } catch(e) { document.getElementById('apmResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`; }
-  }
-
-  async function deleteMock() {
-    const repoName = document.getElementById('apmRepoSelect').value;
-    if (!repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
-    if (!confirm(`"${repoName}"의 Mock 데이터를 삭제하시겠습니까?`)) return;
-    try {
-      const res = await fetch(`/api/apm/mock/${encodeURIComponent(repoName)}`, { method:'DELETE', headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''} });
-      const data = await res.json();
-      showToast(`Mock 데이터 ${data.deleted}건 삭제`,'success');
-      document.getElementById('apmResult').innerHTML = `<span style="color:var(--text-muted);">삭제 완료: ${data.deleted}건</span>`;
-    } catch(e) { showToast('삭제 실패','error'); }
-  }
-
-  async function aggregateApm() {
-    const repoName = document.getElementById('apmRepoSelect').value;
-    if (!repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
-    try {
-      const res = await fetch('/api/apm/aggregate', { method:'POST', headers:adminHeaders(), body:JSON.stringify({repoName}) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      showToast(`호출건수 집계 반영: ${data.updated}건 업데이트`,'success');
-      document.getElementById('apmResult').innerHTML = `<span style="color:var(--success);">집계 완료: ${data.updated}건 API 호출건수 업데이트</span>`;
-    } catch(e) { showToast(e.message,'error'); }
-  }
-
-  async function loadApmData() {
-    const repoName = document.getElementById('apmRepoSelect').value;
-    const from = document.getElementById('apmFrom').value;
-    const to = document.getElementById('apmTo').value;
-    if (!repoName) return;
-    try {
-      const res = await fetch(`/api/apm/data?repoName=${encodeURIComponent(repoName)}&from=${from}&to=${to}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
-      const result = await res.json();
-      const tbody = document.getElementById('apmTbody');
-      if (!result.data || !result.data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">데이터 없음</td></tr>'; return; }
-      tbody.innerHTML = result.data.map(d => `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:4px 8px;font-family:monospace;color:#1e40af;">${esc(d.apiPath)}</td>
-        <td style="padding:4px 8px;">${d.callDate}</td>
-        <td style="padding:4px 8px;text-align:right;font-weight:600;">${d.callCount.toLocaleString()}</td>
-        <td style="padding:4px 8px;text-align:right;${d.errorCount>0?'color:#dc2626;font-weight:600;':''}">${d.errorCount}</td>
-        <td style="padding:4px 8px;color:var(--text-muted);font-size:10px;">${esc(d.errorMessage||'-')}</td>
-        <td style="padding:4px 8px;font-size:10px;">${esc(d.className||'-')}</td>
-        <td style="padding:4px 8px;"><span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${d.source==='MOCK'?'#fef3c7':'#dbeafe'};color:${d.source==='MOCK'?'#92400e':'#1e40af'};font-weight:600;">${d.source}</span></td>
-      </tr>`).join('');
-      document.getElementById('apmDataWrap').style.display = 'block';
-    } catch(e) { showToast('APM 데이터 조회 실패','error'); }
-  }
+  // 로그 날짜 수동 변경 시 tailing 자동 중단
+  document.getElementById('logDate').addEventListener('change', () => { if (tailTimer) toggleTailing(); });
 
   // ── 스케줄 관리 ────────────────────────────────────────────
   async function loadSchedules() {
+    const el = document.getElementById('scheduleList');
     try {
-      const res = await fetch('/api/schedule', {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
+      const res = await adminFetch('/api/schedule', { method:'GET' });
+      if (!res.ok) {
+        el.innerHTML = `<span style="color:var(--danger);font-size:12px;">로드 실패 (${res.status}) — 새로고침 후 다시 시도하세요.</span>`;
+        return;
+      }
       const list = await res.json();
-      const el = document.getElementById('scheduleList');
-      if (!list.length) { el.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">등록된 스케줄이 없습니다.</span>'; return; }
+      if (!list.length) {
+        el.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">등록된 스케줄이 없습니다.
+          <button class="btn btn-ghost" style="margin-left:8px;font-size:11px;padding:3px 10px;height:auto;" onclick="resetSchedules()">기본 스케줄 생성</button></div>`;
+        return;
+      }
       el.innerHTML = list.map(s => {
         const typeOpts = ['DAILY','WEEKLY','HOURLY','CUSTOM'].map(t =>
           `<option value="${t}" ${s.scheduleType===t?'selected':''}>${{DAILY:'매일',WEEKLY:'매주',HOURLY:'매 N시간',CUSTOM:'크론식 직접입력'}[t]}</option>`
@@ -737,8 +886,19 @@
             <label class="field" style="min-width:100px;">실행 주기
               <select id="schType-${s.id}" onchange="onSchTypeChange(${s.id})" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;">${typeOpts}</select>
             </label>
-            <label class="field" style="min-width:80px;">실행 시각
-              <input id="schTime-${s.id}" type="time" value="${s.runTime||'02:00'}" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;">
+            <label class="field" id="schTimeWrap-${s.id}" style="min-width:110px;${s.scheduleType==='CUSTOM'?'display:none;':''}">
+              <span id="schTimeLabel-${s.id}">${s.scheduleType==='HOURLY'?'시작 분':'실행 시각'}</span>
+              <div style="display:flex;gap:4px;align-items:center;">
+                <span id="schTimeHWrap-${s.id}" style="display:${s.scheduleType==='HOURLY'?'none':'inline-flex'};gap:4px;align-items:center;">
+                  <select id="schTimeH-${s.id}" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">
+                    ${Array.from({length:24},(_,h)=>`<option value="${String(h).padStart(2,'0')}" ${(s.runTime||'02:00').split(':')[0]===String(h).padStart(2,'0')?'selected':''}>${String(h).padStart(2,'0')}시</option>`).join('')}
+                  </select>
+                  <span style="font-size:11px;color:var(--text-muted);">:</span>
+                </span>
+                <select id="schTimeM-${s.id}" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">
+                  ${Array.from({length:60},(_,m)=>{const mm=String(m).padStart(2,'0');return `<option value="${mm}" ${(s.runTime||'02:00').split(':')[1]===mm?'selected':''}>${mm}분</option>`;}).join('')}
+                </select>
+              </div>
             </label>
             <label class="field" id="schDayWrap-${s.id}" style="min-width:60px;${s.scheduleType==='WEEKLY'?'':'display:none;'}">요일
               <select id="schDay-${s.id}" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;">${dayOpts}</select>
@@ -749,6 +909,12 @@
             <label class="field" id="schCronWrap-${s.id}" style="min-width:160px;${s.scheduleType==='CUSTOM'?'':'display:none;'}">크론 표현식
               <input id="schCron-${s.id}" type="text" value="${esc(s.cronExpression||'')}" placeholder="0 0 3 * * ?" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:monospace;">
             </label>
+            ${s.jobType==='APM_COLLECT' ? `<label class="field" style="min-width:100px;">수집 범위
+              <select id="schParam-${s.id}" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;">
+                ${[['1','1일'],['7','1주일'],['30','1달'],['90','3달'],['365','1년']].map(([v,l]) =>
+                  `<option value="${v}" ${(s.jobParam||'7')===v?'selected':''}>${l}</option>`).join('')}
+              </select>
+            </label>` : ''}
             <button class="btn btn-blue" style="height:30px;padding:4px 14px;font-size:12px;" onclick="saveSchedule(${s.id})">저장</button>
           </div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);">
@@ -759,19 +925,37 @@
     } catch(e) { document.getElementById('scheduleList').textContent = '로드 실패'; }
   }
 
+  async function resetSchedules() {
+    try {
+      const res = await adminFetch('/api/schedule/reset', { method:'POST' });
+      if (!res.ok) { showToast('스케줄 초기화 실패','error'); return; }
+      showToast('기본 스케줄 생성 완료','success');
+      loadSchedules();
+    } catch(e) { showToast('스케줄 초기화 실패','error'); }
+  }
+
   function onSchTypeChange(id) {
     const type = document.getElementById('schType-'+id).value;
+    // 실행 시각: DAILY/WEEKLY는 시+분, HOURLY는 분만, CUSTOM은 숨김
+    document.getElementById('schTimeWrap-'+id).style.display = type==='CUSTOM'?'none':'';
+    document.getElementById('schTimeHWrap-'+id).style.display = type==='HOURLY'?'none':'inline-flex';
+    document.getElementById('schTimeLabel-'+id).textContent = type==='HOURLY'?'시작 분':'실행 시각';
     document.getElementById('schDayWrap-'+id).style.display = type==='WEEKLY'?'':'none';
     document.getElementById('schHourWrap-'+id).style.display = type==='HOURLY'?'':'none';
     document.getElementById('schCronWrap-'+id).style.display = type==='CUSTOM'?'':'none';
   }
 
+  function schTimeValue(id) {
+    const h = document.getElementById('schTimeH-'+id)?.value || '02';
+    const m = document.getElementById('schTimeM-'+id)?.value || '00';
+    return `${h}:${m}`;
+  }
+
   async function toggleSchedule(id, enabled) {
-    const el = document.getElementById('sch-'+id);
     const body = { enabled, scheduleType: document.getElementById('schType-'+id).value,
-      runTime: document.getElementById('schTime-'+id).value };
+      runTime: schTimeValue(id) };
     try {
-      await fetch(`/api/schedule/${id}`, { method:'PUT', headers:adminHeaders(), body:JSON.stringify(body) });
+      await adminFetch(`/api/schedule/${id}`, { method:'PUT', body:JSON.stringify(body) });
       showToast(enabled?'스케줄 활성화':'스케줄 비활성화','success');
       loadSchedules();
     } catch(e) { showToast('변경 실패','error'); }
@@ -781,13 +965,14 @@
     const body = {
       enabled: document.querySelector(`#sch-${id} input[type=checkbox]`).checked,
       scheduleType: document.getElementById('schType-'+id).value,
-      runTime: document.getElementById('schTime-'+id).value,
+      runTime: schTimeValue(id),
       runDay: document.getElementById('schDay-'+id)?.value || null,
       intervalHours: parseInt(document.getElementById('schHour-'+id)?.value) || null,
-      cronExpression: document.getElementById('schCron-'+id)?.value || null
+      cronExpression: document.getElementById('schCron-'+id)?.value || null,
+      jobParam: document.getElementById('schParam-'+id)?.value || null
     };
     try {
-      await fetch(`/api/schedule/${id}`, { method:'PUT', headers:adminHeaders(), body:JSON.stringify(body) });
+      await adminFetch(`/api/schedule/${id}`, { method:'PUT', body:JSON.stringify(body) });
       showToast('스케줄 저장 완료','success');
       loadSchedules();
     } catch(e) { showToast('저장 실패','error'); }
@@ -795,20 +980,68 @@
 
   function fmtDt(s) { if(!s||s==='-')return'-'; return s.replace('T',' ').substring(0,16); }
 
-  // ── 데이터 초기화 ──────────────────────────────────────────
-  async function deleteAllData() {
-    if (!confirm('정말로 모든 분석 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
-    const pw = prompt('관리자 비밀번호를 다시 입력하세요:');
-    if (!pw) return;
+  // ── 데이터 삭제 ────────────────────────────────────────────
+  async function loadDelRepoOptions() {
     try {
-      const pwRes = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
-      const pwData = await pwRes.json();
-      if (!pwData.valid) { showToast('비밀번호가 일치하지 않습니다.', 'error'); return; }
-      const res = await fetch('/api/db/delete-all', { method:'DELETE', headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''} });
+      const res = await fetch('/api/config/repos');
+      const repos = await res.json();
+      const sel = document.getElementById('delRepoSelect');
+      repos.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.repoName;
+        opt.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
+        sel.appendChild(opt);
+      });
+    } catch(e) {}
+  }
+
+  async function verifyPwPrompt() {
+    const pw = prompt('관리자 비밀번호를 다시 입력하세요:');
+    if (!pw) return false;
+    const pwRes = await fetch('/api/verify-password', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})
+    });
+    const pwData = await pwRes.json();
+    if (!pwData.valid) { showToast('비밀번호가 일치하지 않습니다.', 'error'); return false; }
+    return true;
+  }
+
+  async function deleteAnalysisData() {
+    const repoName = document.getElementById('delRepoSelect').value;
+    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
+    if (!confirm(`${scope}의 분석데이터(api_record)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!await verifyPwPrompt()) return;
+    try {
+      const url = `/api/db/delete-all?repoName=${encodeURIComponent(repoName)}`;
+      const res = await adminFetch(url, { method:'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '삭제 실패');
-      showToast(`${data.deleted}건 삭제 완료`, 'success');
-    } catch(e) { showToast(e.message || '삭제 실패', 'error'); }
+      document.getElementById('delResult').innerHTML =
+        `<span style="color:var(--success);">✓ 분석데이터 ${data.deleted}건 삭제 완료 (${scope})</span>`;
+      showToast(`분석데이터 ${data.deleted}건 삭제 완료`, 'success');
+    } catch(e) {
+      document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
+      showToast(e.message || '삭제 실패', 'error');
+    }
+  }
+
+  async function deleteCallHistoryData() {
+    const repoName = document.getElementById('delRepoSelect').value;
+    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
+    if (!confirm(`${scope}의 호출이력(apm_call_data)을 삭제하시겠습니까?\nMOCK/WHATAP/JENNIFER 모두 포함됩니다.\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!await verifyPwPrompt()) return;
+    try {
+      const url = `/api/apm/data?repoName=${encodeURIComponent(repoName)}&source=ALL`;
+      const res = await adminFetch(url, { method:'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '삭제 실패');
+      document.getElementById('delResult').innerHTML =
+        `<span style="color:var(--success);">✓ 호출이력 ${data.deleted}건 삭제 완료 (${scope})</span>`;
+      showToast(`호출이력 ${data.deleted}건 삭제 완료`, 'success');
+    } catch(e) {
+      document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
+      showToast(e.message || '삭제 실패', 'error');
+    }
   }
 
   // 가드 완료 후 초기화 (가드가 비동기이므로 약간 지연)
@@ -822,7 +1055,7 @@
     await init();
     loadLogDates();
     loadSchedules();
-    initApmRepos();
+    loadDelRepoOptions();
   }
   startApp();
 </script>

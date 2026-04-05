@@ -1,6 +1,7 @@
 package com.baek.viewer.controller;
 
 import com.baek.viewer.model.ApmCallData;
+import com.baek.viewer.repository.RepoConfigRepository;
 import com.baek.viewer.service.MockApmService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,20 +18,71 @@ public class ApmController {
 
     private static final Logger log = LoggerFactory.getLogger(ApmController.class);
     private final MockApmService mockApmService;
+    private final RepoConfigRepository repoConfigRepository;
 
-    public ApmController(MockApmService mockApmService) {
+    public ApmController(MockApmService mockApmService, RepoConfigRepository repoConfigRepository) {
         this.mockApmService = mockApmService;
+        this.repoConfigRepository = repoConfigRepository;
     }
 
-    /** Mock 데이터 생성 */
+    /** Mock 데이터 생성 (source: MOCK/WHATAP/JENNIFER, 기본 MOCK) */
     @PostMapping("/mock/generate")
     public ResponseEntity<?> generateMock(@RequestBody Map<String, Object> body) {
         String repoName = (String) body.get("repoName");
         int days = body.containsKey("days") ? ((Number) body.get("days")).intValue() : 90;
+        String source = body.get("source") != null ? body.get("source").toString() : "MOCK";
         if (repoName == null || repoName.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "repoName 필수"));
-        log.info("[APM Mock] 생성 요청: repo={}, days={}", repoName, days);
-        return ResponseEntity.ok(mockApmService.generateMockData(repoName, days));
+        log.info("[APM Mock] 생성 요청: repo={}, days={}, source={}", repoName, days, source);
+        return ResponseEntity.ok(mockApmService.generateMockData(repoName, days, source));
+    }
+
+    /**
+     * 날짜 범위 지정 수동 수집 (와탭/제니퍼).
+     * Body: { repoName, source, from (YYYY-MM-DD), to (YYYY-MM-DD) }
+     * 제약: JENNIFER 최대 30일, WHATAP 최대 365일.
+     */
+    @PostMapping("/collect")
+    public ResponseEntity<?> collectByRange(@RequestBody Map<String, Object> body) {
+        try {
+            String repoName = (String) body.get("repoName");
+            String source = body.get("source") != null ? body.get("source").toString() : "MOCK";
+            String from = (String) body.get("from");
+            String to = (String) body.get("to");
+            if (repoName == null || repoName.isBlank())
+                return ResponseEntity.badRequest().body(Map.of("error", "repoName 필수"));
+            if (from == null || to == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "from/to 날짜 필수"));
+            log.info("[APM 수동수집 요청] repo={}, source={}, {}~{}", repoName, source, from, to);
+            return ResponseEntity.ok(mockApmService.generateMockDataByRange(
+                    repoName, LocalDate.parse(from), LocalDate.parse(to), source));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * 전체 레포 자동 수집. Body: { mockOnly: true/false }
+     * mockOnly=true면 모든 레포에 MOCK으로, 아니면 레포설정의 whatap/jennifer 활성화 기준.
+     */
+    @PostMapping("/collect-all")
+    public ResponseEntity<?> collectAll(@RequestBody(required = false) Map<String, Object> body) {
+        boolean mockOnly = body != null && Boolean.TRUE.equals(body.get("mockOnly"));
+        log.info("[APM 전체수집 요청] mockOnly={}", mockOnly);
+        var repos = repoConfigRepository.findAll();
+        return ResponseEntity.ok(mockApmService.collectAll(repos, mockOnly));
+    }
+
+    /**
+     * 차트용 데이터 조회 — 단일 API의 기간별 호출건수.
+     * ?repoName=..&apiPath=..&bucket=daily|weekly&days=30|90|365
+     */
+    @GetMapping("/chart")
+    public ResponseEntity<?> getChart(@RequestParam String repoName,
+                                       @RequestParam String apiPath,
+                                       @RequestParam(defaultValue = "daily") String bucket,
+                                       @RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(mockApmService.getChartData(repoName, apiPath, bucket, days));
     }
 
     /** APM 데이터 → ApiRecord 호출건수 집계 반영 */
@@ -43,14 +95,15 @@ public class ApmController {
         return ResponseEntity.ok(mockApmService.aggregateToRecords(repoName));
     }
 
-    /** APM 일별 호출 데이터 조회 */
+    /** APM 일별 호출 데이터 조회 (source 필터: MOCK/WHATAP/JENNIFER/ALL) */
     @GetMapping("/data")
     public ResponseEntity<?> getData(@RequestParam String repoName,
                                       @RequestParam(required = false) String from,
-                                      @RequestParam(required = false) String to) {
+                                      @RequestParam(required = false) String to,
+                                      @RequestParam(required = false) String source) {
         LocalDate fromDate = from != null ? LocalDate.parse(from) : LocalDate.now().minusDays(30);
         LocalDate toDate = to != null ? LocalDate.parse(to) : LocalDate.now();
-        List<ApmCallData> data = mockApmService.getCallData(repoName, fromDate, toDate);
+        List<ApmCallData> data = mockApmService.getCallData(repoName, fromDate, toDate, source);
 
         // API별 합계도 함께 반환
         Map<String, long[]> summary = new java.util.LinkedHashMap<>();
@@ -76,10 +129,22 @@ public class ApmController {
         ));
     }
 
-    /** Mock 데이터 삭제 */
+    /** APM 데이터 삭제 (?source=MOCK/WHATAP/JENNIFER/ALL, 기본 ALL) */
     @DeleteMapping("/mock/{repoName}")
-    public ResponseEntity<?> deleteMock(@PathVariable String repoName) {
-        log.info("[APM Mock] 삭제 요청: repo={}", repoName);
-        return ResponseEntity.ok(mockApmService.deleteMockData(repoName));
+    public ResponseEntity<?> deleteMock(@PathVariable String repoName,
+                                        @RequestParam(required = false) String source) {
+        log.info("[APM 데이터 삭제 요청] repo={}, source={}", repoName, source);
+        return ResponseEntity.ok(mockApmService.deleteMockData(repoName, source));
+    }
+
+    /**
+     * APM 호출이력 일괄 삭제 (MOCK 포함).
+     * ?repoName=ALL이면 전체 레포 / ?source=ALL이면 모든 source.
+     */
+    @DeleteMapping("/data")
+    public ResponseEntity<?> deleteCallData(@RequestParam(required = false, defaultValue = "ALL") String repoName,
+                                            @RequestParam(required = false, defaultValue = "ALL") String source) {
+        log.warn("[APM 호출이력 삭제] repo={}, source={}", repoName, source);
+        return ResponseEntity.ok(mockApmService.deleteMockData(repoName, source));
     }
 }

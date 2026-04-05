@@ -65,6 +65,43 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
     .toast.show{opacity:1;} .toast.error{background:var(--danger);} .toast.success{background:var(--success);} .toast.info{background:var(--purple);}
+
+    /* 호출건수 클릭 버튼 */
+    .call-link { display:inline-flex; align-items:center; gap:4px; color:#1e40af; font-weight:700; cursor:pointer; text-decoration:none; padding:3px 10px 3px 8px; border-radius:4px; border:1px solid #93c5fd; background:#eff6ff; font-size:12px; line-height:1.3; transition:all .15s; font-variant-numeric:tabular-nums; min-width:64px; justify-content:flex-end; }
+    .call-link:hover { background:#3b82f6; color:#fff; border-color:#2563eb; box-shadow:0 1px 3px rgba(59,130,246,.4); }
+    .call-link::before { content:"📊"; font-size:9px; filter:saturate(.8); }
+    .call-link.zero { color:#94a3b8; background:#f1f5f9; border-color:#cbd5e1; }
+    .call-link.zero:hover { background:#cbd5e1; color:#475569; box-shadow:none; }
+
+    /* 차트 모달 */
+    .chart-modal { display:none; position:fixed; inset:0; z-index:200; align-items:center; justify-content:center; }
+    .chart-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; }
+    .chart-content { position:relative; z-index:201; background:var(--card); border-radius:12px; width:92%; max-width:960px; max-height:88vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+    .chart-header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--border); }
+    .chart-header h3 { font-size:15px; font-weight:700; color:var(--text); }
+    .chart-body { padding:18px 22px; }
+    .chart-api-header { font-size:14px; font-weight:700; padding:12px 16px; margin-bottom:10px; background:#f0fdf4; border-left:4px solid #22c55e; border-radius:4px; color:#166534; font-family:monospace; word-break:break-all; }
+    .chart-meta { font-size:11px; color:var(--text-muted); margin-bottom:14px; line-height:1.6; }
+    .chart-meta b { color:var(--text); }
+    .chart-container { display:flex; gap:10px; padding:12px; background:#fafbfc; border-radius:8px; }
+    .chart-yaxis { display:flex; flex-direction:column; justify-content:space-between; min-width:56px; text-align:right; font-size:10px; color:#64748b; font-variant-numeric:tabular-nums; }
+    .chart-area-wrap { flex:1; overflow-x:auto; }
+    .chart-area { position:relative; border-left:1px solid #94a3b8; border-bottom:1px solid #94a3b8; }
+    .chart-grid-line { position:absolute; left:0; right:0; height:1px; background:#e2e8f0; }
+    .chart-grid-line.zero { background:#94a3b8; }
+    .chart-cols { display:flex; align-items:flex-end; padding:0 4px; height:100%; position:relative; z-index:1; }
+    .chart-col { display:flex; flex-direction:column; justify-content:flex-end; position:relative; cursor:pointer; }
+    .chart-col:hover .bar-call { background:#16a34a; }
+    .chart-col:hover .bar-err  { background:#db2777; }
+    #chartTooltip { position:fixed; background:#1e293b; color:#fff; font-size:11px; line-height:1.5; padding:6px 10px; border-radius:6px; white-space:pre; pointer-events:none; z-index:300; box-shadow:0 2px 8px rgba(0,0,0,.3); font-variant-numeric:tabular-nums; display:none; }
+    .bar-call { background:#22c55e; width:100%; transition:background .15s; }
+    .bar-err  { background:#ec4899; width:100%; transition:background .15s; }
+    .chart-xlabels { display:flex; padding:0 4px; margin-top:6px; min-height:28px; }
+    .chart-xlabel { font-size:9px; color:#64748b; text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.25; }
+    .chart-xlabel .year { color:#94a3b8; font-size:8px; }
+    .chart-xlabel .md { font-weight:600; color:#475569; }
+    .chart-legend { margin-top:12px; display:flex; gap:18px; font-size:11px; color:var(--text-muted); }
+    .chart-legend-swatch { display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle; margin-right:5px; }
     .edit-select{padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;outline:none;background:var(--card);min-width:90px;}
     .edit-select:focus{border-color:var(--primary);}
     .edit-input{padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;outline:none;width:120px;}
@@ -160,7 +197,8 @@
     <label>검토의견</label>
     <input type="text" id="bulkReviewOpinion" placeholder="의견 입력...">
     <label>현업 팀</label>
-    <input type="text" id="bulkReviewTeam" placeholder="팀명">
+    <input type="text" id="bulkReviewTeam" list="teamsDatalist" placeholder="팀명">
+    <datalist id="teamsDatalist"></datalist>
     <label>현업 담당자</label>
     <input type="text" id="bulkReviewManager" placeholder="담당자">
     <button class="btn-apply" onclick="applyBulk()">적용</button>
@@ -177,8 +215,8 @@
         <th class="hg-info sticky-h sticky-last" style="left:286px;min-width:200px;">URL 경로</th>
         <th class="hg-info">URL 호출</th>
         <th class="hg-desc" style="min-width:300px;">관련 메뉴(또는 기능)</th>
-        <th class="hg-desc">호출건수</th>
-        <th class="hg-desc">비고</th>
+        <th class="hg-desc" style="min-width:120px;">총 호출건</th>
+        <th class="hg-desc" style="min-width:260px;">비고</th>
         <th class="hg-block">상태</th>
         <th class="hg-block">차단기준</th>
         <th class="hg-review">현업검토결과</th>
@@ -204,13 +242,23 @@
     clearSelection();
     const biz = document.getElementById('bizSelect').value;
     try {
-      const [dataRes, cfgRes] = await Promise.all([
+      const [dataRes, cfgRes, globalRes] = await Promise.all([
         fetch('/api/db/apis?blockTargetOnly=true'),
-        fetch('/api/config/repos')
+        fetch('/api/config/repos'),
+        fetch('/api/config/global')
       ]);
       const data = await dataRes.json();
       const cfgs = await cfgRes.json();
       cfgs.forEach(c => { repoConfigMap[c.repoName] = { team:c.teamName||'', manager:c.managerName||'', businessName:c.businessName||'' }; });
+      // 팀 목록 datalist 채우기
+      try {
+        const g = await globalRes.json();
+        if (g.teams) {
+          const teamsArr = JSON.parse(g.teams);
+          const dl = document.getElementById('teamsDatalist');
+          if (dl && Array.isArray(teamsArr)) dl.innerHTML = teamsArr.map(t => `<option value="${esc(t)}">`).join('');
+        }
+      } catch(e) {}
 
       // 업무명 드롭다운 (최초 1회)
       if (!bizLoaded) {
@@ -288,8 +336,8 @@
         <td class="sk sk-last" style="left:286px;min-width:200px;"><div class="api-path">${esc(a.apiPath)}</div></td>
         <td>${a.fullUrl ? `<a href="${esc(a.fullUrl)}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;padding:2px 6px;border:1px solid var(--primary);border-radius:4px;white-space:nowrap;">열기 ↗</a>` : '<span style="color:#cbd5e1;">-</span>'}</td>
         <td class="api-op" style="font-size:11px;max-width:160px;">${esc(desc)}</td>
-        <td style="text-align:right;font-size:12px;">${a.callCount!=null?a.callCount.toLocaleString():'<span style="color:#cbd5e1;">-</span>'}</td>
-        <td style="font-size:11px;color:var(--text-muted);max-width:120px;">${esc(a.memo||'')}</td>
+        <td style="text-align:right;">${callCountCell(a, 'total')}</td>
+        <td style="font-size:11px;color:var(--text-muted);min-width:260px;max-width:320px;white-space:pre-wrap;word-break:break-word;line-height:1.5;padding:6px 8px;">${esc(a.memo||'')}</td>
         <td>${statusBadge(a.status)}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria||'')}</td>
         <td><select class="edit-select" data-id="${a.id}" data-field="reviewResult" onchange="saveField(this)">
@@ -299,7 +347,7 @@
           <option value="판단불가" ${a.reviewResult==='판단불가'?'selected':''}>판단불가</option>
         </select></td>
         <td><input class="edit-input" type="text" value="${esc(a.reviewOpinion||'')}" data-id="${a.id}" data-field="reviewOpinion" placeholder="의견..." onblur="saveField(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>
-        <td><input class="edit-input" type="text" value="${esc(a.reviewTeam||'')}" data-id="${a.id}" data-field="reviewTeam" placeholder="팀명" style="width:80px;" onblur="saveField(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>
+        <td><input class="edit-input" type="text" list="teamsDatalist" value="${esc(a.reviewTeam||'')}" data-id="${a.id}" data-field="reviewTeam" placeholder="팀명" style="width:110px;" onblur="saveField(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>
         <td><input class="edit-input" type="text" value="${esc(a.reviewManager||'')}" data-id="${a.id}" data-field="reviewManager" placeholder="담당자" style="width:70px;" onblur="saveField(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${esc(rvAt)}${isAdmin()&&a.reviewedIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.reviewedIp)}</span>` : ''}</td>
       </tr>`;
@@ -311,11 +359,17 @@
     try {
       const body={}; body[field]=val||null;
       const res=await fetch(`/api/db/record/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      if(!res.ok) throw new Error();
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || '저장 실패');
       const a=allApis.find(x=>x.id==id);
-      if(a){a[field]=val||null; if(['reviewResult','reviewOpinion','reviewTeam','reviewManager'].includes(field)) a.reviewedAt=new Date().toISOString();}
+      if(a){
+        a[field]=val||null;
+        if(data.modifiedAt) a.modifiedAt = data.modifiedAt;
+        if(data.reviewedAt) a.reviewedAt = data.reviewedAt;
+      }
       renderStats();
-    } catch(e){showToast('저장 실패','error');}
+      showToast('저장 완료', 'success');
+    } catch(e){showToast(e.message || '저장 실패','error');}
   }
 
   // ── 체크박스 ─────────────────────────────────────────────
@@ -385,6 +439,169 @@
   }
   applyAdminUI();
   loadReviewData();
+
+  // ── 호출건수 버튼 + 차트 팝업 ─────────────────────────────
+  function callCountCell(a, type) {
+    const val = type==='total' ? a.callCount : (type==='month' ? a.callCountMonth : a.callCountWeek);
+    if (val == null) return '<span style="color:#cbd5e1;">-</span>';
+    const apiPathEsc = a.apiPath.replace(/'/g, "\\'");
+    const repoEsc = a.repositoryName.replace(/'/g, "\\'");
+    const cls = val === 0 ? 'call-link zero' : 'call-link';
+    return `<a class="${cls}" title="클릭하여 그래프 보기" onclick="openChart('${repoEsc}','${apiPathEsc}','${type}')">${val.toLocaleString()}</a>`;
+  }
+
+  async function openChart(repoName, apiPath, type) {
+    const cfg = (type==='total') ? { bucket:'daily', days:365, label:'일단위 · 최근 1년' }
+              : (type==='month') ? { bucket:'daily', days:30,  label:'일단위 · 최근 1달' }
+              :                    { bucket:'daily', days:7,   label:'일단위 · 최근 1주일' };
+    document.getElementById('chartModal').style.display = 'flex';
+    document.getElementById('chartTitle').textContent = `호출건수 차트 — ${apiPath}`;
+    document.getElementById('chartBody').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">조회 중...</div>';
+    try {
+      const url = `/api/apm/chart?repoName=${encodeURIComponent(repoName)}&apiPath=${encodeURIComponent(apiPath)}&bucket=${cfg.bucket}&days=${cfg.days}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('조회 실패');
+      const data = await res.json();
+      renderChart(data, cfg.label);
+    } catch(e) {
+      document.getElementById('chartBody').innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger);">오류: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function closeChart() {
+    document.getElementById('chartModal').style.display = 'none';
+    const tip = document.getElementById('chartTooltip'); if (tip) tip.style.display = 'none';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeChart(); });
+
+  function renderChart(data, title) {
+    const buckets = data.buckets || [];
+    const totalCall = buckets.reduce((s,b) => s + (b.callCount||0), 0);
+    const totalErr  = buckets.reduce((s,b) => s + (b.errorCount||0), 0);
+    const maxCall   = Math.max(0, ...buckets.map(b => b.callCount || 0));
+
+    const header = `<div class="chart-api-header">📍 ${esc(data.apiPath)}</div>
+      <div class="chart-meta">
+        <b>${esc(data.repoName)}</b> · ${title} ·
+        합계 호출 <b style="color:#16a34a;">${totalCall.toLocaleString()}</b>건 ·
+        합계 에러 <b style="color:#db2777;">${totalErr.toLocaleString()}</b>건 ·
+        기간 ${fmtMD(data.from)} ~ ${fmtMD(data.to)}
+      </div>`;
+
+    if (buckets.length === 0 || totalCall === 0) {
+      document.getElementById('chartBody').innerHTML = header +
+        '<div style="text-align:center;padding:40px;color:var(--text-muted);">해당 기간에 호출이력이 없습니다.</div>';
+      return;
+    }
+
+    // Y축: 100 단위 / 최소 1000
+    let yMax = 1000;
+    if (maxCall > yMax) yMax = Math.ceil(maxCall / 100) * 100;
+    let tickStep = 100;
+    if (yMax > 3000) tickStep = 500;
+    else if (yMax > 1500) tickStep = 200;
+    const ticks = [];
+    for (let v = 0; v <= yMax; v += tickStep) ticks.push(v);
+
+    const chartHeight = 260;
+    const barWidth = 28;
+    const barGap = 8;
+    const colWidth = barWidth + barGap;
+    const chartMinWidth = buckets.length * colWidth + 10;
+
+    const yLabels = ticks.slice().reverse().map(v => `<div>${v.toLocaleString()}</div>`).join('');
+    const gridLines = ticks.map(v => {
+      const pct = (v / yMax) * 100;
+      return `<div class="chart-grid-line${v===0?' zero':''}" style="bottom:${pct}%;"></div>`;
+    }).join('');
+
+    let labelSkip = 1;
+    if (buckets.length > 200) labelSkip = 14;
+    else if (buckets.length > 60) labelSkip = 7;
+    else if (buckets.length > 14) labelSkip = 2;
+
+    const columns = buckets.map(b => {
+      const call = b.callCount || 0;
+      const err = Math.min(b.errorCount || 0, call);
+      const callH = (call / yMax) * chartHeight;
+      const errH  = (err / yMax) * chartHeight;
+      const greenH = Math.max(0, callH - errH);
+      const ym = fmtYearMD(b.label);
+      const tooltip = `${ym.year} ${ym.md}\n호출: ${call.toLocaleString()}건\n에러: ${(b.errorCount||0).toLocaleString()}건`;
+      return `<div class="chart-col" style="width:${barWidth}px;height:${chartHeight}px;margin-right:${barGap}px;" data-tip="${esc(tooltip)}">
+        ${errH>0?`<div class="bar-err" style="height:${errH}px;"></div>`:''}
+        ${greenH>0?`<div class="bar-call" style="height:${greenH}px;"></div>`:''}
+      </div>`;
+    }).join('');
+
+    const xLabels = buckets.map((b, i) => {
+      const show = (i % labelSkip === 0) || i === buckets.length - 1;
+      if (!show) return `<div class="chart-xlabel" style="width:${barWidth}px;margin-right:${barGap}px;"></div>`;
+      const ym = fmtYearMD(b.label);
+      return `<div class="chart-xlabel" style="width:${barWidth}px;margin-right:${barGap}px;">
+        <span class="year">${esc(ym.year)}</span><br><span class="md">${esc(ym.md)}</span>
+      </div>`;
+    }).join('');
+
+    document.getElementById('chartBody').innerHTML = header + `
+      <div class="chart-container">
+        <div class="chart-yaxis" style="height:${chartHeight}px;">${yLabels}</div>
+        <div class="chart-area-wrap" id="chartAreaWrap">
+          <div class="chart-area" style="height:${chartHeight}px;min-width:${chartMinWidth}px;">
+            ${gridLines}
+            <div class="chart-cols">${columns}</div>
+          </div>
+          <div class="chart-xlabels" style="min-width:${chartMinWidth}px;">${xLabels}</div>
+        </div>
+      </div>
+      <div class="chart-legend">
+        <span><span class="chart-legend-swatch" style="background:#22c55e;"></span>호출건수</span>
+        <span><span class="chart-legend-swatch" style="background:#ec4899;"></span>에러건수</span>
+      </div>`;
+
+    const wrap = document.getElementById('chartAreaWrap');
+    if (wrap) wrap.scrollLeft = wrap.scrollWidth;
+
+    // floating 툴팁 (overflow:auto에 클리핑 안되게 body에 부착)
+    let tip = document.getElementById('chartTooltip');
+    if (!tip) { tip = document.createElement('div'); tip.id = 'chartTooltip'; document.body.appendChild(tip); }
+    document.querySelectorAll('#chartBody .chart-col').forEach(col => {
+      col.addEventListener('mouseenter', () => { tip.textContent = col.dataset.tip || ''; tip.style.display = 'block'; });
+      col.addEventListener('mousemove', (e) => {
+        const w = tip.offsetWidth || 140, h = tip.offsetHeight || 60;
+        let left = e.clientX + 14, top = e.clientY - h - 12;
+        if (left + w > window.innerWidth) left = e.clientX - w - 14;
+        if (top < 8) top = e.clientY + 18;
+        tip.style.left = left + 'px'; tip.style.top = top + 'px';
+      });
+      col.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    });
+  }
+
+  function fmtMD(s) {
+    if (!s) return '';
+    const f = v => { const m = v.match(/(\d{1,2})-(\d{1,2})$/); return m ? `${parseInt(m[1])}월${parseInt(m[2])}일` : v; };
+    if (s.includes('~')) { const [a,b] = s.split('~'); return f(a) + '~' + f(b); }
+    return f(s);
+  }
+  function fmtYearMD(s) {
+    if (!s) return { year:'', md:'' };
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!m) return { year:'', md: fmtMD(s) };
+    return { year: `${m[1].slice(2)}년`, md: `${parseInt(m[2])}월${parseInt(m[3])}일` };
+  }
 </script>
+
+<!-- 호출건수 차트 모달 -->
+<div id="chartModal" class="chart-modal">
+  <div class="chart-overlay" onclick="closeChart()"></div>
+  <div class="chart-content">
+    <div class="chart-header">
+      <h3 id="chartTitle">호출건수 차트</h3>
+      <button onclick="closeChart()" class="btn btn-ghost btn-sm">닫기 ✕</button>
+    </div>
+    <div id="chartBody" class="chart-body"></div>
+  </div>
+</div>
 </body>
 </html>

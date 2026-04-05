@@ -34,21 +34,21 @@
     .btn-refresh:hover{background:var(--primary-hover);}
 
     /* ── 요약 카드 ── */
-    .summary-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;}
+    .summary-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px;}
     .sum-card.c-bt-top::before{background:#dc2626;}
     .sum-card.c-bt-low::before{background:var(--target);}
     .sum-card.c-bt-top .sum-value{color:#dc2626;}
     .sum-card.c-bt-low .sum-value{color:var(--target);}
-    .sum-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+    .sum-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 12px;box-shadow:var(--shadow);position:relative;overflow:hidden;min-width:0;}
     .sum-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:12px 0 0 12px;}
     .sum-card.c-total::before{background:var(--primary);}
     .sum-card.c-use::before{background:var(--use);}
     .sum-card.c-review::before{background:var(--review);}
     .sum-card.c-target::before{background:var(--target);}
     .sum-card.c-done::before{background:var(--done);}
-    .sum-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
-    .sum-value{font-size:24px;font-weight:800;color:var(--text);line-height:1;}
-    .sum-sub{font-size:11px;color:var(--text-muted);margin-top:6px;}
+    .sum-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sum-value{font-size:22px;font-weight:800;color:var(--text);line-height:1;}
+    .sum-sub{font-size:10px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .sum-card.c-total .sum-value{color:var(--primary);}
     .sum-card.c-use    .sum-value{color:var(--use);}
     .sum-card.c-review .sum-value{color:var(--review);}
@@ -176,7 +176,7 @@
     <!-- ── 요약 카드 ── -->
     <div class="summary-grid">
       <div class="sum-card c-total">
-        <div class="sum-label">전체 URL</div>
+        <div class="sum-label">활성 URL (삭제 제외)</div>
         <div class="sum-value" id="sTotal">0</div>
         <div class="sum-sub" id="sRepoCount"></div>
       </div>
@@ -204,6 +204,11 @@
         <div class="sum-label">검토필요 차단대상</div>
         <div class="sum-value" id="sBtRev">0</div>
         <div class="sum-sub" id="sBtRevPct"></div>
+      </div>
+      <div class="sum-card" style="border-left:4px solid #7c2d12;">
+        <div class="sum-label">삭제 이력</div>
+        <div class="sum-value" id="sDeleted" style="color:#7c2d12;">0</div>
+        <div class="sum-sub">활성 URL 합계 제외</div>
       </div>
     </div>
 
@@ -337,6 +342,7 @@
 
     // 요약 카드
     document.getElementById('sTotal').textContent  = total.toLocaleString();
+    document.getElementById('sDeleted').textContent = (s.deletedCount || 0).toLocaleString();
     document.getElementById('sRepoCount').textContent =
       `레포지토리 ${(s.byRepo || []).length}개`;
     document.getElementById('sUse').textContent     = use.toLocaleString();
@@ -610,6 +616,11 @@
   }
   applyAdminUI();
   loadStats();
+  // 관리자 페이지 접근 차단 시 안내
+  if (new URLSearchParams(location.search).get('authRequired') === '1') {
+    setTimeout(() => showToast('관리자 인증이 필요합니다. 상단 우측 🔑 관리자 버튼을 클릭하세요.', 'error'), 300);
+    history.replaceState({}, '', '/');
+  }
 </script>
 </body>
 </html>

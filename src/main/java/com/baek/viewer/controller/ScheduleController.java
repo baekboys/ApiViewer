@@ -23,6 +23,19 @@ public class ScheduleController {
 
     @GetMapping
     public ResponseEntity<List<ScheduleConfig>> list() {
+        List<ScheduleConfig> list = scheduleService.findAll();
+        if (list.isEmpty()) {
+            // 기본 스케줄이 없으면 재생성
+            scheduleService.ensureAndApplyDefaults();
+            list = scheduleService.findAll();
+        }
+        return ResponseEntity.ok(list);
+    }
+
+    /** 기본 스케줄 강제 재생성 */
+    @PostMapping("/reset")
+    public ResponseEntity<List<ScheduleConfig>> reset() {
+        scheduleService.ensureAndApplyDefaults();
         return ResponseEntity.ok(scheduleService.findAll());
     }
 
@@ -37,6 +50,7 @@ public class ScheduleController {
         if (body.containsKey("runDay"))        existing.setRunDay((String) body.get("runDay"));
         if (body.containsKey("intervalHours")) existing.setIntervalHours(body.get("intervalHours") != null ? ((Number) body.get("intervalHours")).intValue() : null);
         if (body.containsKey("cronExpression"))existing.setCronExpression((String) body.get("cronExpression"));
+        if (body.containsKey("jobParam"))      existing.setJobParam(body.get("jobParam") != null ? body.get("jobParam").toString() : null);
 
         return ResponseEntity.ok(scheduleService.saveAndApply(existing));
     }

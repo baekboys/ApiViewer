@@ -19,6 +19,7 @@ public class ReposYamlConfig {
         private Integer reviewThreshold;
         private String password;
         private String gitBinPath;
+        private List<String> teams;
         private List<WhatapProfile> whatapProfiles;
         private List<JenniferProfile> jenniferProfiles;
 
@@ -30,6 +31,8 @@ public class ReposYamlConfig {
         public void setPassword(String password) { this.password = password; }
         public String getGitBinPath() { return gitBinPath; }
         public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
+        public List<String> getTeams() { return teams; }
+        public void setTeams(List<String> teams) { this.teams = teams; }
         public List<WhatapProfile> getWhatapProfiles() { return whatapProfiles; }
         public void setWhatapProfiles(List<WhatapProfile> whatapProfiles) { this.whatapProfiles = whatapProfiles; }
         public List<JenniferProfile> getJenniferProfiles() { return jenniferProfiles; }
@@ -73,6 +76,17 @@ public class ReposYamlConfig {
         public void setBearerToken(String bearerToken) { this.bearerToken = bearerToken; }
     }
 
+    /** 프로그램ID별 담당자 매핑 */
+    public static class ManagerMapping {
+        private String programId;
+        private String managerName;
+
+        public String getProgramId() { return programId; }
+        public void setProgramId(String programId) { this.programId = programId; }
+        public String getManagerName() { return managerName; }
+        public void setManagerName(String managerName) { this.managerName = managerName; }
+    }
+
     // ── 레포별 설정 ────────────────────────────────────────
     public static class RepoEntry {
         private String repoName;
@@ -83,6 +97,7 @@ public class ReposYamlConfig {
         private String teamName;
         private String managerName;
         private String businessName;
+        private List<ManagerMapping> managerMappings;
         private String apiPathPrefix;
         private String pathConstants;
         private WhatapEntry whatap;
@@ -108,6 +123,8 @@ public class ReposYamlConfig {
         public void setApiPathPrefix(String apiPathPrefix) { this.apiPathPrefix = apiPathPrefix; }
         public String getPathConstants() { return pathConstants; }
         public void setPathConstants(String pathConstants) { this.pathConstants = pathConstants; }
+        public List<ManagerMapping> getManagerMappings() { return managerMappings; }
+        public void setManagerMappings(List<ManagerMapping> managerMappings) { this.managerMappings = managerMappings; }
         public WhatapEntry getWhatap() { return whatap; }
         public void setWhatap(WhatapEntry whatap) { this.whatap = whatap; }
         public JenniferEntry getJennifer() { return jennifer; }

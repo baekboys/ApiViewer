@@ -56,9 +56,10 @@ public class ApiViewController {
         this.authService = authService;
     }
 
-    /** 비밀번호 확인 → 토큰 발급 */
+    /** 비밀번호 확인 → 토큰 발급 + 쿠키 설정 */
     @PostMapping("/verify-password")
-    public ResponseEntity<?> verifyPassword(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> verifyPassword(@RequestBody Map<String, String> body,
+                                            jakarta.servlet.http.HttpServletResponse response) {
         String input = body.get("password");
         String stored = globalConfigRepository.findById(1L)
                 .map(g -> g.getPassword()).orElse(null);
@@ -67,6 +68,11 @@ public class ApiViewController {
         if (ok) {
             String token = authService.issueToken();
             log.info("[인증 성공] 토큰 발급");
+            // HTML 페이지 보호용 쿠키 (세션 쿠키 — 브라우저 종료 시 삭제)
+            jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("adminToken", token);
+            cookie.setPath("/");
+            cookie.setHttpOnly(false); // JS에서도 체크 가능하게
+            response.addCookie(cookie);
             return ResponseEntity.ok(Map.of("valid", true, "token", token));
         }
         log.warn("[인증 실패] 비밀번호 불일치");
@@ -185,6 +191,38 @@ public class ApiViewController {
         }
     }
 
+    /** 알림 플래그 일괄 해제 — isNew + statusChanged 모두 (차단완료건 포함) */
+    @PatchMapping("/db/clear-alerts")
+    public ResponseEntity<?> clearAlerts(@RequestBody Map<String, Object> body) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Integer> rawIds = (List<Integer>) body.get("ids");
+            if (rawIds == null || rawIds.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "ids가 비어 있습니다."));
+            }
+            int cleared = 0;
+            for (Integer rawId : rawIds) {
+                Optional<ApiRecord> opt = recordRepository.findById(rawId.longValue());
+                if (opt.isPresent()) {
+                    ApiRecord r = opt.get();
+                    boolean changed = false;
+                    if (Boolean.TRUE.equals(r.isNew())) { r.setNew(false); changed = true; }
+                    if (Boolean.TRUE.equals(r.isStatusChanged())) {
+                        r.setStatusChanged(false);
+                        r.setStatusChangeLog(null);
+                        changed = true;
+                    }
+                    if (changed) { recordRepository.save(r); cleared++; }
+                }
+            }
+            log.info("[알림 일괄해제] 대상={}건, 해제={}건", rawIds.size(), cleared);
+            return ResponseEntity.ok(Map.of("cleared", cleared));
+        } catch (Exception e) {
+            log.error("[알림 일괄해제 실패] {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /** 상태변경 플래그 해제 (IT 담당자 확인 후) */
     @PatchMapping("/db/clear-status-change")
     public ResponseEntity<?> clearStatusChange(@RequestBody Map<String, Object> body) {
@@ -223,33 +261,45 @@ public class ApiViewController {
             ApiRecord r = recordRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("레코드를 찾을 수 없습니다: " + id));
 
+            // 차단완료건은 내용/상태 수정 불가. 단, 확인 플래그(isNew, statusChanged) 해제는 허용.
             if ("차단완료".equals(r.getStatus())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "변경불가 상태의 레코드는 수정할 수 없습니다."));
+                java.util.Set<String> allowed = java.util.Set.of("isNew", "statusChanged");
+                boolean onlyFlagOps = !body.isEmpty() && body.keySet().stream().allMatch(allowed::contains);
+                if (!onlyFlagOps) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "변경불가 상태의 레코드는 수정할 수 없습니다. (신규/상태변경 플래그 해제만 가능)"));
+                }
             }
 
-            boolean viewerChanged = false;
-            if (body.containsKey("isNew"))             { r.setNew(Boolean.FALSE.equals(body.get("isNew")) ? false : Boolean.parseBoolean(String.valueOf(body.get("isNew")))); }
-            if (body.containsKey("memo"))            { r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null); viewerChanged = true; }
-            if (body.containsKey("teamOverride"))    { r.setTeamOverride(body.get("teamOverride") != null ? body.get("teamOverride").toString() : null); viewerChanged = true; }
-            if (body.containsKey("managerOverride")) { r.setManagerOverride(body.get("managerOverride") != null ? body.get("managerOverride").toString() : null); viewerChanged = true; }
-            if (viewerChanged) {
-                r.setModifiedAt(java.time.LocalDateTime.now());
+            boolean anyChanged = false;
+            boolean reviewChanged = false;
+            if (body.containsKey("isNew"))           { r.setNew(Boolean.FALSE.equals(body.get("isNew")) ? false : Boolean.parseBoolean(String.valueOf(body.get("isNew")))); }
+            if (body.containsKey("memo"))            { r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null); anyChanged = true; }
+            if (body.containsKey("teamOverride"))    { r.setTeamOverride(body.get("teamOverride") != null ? body.get("teamOverride").toString() : null); anyChanged = true; }
+            if (body.containsKey("managerOverride")) { r.setManagerOverride(body.get("managerOverride") != null ? body.get("managerOverride").toString() : null); anyChanged = true; }
+            if (body.containsKey("reviewResult"))    { r.setReviewResult(body.get("reviewResult") != null ? body.get("reviewResult").toString() : null); anyChanged = true; reviewChanged = true; }
+            if (body.containsKey("reviewOpinion"))   { r.setReviewOpinion(body.get("reviewOpinion") != null ? body.get("reviewOpinion").toString() : null); anyChanged = true; reviewChanged = true; }
+            if (body.containsKey("reviewTeam"))      { r.setReviewTeam(body.get("reviewTeam") != null ? body.get("reviewTeam").toString() : null); anyChanged = true; reviewChanged = true; }
+            if (body.containsKey("reviewManager"))   { r.setReviewManager(body.get("reviewManager") != null ? body.get("reviewManager").toString() : null); anyChanged = true; reviewChanged = true; }
+
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            if (anyChanged) {
+                // 모든 사용자 변경 시 modifiedAt 갱신
+                r.setModifiedAt(now);
                 r.setModifiedIp(ip);
             }
-
-            boolean reviewChanged = false;
-            if (body.containsKey("reviewResult"))   { r.setReviewResult(body.get("reviewResult") != null ? body.get("reviewResult").toString() : null); reviewChanged = true; }
-            if (body.containsKey("reviewOpinion"))  { r.setReviewOpinion(body.get("reviewOpinion") != null ? body.get("reviewOpinion").toString() : null); reviewChanged = true; }
-            if (body.containsKey("reviewTeam"))     { r.setReviewTeam(body.get("reviewTeam") != null ? body.get("reviewTeam").toString() : null); reviewChanged = true; }
-            if (body.containsKey("reviewManager"))  { r.setReviewManager(body.get("reviewManager") != null ? body.get("reviewManager").toString() : null); reviewChanged = true; }
             if (reviewChanged) {
-                r.setReviewedAt(java.time.LocalDateTime.now());
+                // 현업 검토 필드는 reviewedAt/reviewedIp도 추가로 기록
+                r.setReviewedAt(now);
                 r.setReviewedIp(ip);
             }
 
             recordRepository.save(r);
             log.info("[레코드 수정] id={}, 필드={}", id, body.keySet());
-            return ResponseEntity.ok(Map.of("success", true));
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", true);
+            resp.put("modifiedAt", r.getModifiedAt() != null ? r.getModifiedAt().toString() : null);
+            resp.put("reviewedAt", r.getReviewedAt() != null ? r.getReviewedAt().toString() : null);
+            return ResponseEntity.ok(resp);
         } catch (Exception e) {
             log.error("[레코드 수정 실패] id={}, 오류={}", id, e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
@@ -285,11 +335,13 @@ public class ApiViewController {
         }
     }
 
-    /** DB 전체 통계 */
+    /** DB 전체 통계 (삭제건은 합계에서 제외, 별도 카운트) */
     @GetMapping("/db/stats")
     public ResponseEntity<?> dbStats() {
         log.info("[통계 조회] GET /api/db/stats");
-        List<ApiRecord> all = recordRepository.findAll();
+        List<ApiRecord> raw = recordRepository.findAll();
+        long deletedCount = raw.stream().filter(r -> "삭제".equals(r.getStatus())).count();
+        List<ApiRecord> all = raw.stream().filter(r -> !"삭제".equals(r.getStatus())).collect(Collectors.toList());
 
         // repoName → RepoConfig 매핑
         Map<String, RepoConfig> repoConfigMap = repoConfigRepository.findAll().stream()
@@ -379,16 +431,20 @@ public class ApiViewController {
                     return m;
                 }).collect(Collectors.toList());
 
-        // 담당자별 (managerOverride/teamOverride 우선)
+        // 담당자별 (managerOverride > 프로그램ID매핑 > 팀대표)
+        // 레포별 매핑 JSON을 미리 1회 파싱 후 캐시 (레코드마다 파싱 방지)
+        Map<String, List<Map<String, String>>> mappingCache = new HashMap<>();
+        for (RepoConfig cfg : repoConfigMap.values()) {
+            mappingCache.put(cfg.getRepoName(), parseManagerMappings(cfg.getManagerMappings()));
+        }
+
         Map<String, Long> byManagerCount = new LinkedHashMap<>();
         Map<String, Map<String, Long>> byManagerStatus = new LinkedHashMap<>();
         Map<String, String> managerToTeam = new LinkedHashMap<>();
         all.forEach(r -> {
             RepoConfig cfg = repoConfigMap.get(r.getRepositoryName());
-            String mgr = (r.getManagerOverride() != null && !r.getManagerOverride().isBlank())
-                    ? r.getManagerOverride()
-                    : (cfg != null && cfg.getManagerName() != null && !cfg.getManagerName().isBlank())
-                    ? cfg.getManagerName() : "(미지정)";
+            List<Map<String, String>> mappings = mappingCache.getOrDefault(r.getRepositoryName(), List.of());
+            String mgr = resolveManager(r, cfg, mappings);
             String team = (r.getTeamOverride() != null && !r.getTeamOverride().isBlank())
                     ? r.getTeamOverride()
                     : (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
@@ -410,7 +466,8 @@ public class ApiViewController {
                 }).collect(Collectors.toList());
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("total",         all.size());
+        result.put("total",         all.size());       // 활성 URL (삭제 제외)
+        result.put("deletedCount",  deletedCount);     // 삭제 이력 (별도)
         result.put("byStatus",      byStatus);
         result.put("byMethod",      byMethod);
         result.put("byRepo",        byRepo);
@@ -461,12 +518,13 @@ public class ApiViewController {
         }
     }
 
-    /** 특정 날짜의 로그 내용 조회 (type: system/business) */
+    /** 특정 날짜의 로그 내용 조회 (type: system/business, quiet=true면 감사 로그 기록 안함) */
     @GetMapping("/logs/view")
     public ResponseEntity<?> logView(@RequestParam String date,
-                                      @RequestParam(defaultValue = "business") String type) {
+                                      @RequestParam(defaultValue = "business") String type,
+                                      @RequestParam(defaultValue = "false") boolean quiet) {
         String prefix = "system".equals(type) ? "system" : "business";
-        log.info("[로그 조회] type={}, date={}", prefix, date);
+        if (!quiet) log.info("[로그 조회] type={}, date={}", prefix, date);
         try {
             Path logDir = Paths.get("./logs");
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
@@ -481,13 +539,96 @@ public class ApiViewController {
         }
     }
 
-    /** 전체 분석 데이터 삭제 */
+    /**
+     * 분석 데이터 삭제 (ApiRecord).
+     * ?repoName=xxx 지정 시 해당 레포만, 없으면 전체 삭제.
+     */
     @DeleteMapping("/db/delete-all")
-    public ResponseEntity<?> deleteAllRecords() {
-        log.warn("[데이터 전체 삭제] DELETE /api/db/delete-all 요청");
-        long count = recordRepository.count();
-        recordRepository.deleteAll();
-        log.info("[데이터 초기화] {}건 삭제", count);
-        return ResponseEntity.ok(Map.of("deleted", count));
+    public ResponseEntity<?> deleteAllRecords(@RequestParam(required = false) String repoName) {
+        log.warn("[분석데이터 삭제] DELETE /api/db/delete-all repoName={}", repoName);
+        long deleted;
+        if (repoName == null || repoName.isBlank() || "ALL".equalsIgnoreCase(repoName)) {
+            deleted = recordRepository.count();
+            recordRepository.deleteAll();
+        } else {
+            long before = recordRepository.count();
+            recordRepository.deleteByRepositoryName(repoName);
+            deleted = before - recordRepository.count();
+        }
+        log.info("[분석데이터 삭제 완료] {}건 삭제", deleted);
+        return ResponseEntity.ok(Map.of("deleted", deleted));
+    }
+
+    /**
+     * 삭제 상태 레코드 영구 삭제 (관리자 전용).
+     * Body: { "ids": [1,2,3] } — 지정된 id들 중 status='삭제'인 것만 물리 삭제.
+     */
+    @DeleteMapping("/db/purge-deleted")
+    public ResponseEntity<?> purgeDeletedRecords(@RequestBody Map<String, Object> body) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Integer> rawIds = (List<Integer>) body.get("ids");
+            if (rawIds == null || rawIds.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "ids가 비어 있습니다."));
+            }
+            int purged = 0, skipped = 0;
+            for (Integer rawId : rawIds) {
+                Optional<ApiRecord> opt = recordRepository.findById(rawId.longValue());
+                if (opt.isEmpty()) continue;
+                ApiRecord r = opt.get();
+                if (!"삭제".equals(r.getStatus())) { skipped++; continue; }
+                recordRepository.deleteById(r.getId());
+                purged++;
+            }
+            log.warn("[삭제건 영구삭제] 대상={}건, 영구삭제={}건, 스킵={}건 (삭제상태 아님)", rawIds.size(), purged, skipped);
+            return ResponseEntity.ok(Map.of("purged", purged, "skipped", skipped));
+        } catch (Exception e) {
+            log.error("[삭제건 영구삭제 실패] {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** managerMappings JSON → List<Map<programId, managerName>> 파싱 (실패 시 빈 리스트) */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, String>> parseManagerMappings(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+            List<Map<String, Object>> raw = om.readValue(json, List.class);
+            List<Map<String, String>> out = new ArrayList<>(raw.size());
+            for (Map<String, Object> m : raw) {
+                Object pid = m.get("programId");
+                Object mgr = m.get("managerName");
+                if (pid != null && mgr != null) {
+                    out.add(Map.of("programId", pid.toString(), "managerName", mgr.toString()));
+                }
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("[managerMappings 파싱 실패] {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * 담당자 결정: managerOverride > 프로그램ID별 매핑 > 팀 대표(managerName) > "(미지정)"
+     */
+    private String resolveManager(ApiRecord r, RepoConfig cfg, List<Map<String, String>> mappings) {
+        if (r.getManagerOverride() != null && !r.getManagerOverride().isBlank()) {
+            return r.getManagerOverride();
+        }
+        if (mappings != null && !mappings.isEmpty()) {
+            String apiPath = r.getApiPath() != null ? r.getApiPath().toUpperCase() : "";
+            for (Map<String, String> m : mappings) {
+                String pid = m.get("programId");
+                if (pid != null && !pid.isBlank() && apiPath.contains(pid.toUpperCase())) {
+                    return m.get("managerName");
+                }
+            }
+        }
+        if (cfg != null && cfg.getManagerName() != null && !cfg.getManagerName().isBlank()) {
+            return cfg.getManagerName();
+        }
+        return "(미지정)";
     }
 }

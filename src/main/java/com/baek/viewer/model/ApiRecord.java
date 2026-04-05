@@ -149,7 +149,7 @@ public class ApiRecord {
 
     /** 상태 변경 감지 플래그 (IT 담당자 검토 필요) */
     @Column(name = "status_changed")
-    private boolean statusChanged = false;
+    private Boolean statusChanged = false;
 
     /** 상태 변경 내역 로그 */
     @Column(name = "status_change_log", length = 500)
@@ -157,7 +157,8 @@ public class ApiRecord {
 
     /** 신규 추가 플래그 (분석 시 처음 발견) */
     @Column(name = "is_new")
-    private boolean isNew = false;
+    // note: Boolean (null-safe) — 기존 row에 NULL이 있을 수 있음
+    private Boolean isNew = false;
 
     /** 데이터 소스: ANALYSIS(분석), UPLOAD(엑셀 업로드) */
     @Column(name = "data_source", length = 20)
@@ -239,9 +240,9 @@ public class ApiRecord {
     public void setBlockedDate(LocalDate blockedDate) { this.blockedDate = blockedDate; }
     public String getBlockedReason() { return blockedReason; }
     public void setBlockedReason(String blockedReason) { this.blockedReason = blockedReason; }
-    public boolean isStatusChanged() { return statusChanged; }
+    public boolean isStatusChanged() { return statusChanged != null && statusChanged; }
     public void setStatusChanged(boolean statusChanged) { this.statusChanged = statusChanged; }
-    public boolean isNew() { return isNew; }
+    public boolean isNew() { return isNew != null && isNew; }
     public void setNew(boolean isNew) { this.isNew = isNew; }
     public String getDataSource() { return dataSource; }
     public void setDataSource(String dataSource) { this.dataSource = dataSource; }

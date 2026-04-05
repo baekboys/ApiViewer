@@ -44,6 +44,9 @@ public class RepoConfig {
     @Column(name = "whatap_enabled", length = 1)
     private String whatapEnabled = "N";
 
+    @Column(name = "whatap_profile_name", length = 50)
+    private String whatapProfileName;
+
     @Column(name = "whatap_url", length = 500)
     private String whatapUrl;
 
@@ -62,9 +65,16 @@ public class RepoConfig {
     @Column(name = "whatap_cookie", columnDefinition = "TEXT")
     private String whatapCookie;
 
+    /** 프로그램ID별 담당자 매핑 JSON — [{"programId":"CARD","managerName":"김철수"}, ...] */
+    @Column(name = "manager_mappings", columnDefinition = "TEXT")
+    private String managerMappings;
+
     // ── 제니퍼 설정 ──
     @Column(name = "jennifer_enabled", length = 1)
     private String jenniferEnabled = "N";
+
+    @Column(name = "jennifer_profile_name", length = 50)
+    private String jenniferProfileName;
 
     @Column(name = "jennifer_url", length = 500)
     private String jenniferUrl;
@@ -102,6 +112,8 @@ public class RepoConfig {
     public void setPathConstants(String pathConstants) { this.pathConstants = pathConstants; }
     public String getWhatapEnabled() { return whatapEnabled; }
     public void setWhatapEnabled(String whatapEnabled) { this.whatapEnabled = whatapEnabled; }
+    public String getWhatapProfileName() { return whatapProfileName; }
+    public void setWhatapProfileName(String whatapProfileName) { this.whatapProfileName = whatapProfileName; }
     public String getWhatapUrl() { return whatapUrl; }
     public void setWhatapUrl(String whatapUrl) { this.whatapUrl = whatapUrl; }
     public Integer getWhatapPcode() { return whatapPcode; }
@@ -114,8 +126,12 @@ public class RepoConfig {
     public void setWhatapOkindsName(String whatapOkindsName) { this.whatapOkindsName = whatapOkindsName; }
     public String getWhatapCookie() { return whatapCookie; }
     public void setWhatapCookie(String whatapCookie) { this.whatapCookie = whatapCookie; }
+    public String getManagerMappings() { return managerMappings; }
+    public void setManagerMappings(String managerMappings) { this.managerMappings = managerMappings; }
     public String getJenniferEnabled() { return jenniferEnabled; }
     public void setJenniferEnabled(String jenniferEnabled) { this.jenniferEnabled = jenniferEnabled; }
+    public String getJenniferProfileName() { return jenniferProfileName; }
+    public void setJenniferProfileName(String jenniferProfileName) { this.jenniferProfileName = jenniferProfileName; }
     public String getJenniferUrl() { return jenniferUrl; }
     public void setJenniferUrl(String jenniferUrl) { this.jenniferUrl = jenniferUrl; }
     public Integer getJenniferSid() { return jenniferSid; }

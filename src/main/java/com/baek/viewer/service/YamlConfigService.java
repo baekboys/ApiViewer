@@ -82,6 +82,22 @@ public class YamlConfigService {
             }
             if (g.getReviewThreshold() != null) gc.setReviewThreshold(g.getReviewThreshold());
             if (g.getPassword() != null) gc.setPassword(g.getPassword());
+
+            // teams, 와탭/제니퍼 공통 프로필 JSON 저장
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                if (g.getTeams() != null && !g.getTeams().isEmpty()) {
+                    gc.setTeams(om.writeValueAsString(g.getTeams()));
+                }
+                if (g.getWhatapProfiles() != null && !g.getWhatapProfiles().isEmpty()) {
+                    gc.setWhatapProfiles(om.writeValueAsString(g.getWhatapProfiles()));
+                }
+                if (g.getJenniferProfiles() != null && !g.getJenniferProfiles().isEmpty()) {
+                    gc.setJenniferProfiles(om.writeValueAsString(g.getJenniferProfiles()));
+                }
+            } catch (Exception e) {
+                log.warn("[YAML 프로필 직렬화 실패] {}", e.getMessage());
+            }
             globalRepo.save(gc);
         }
 
@@ -124,9 +140,30 @@ public class YamlConfigService {
                 rc.setApiPathPrefix(entry.getApiPathPrefix());
                 rc.setPathConstants(entry.getPathConstants());
 
+                // 프로그램ID별 담당자 매핑 → JSON 변환 (비어있으면 null 저장)
+                if (entry.getManagerMappings() != null && !entry.getManagerMappings().isEmpty()) {
+                    List<Map<String, String>> items = new ArrayList<>();
+                    for (ReposYamlConfig.ManagerMapping mm : entry.getManagerMappings()) {
+                        if (mm.getProgramId() == null || mm.getProgramId().isBlank()) continue;
+                        if (mm.getManagerName() == null || mm.getManagerName().isBlank()) continue;
+                        items.add(Map.of("programId", mm.getProgramId().trim(),
+                                         "managerName", mm.getManagerName().trim()));
+                    }
+                    try {
+                        rc.setManagerMappings(items.isEmpty() ? null
+                                : new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(items));
+                    } catch (Exception e) {
+                        log.warn("[managerMappings 직렬화 실패] {}", e.getMessage());
+                        rc.setManagerMappings(null);
+                    }
+                } else {
+                    rc.setManagerMappings(null);
+                }
+
                 if (entry.getWhatap() != null) {
                     ReposYamlConfig.WhatapEntry w = entry.getWhatap();
                     rc.setWhatapEnabled(w.getEnabled());
+                    rc.setWhatapProfileName(w.getProfileName());
                     rc.setWhatapPcode(w.getPcode());
                     rc.setWhatapFilter(w.getFilter());
                     rc.setWhatapOkinds(w.getOkinds());
@@ -148,6 +185,7 @@ public class YamlConfigService {
                 if (entry.getJennifer() != null) {
                     ReposYamlConfig.JenniferEntry j = entry.getJennifer();
                     rc.setJenniferEnabled(j.getEnabled());
+                    rc.setJenniferProfileName(j.getProfileName());
                     rc.setJenniferSid(j.getSid());
                     rc.setJenniferFilter(j.getFilter());
 

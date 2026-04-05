@@ -37,6 +37,8 @@
     label.field input, label.field select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; transition: border .15s; background: var(--card); }
     label.field input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px #3b82f620; }
     label.field input.purple:focus { border-color: var(--purple); box-shadow: 0 0 0 2px #8b5cf620; }
+    input::placeholder, textarea::placeholder { color:#cbd5e1; opacity:1; font-style:italic; font-weight:400; }
+    input:focus::placeholder { color:#e2e8f0; }
 
     .toggle-arrow { font-size: 12px; color: var(--text-muted); transition: transform .2s; }
     .toggle-arrow.open { transform: rotate(180deg); }
@@ -67,8 +69,7 @@
     .all-repo-info strong { display: block; font-size: 13px; margin-bottom: 4px; }
 
     /* ── 추출 진행 카드 ── */
-    .progress-card { display: none; }
-    .progress-card.show { display: block; }
+    .work-card { }  /* 작업 진행상황 + 로그 통합 카드 */
     .prog-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .prog-header .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -93,8 +94,6 @@
     .link-viewer:hover { background: var(--primary-hover); }
 
     /* ── 로그 패널 ── */
-    .log-card { display: none; }
-    .log-card.show { display: block; }
     .log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .log-header .card-title { margin-bottom: 0; }
     .log-counts { display: flex; gap: 10px; font-size: 11px; font-weight: 600; }
@@ -171,27 +170,25 @@
     <div id="singleRepoForm">
       <div class="config-grid">
         <label class="field">소스 경로 (ROOT_PATH) *
-          <input id="rootPath" type="text" placeholder="/Users/.../my-project/src/main/java" oninput="autoFillRepoName()">
+          <input id="rootPath" type="text" oninput="autoFillRepoName()">
         </label>
         <label class="field">레포지토리명 (DB 저장 키)
-          <input id="repositoryName" type="text" placeholder="my-project">
+          <input id="repositoryName" type="text">
         </label>
         <label class="field">도메인 (DOMAIN)
-          <input id="domain" type="text" placeholder="https://api.example.com">
+          <input id="domain" type="text">
         </label>
         <label class="field">URL 경로 프리픽스
-          <input id="apiPathPrefix" type="text" placeholder="/APP">
-        </label>
-        <label class="field">Git 실행 경로
-          <input id="gitBinPath" type="text" placeholder="git">
+          <input id="apiPathPrefix" type="text">
         </label>
       </div>
       <div class="config-row2">
         <label class="field">상수 치환 (PATH_CONSTANTS)
-          <input id="pathConstants" type="text" placeholder="Constants.BASE=/v1, ApiConst.ROOT=/api/v2">
+          <input id="pathConstants" type="text">
         </label>
         <button class="btn btn-blue" id="extractBtn" onclick="doExtract()">추출 시작</button>
       </div>
+      <input id="gitBinPath" type="hidden">
     </div>
 
     <!-- 전체 추출 버튼 -->
@@ -214,7 +211,8 @@
         <input id="uploadFile" type="file" accept=".xlsx,.xls,.csv" style="font-size:12px;">
       </label>
       <button class="btn" style="background:#8b5cf6;color:#fff;height:34px;" onclick="uploadExcel()">업로드</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="downloadTemplate()">템플릿 다운로드</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="downloadTemplate()">빈 템플릿</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="downloadSample()">샘플 다운로드</button>
     </div>
     <div id="uploadResult" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
     <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
@@ -223,11 +221,50 @@
     </div>
   </div>
 
-  <!-- ─── 추출 진행 상황 ─── -->
-  <div class="card progress-card" id="progressCard">
+  <!-- ─── APM 호출건수 수집 (수동) ─── -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:#0ea5e9;"></span>APM 호출건수 수집 (수동)
+      <span style="font-size:10px;font-weight:400;color:var(--text-muted);">와탭/제니퍼에서 일자별 호출건수를 가져옵니다. 제니퍼 최대 30일, 와탭 최대 365일.</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <label class="field">레포지토리 *
+        <select id="apmCollectRepo" onchange="onApmRepoChange()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;"></select>
+      </label>
+      <label class="field">APM 종류 *
+        <select id="apmCollectSource" onchange="onApmSourceChange(true)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <option value="WHATAP">WHATAP (와탭, 최대 365일)</option>
+          <option value="JENNIFER">JENNIFER (제니퍼, 최대 30일)</option>
+          <option value="MOCK">MOCK (테스트, 365일)</option>
+        </select>
+      </label>
+      <label class="field">시작일 *
+        <input id="apmCollectFrom" type="date" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      </label>
+      <label class="field">종료일 *
+        <input id="apmCollectTo" type="date" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      </label>
+      <button class="btn" id="apmCollectBtn" style="background:#0ea5e9;color:#fff;height:34px;" onclick="collectApm()">수집 실행</button>
+      <button class="btn btn-blue" style="height:34px;" onclick="aggregateAfterCollect()">집계 반영</button>
+    </div>
+    <div id="apmCollectResult" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);">전체 자동 수집:</span>
+      <button class="btn" style="background:#6366f1;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(false)">전체 자동수집 (레포설정 기준)</button>
+      <button class="btn" style="background:#a78bfa;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(true)">전체 자동수집 (MOCK)</button>
+      <span style="font-size:10px;color:var(--text-muted);">각 레포의 APM별 최대기간까지 수집합니다 (WHATAP 365일 / JENNIFER 30일)</span>
+    </div>
+    <div style="margin-top:6px;font-size:11px;color:var(--text-muted);">
+      ※ 실제 APM 연동 전까지는 Mock 데이터를 랜덤 생성합니다. 일부 API는 테스트용으로 호출이력 없이 생성됩니다.
+    </div>
+  </div>
+
+  <!-- ─── 작업 진행상황 + 로그 (통합 카드) ─── -->
+  <div class="card work-card" id="workCard" style="display:none;">
+    <!-- 진행상황 헤더 -->
     <div class="prog-header">
       <div class="spinner" id="progSpinner"></div>
-      <span class="prog-title" id="progTitle">추출 진행 중</span>
+      <span class="prog-title" id="progTitle">작업 진행 중</span>
       <span class="prog-status" id="progStatus"></span>
     </div>
     <div class="prog-repo-label" id="progRepoLabel"></div>
@@ -238,7 +275,7 @@
       <span class="prog-pct" id="progPct">0%</span>
     </div>
     <div class="prog-info">
-      <span id="progCount">파일 탐색 중...</span>
+      <span id="progCount">대기 중...</span>
       <span id="progFile" class="prog-file" style="max-width:400px;"></span>
     </div>
 
@@ -247,18 +284,18 @@
       <span id="resultMsg"></span>
       <div class="result-actions" id="resultActions"></div>
     </div>
-  </div>
 
-  <!-- ─── 추출 로그 ─── -->
-  <div class="card log-card" id="logCard">
-    <div class="log-header">
-      <div class="card-title" style="margin-bottom:0;">
-        <span class="dot dot-green"></span>추출 로그
+    <!-- 작업 로그 (카드 내부 섹션) -->
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div class="log-header">
+        <div class="card-title" style="margin-bottom:0;font-size:11px;">
+          <span class="dot dot-green"></span>작업 로그
+        </div>
+        <div class="log-counts" id="logCounts"></div>
       </div>
-      <div class="log-counts" id="logCounts"></div>
-    </div>
-    <div class="log-wrap" id="logWrap">
-      <div class="log-empty">추출이 시작되면 로그가 여기에 표시됩니다.</div>
+      <div class="log-wrap" id="logWrap">
+        <div class="log-empty">작업이 시작되면 로그가 여기에 표시됩니다.</div>
+      </div>
     </div>
   </div>
 
@@ -276,13 +313,271 @@
       const res = await fetch('/api/config/repos');
       allRepos = await res.json();
       const sel = document.getElementById('repoConfigSelect');
+      const apmSel = document.getElementById('apmCollectRepo');
       allRepos.forEach(r => {
         const opt = document.createElement('option');
         opt.value = r.id;
         opt.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
         sel.appendChild(opt);
+        if (apmSel) {
+          const opt2 = document.createElement('option');
+          opt2.value = r.repoName;
+          opt2.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
+          apmSel.appendChild(opt2);
+        }
       });
+      // 첫 레포 선택 시 자동으로 APM 종류/기간 세팅
+      if (allRepos.length > 0 && document.getElementById('apmCollectRepo')) {
+        onApmRepoChange();
+      }
     } catch(e) {}
+  }
+
+  // APM 종류 변경 시: 기간 자동 세팅 (WHATAP=365일, JENNIFER=30일) + 가이드
+  function onApmSourceChange(autoSetRange) {
+    const src = document.getElementById('apmCollectSource').value;
+    const maxDays = src === 'JENNIFER' ? 30 : 365;
+    if (autoSetRange) {
+      // 자동으로 기간 세팅
+      const today = new Date();
+      const fromDate = new Date(today.getTime() - (maxDays - 1) * 86400000);
+      document.getElementById('apmCollectTo').value = today.toISOString().slice(0,10);
+      document.getElementById('apmCollectFrom').value = fromDate.toISOString().slice(0,10);
+      document.getElementById('apmCollectResult').innerHTML =
+        `<span style="color:var(--text-muted);">ℹ ${src} 최대 기간 ${maxDays}일로 자동 세팅되었습니다.</span>`;
+      return;
+    }
+    // 수동 변경 시 경고 체크
+    const from = document.getElementById('apmCollectFrom').value;
+    const to = document.getElementById('apmCollectTo').value;
+    if (from && to) {
+      const diff = Math.ceil((new Date(to) - new Date(from)) / 86400000) + 1;
+      if (diff > maxDays) {
+        document.getElementById('apmCollectResult').innerHTML =
+          `<span style="color:var(--danger);">⚠ ${src}는 최대 ${maxDays}일까지만 조회 가능합니다. (현재 ${diff}일)</span>`;
+      } else {
+        document.getElementById('apmCollectResult').textContent = '';
+      }
+    }
+  }
+
+  // 레포 선택 변경 시: yml 설정에 따라 APM source 자동 선택
+  function onApmRepoChange() {
+    const repoName = document.getElementById('apmCollectRepo').value;
+    const repo = allRepos.find(r => r.repoName === repoName);
+    if (!repo) return;
+    const whatap = repo.whatapEnabled === 'Y';
+    const jennifer = repo.jenniferEnabled === 'Y';
+    const srcSel = document.getElementById('apmCollectSource');
+    let autoSrc = null;
+    if (whatap && jennifer) autoSrc = 'WHATAP';  // 둘 다면 와탭 우선
+    else if (whatap) autoSrc = 'WHATAP';
+    else if (jennifer) autoSrc = 'JENNIFER';
+    else autoSrc = 'MOCK';
+    srcSel.value = autoSrc;
+    onApmSourceChange(true); // 기간 자동 세팅
+    document.getElementById('apmCollectResult').innerHTML =
+      `<span style="color:var(--text-muted);">ℹ "${repoName}" 설정 기준: ${autoSrc} 자동 선택 + 최대 기간 세팅</span>`;
+  }
+
+  async function collectAllApm(mockOnly) {
+    const label = mockOnly ? 'MOCK 전체수집' : '자동 전체수집';
+    // 대상 레포 선정 (클라이언트 메모리에서 판정)
+    const targets = [];
+    allRepos.forEach(r => {
+      const sources = [];
+      if (mockOnly) {
+        sources.push({ src: 'MOCK', days: 365 });
+      } else {
+        if (r.whatapEnabled === 'Y')   sources.push({ src: 'WHATAP', days: 365 });
+        if (r.jenniferEnabled === 'Y') sources.push({ src: 'JENNIFER', days: 30 });
+      }
+      if (sources.length > 0) targets.push({ repo: r.repoName, sources });
+    });
+
+    if (targets.length === 0) {
+      showToast(mockOnly ? '등록된 레포가 없습니다.' : 'APM(와탭/제니퍼)이 활성화된 레포가 없습니다.', 'error');
+      return;
+    }
+
+    const totalSteps = targets.reduce((s, t) => s + t.sources.length + 1, 0); // 수집 + 집계
+    if (!confirm(`모든 레포에 대해 ${label}을 실행하시겠습니까?\n대상 레포: ${targets.length}개 / 작업 수: ${totalSteps}단계\n(각 레포의 APM 최대 기간까지 수집)`)) return;
+
+    clearLogs(); hideResult();
+    showWorkCard(true, `APM ${label}`);
+    addLocalLog('INFO', `── APM ${label} 시작: ${targets.length}개 레포 / ${totalSteps}단계 ──`);
+
+    document.getElementById('apmCollectResult').innerHTML =
+      `<span style="color:var(--text-muted);">${label} 실행 중... (작업 로그 확인)</span>`;
+
+    const today = new Date().toISOString().slice(0,10);
+    const todayDate = new Date();
+    todayDate.setDate(todayDate.getDate() - 1); // 어제까지
+    const to = todayDate.toISOString().slice(0,10);
+
+    let stepDone = 0;
+    let totalGenerated = 0;
+    let repoCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      repoCount++;
+      setRepoLabel(`레포 ${i+1}/${targets.length}: ${t.repo}`);
+
+      // 각 source별 수집
+      for (const s of t.sources) {
+        stepDone++;
+        const pct = Math.round((stepDone / totalSteps) * 100);
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progPct').textContent = pct + '%';
+        document.getElementById('progCount').textContent = `${t.repo} · ${s.src} 수집 중 (${stepDone}/${totalSteps})`;
+
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - s.days);
+        const from = fromDate.toISOString().slice(0,10);
+
+        try {
+          const res = await fetch('/api/apm/collect', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+            body: JSON.stringify({ repoName: t.repo, source: s.src, from, to })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '실패');
+          totalGenerated += (data.generated || 0);
+          addLocalLog('INFO', `  · ${t.repo} / ${s.src}: ${data.generated}건 수집 (API ${data.apis}개, ${s.days}일)`);
+        } catch(e) {
+          errorCount++;
+          addLocalLog('ERROR', `  · ${t.repo} / ${s.src}: 실패 - ${e.message}`);
+        }
+      }
+
+      // 집계 반영
+      stepDone++;
+      const pct = Math.round((stepDone / totalSteps) * 100);
+      document.getElementById('progFill').style.width = pct + '%';
+      document.getElementById('progPct').textContent = pct + '%';
+      document.getElementById('progCount').textContent = `${t.repo} · 집계 반영 중 (${stepDone}/${totalSteps})`;
+
+      try {
+        const res = await fetch('/api/apm/aggregate', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+          body: JSON.stringify({ repoName: t.repo })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '집계 실패');
+        addLocalLog('INFO', `  · ${t.repo}: 집계 반영 ${data.updated}건`);
+      } catch(e) {
+        errorCount++;
+        addLocalLog('ERROR', `  · ${t.repo}: 집계 실패 - ${e.message}`);
+      }
+    }
+
+    // 완료 처리
+    document.getElementById('progFill').style.width = '100%';
+    document.getElementById('progPct').textContent = '100%';
+    document.getElementById('progStatus').textContent = errorCount > 0 ? `완료 (실패 ${errorCount}건)` : '완료';
+    document.getElementById('progSpinner').style.display = 'none';
+    document.getElementById('progCount').textContent = `레포 ${repoCount}개 · 총 ${totalGenerated}건 수집 완료`;
+    setRepoLabel('');
+
+    const resultKind = errorCount > 0 ? 'fail' : 'ok';
+    const msg = `${label} 완료 — 레포 ${repoCount}개, 총 ${totalGenerated}건 수집${errorCount>0?`, 실패 ${errorCount}건`:''}`;
+    document.getElementById('apmCollectResult').innerHTML =
+      `<span style="color:${errorCount>0?'var(--danger)':'var(--success)'};">${errorCount>0?'⚠':'✓'} ${msg}</span>`;
+    addLocalLog('INFO', `── ${msg} ──`);
+    showResult(resultKind, msg);
+    showToast(msg, errorCount>0?'error':'success');
+  }
+
+  async function collectApm() {
+    const repoName = document.getElementById('apmCollectRepo').value;
+    const source = document.getElementById('apmCollectSource').value;
+    const from = document.getElementById('apmCollectFrom').value;
+    const to = document.getElementById('apmCollectTo').value;
+    if (!repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
+    if (!from || !to) { showToast('시작일/종료일을 선택하세요.','error'); return; }
+    if (new Date(from) > new Date(to)) { showToast('시작일이 종료일보다 늦을 수 없습니다.','error'); return; }
+    const diff = Math.ceil((new Date(to) - new Date(from)) / 86400000) + 1;
+    const maxDays = source === 'JENNIFER' ? 30 : 365;
+    if (diff > maxDays) { showToast(`${source}는 최대 ${maxDays}일까지 가능합니다. (현재 ${diff}일)`,'error'); return; }
+
+    const btn = document.getElementById('apmCollectBtn');
+    btn.disabled = true; btn.textContent = '수집 중...';
+    clearLogs(); hideResult();
+    showWorkCard(true, `APM 수집 (${source})`);
+    setRepoLabel(`${repoName} · ${source} · ${from} ~ ${to} (${diff}일)`);
+    addLocalLog('INFO', `── APM 수집 시작: ${repoName} / ${source} / ${from}~${to} (${diff}일) ──`);
+    document.getElementById('progCount').textContent = `${source} 데이터 수집 중...`;
+    document.getElementById('apmCollectResult').innerHTML = `<span style="color:var(--text-muted);">${source} 수집 중... (${diff}일)</span>`;
+    try {
+      const res = await fetch('/api/apm/collect', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+        body: JSON.stringify({ repoName, source, from, to })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '수집 실패');
+      document.getElementById('progFill').style.width = '100%';
+      document.getElementById('progPct').textContent = '100%';
+      document.getElementById('progStatus').textContent = '완료';
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progCount').textContent = `${data.generated}건 수집 완료 (API ${data.apis}개)`;
+      document.getElementById('apmCollectResult').innerHTML =
+        `<span style="color:var(--success);">✓ ${data.source} 수집 완료: ${data.generated}건 (API ${data.apis}개 · ${data.from}~${data.to})</span>`;
+      addLocalLog('INFO', `APM 수집 완료: ${data.generated}건 (API ${data.apis}개)`);
+      showResult('ok', `APM 수집 완료 — ${data.generated}건`);
+      showToast(`${data.source} ${data.generated}건 수집`,'success');
+    } catch(e) {
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progStatus').textContent = '실패';
+      document.getElementById('apmCollectResult').innerHTML = `<span style="color:var(--danger);">${e.message}</span>`;
+      addLocalLog('ERROR', `APM 수집 실패: ${e.message}`);
+      showResult('fail', `APM 수집 실패: ${e.message}`);
+      showToast(e.message,'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '수집 실행';
+      setRepoLabel('');
+    }
+  }
+
+  async function aggregateAfterCollect() {
+    const repoName = document.getElementById('apmCollectRepo').value;
+    if (!repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
+    clearLogs(); hideResult();
+    showWorkCard(true, `APM 집계 반영`);
+    setRepoLabel(repoName);
+    addLocalLog('INFO', `── APM 집계 반영 시작: ${repoName} ──`);
+    document.getElementById('progCount').textContent = 'ApiRecord 집계 중...';
+    try {
+      const res = await fetch('/api/apm/aggregate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+        body: JSON.stringify({ repoName })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '집계 실패');
+      document.getElementById('progFill').style.width = '100%';
+      document.getElementById('progPct').textContent = '100%';
+      document.getElementById('progStatus').textContent = '완료';
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progCount').textContent = `${data.updated}건 업데이트 완료`;
+      document.getElementById('apmCollectResult').innerHTML =
+        `<span style="color:var(--success);">✓ ApiRecord 집계 반영 완료: ${data.updated}건 업데이트</span>`;
+      addLocalLog('INFO', `집계 반영 완료: ${data.updated}건 업데이트`);
+      showResult('ok', `집계 반영 완료 — ${data.updated}건`);
+      showToast(`집계 반영: ${data.updated}건`,'success');
+    } catch(e) {
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progStatus').textContent = '실패';
+      addLocalLog('ERROR', `집계 실패: ${e.message}`);
+      showResult('fail', `집계 실패: ${e.message}`);
+      showToast(e.message,'error');
+    } finally {
+      setRepoLabel('');
+    }
   }
 
   function onRepoSelect() {
@@ -294,22 +589,18 @@
     if (!isAll && val) loadRepoConfig(val);
   }
 
-  async function loadRepoConfig(id) {
+  function loadRepoConfig(id) {
+    // 이미 메모리에 로드된 allRepos에서 찾음 (서버 재조회 불필요)
     if (!id) return;
-    try {
-      const res = await fetch(`/api/config/repos/${id}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
-      const r = await res.json();
-      if (!res.ok) throw new Error(r.error || '설정 조회 실패');
-
-      document.getElementById('rootPath').value       = r.rootPath       || '';
-      document.getElementById('repositoryName').value = r.repoName       || '';
-      document.getElementById('domain').value         = r.domain         || '';
-      document.getElementById('apiPathPrefix').value  = r.apiPathPrefix  || '';
-      document.getElementById('gitBinPath').value     = r.gitBinPath     || '';
-      document.getElementById('pathConstants').value  = r.pathConstants  || '';
-
-      showToast(`"${r.repoName}" 설정을 불러왔습니다.`, 'info');
-    } catch(e) { showToast('설정 불러오기 실패', 'error'); }
+    const r = allRepos.find(x => String(x.id) === String(id));
+    if (!r) { showToast('레포 설정을 찾지 못했습니다.', 'error'); return; }
+    document.getElementById('rootPath').value       = r.rootPath       || '';
+    document.getElementById('repositoryName').value = r.repoName       || '';
+    document.getElementById('domain').value         = r.domain         || '';
+    document.getElementById('apiPathPrefix').value  = r.apiPathPrefix  || '';
+    document.getElementById('gitBinPath').value     = r.gitBinPath     || '';
+    document.getElementById('pathConstants').value  = r.pathConstants  || '';
+    showToast(`"${r.repoName}" 설정을 불러왔습니다.`, 'info');
   }
 
 
@@ -334,11 +625,13 @@
       addLocalLog('INFO', `전체 추출 시작 — ${repos.length}개 레포지토리`);
       let totalSaved = 0;
       let errorCount = 0;
+      overallProgress = { completed: 0, total: repos.length };
 
       for (let i = 0; i < repos.length; i++) {
         const r = repos[i];
+        overallProgress.completed = i;
         setRepoLabel(`레포 ${i+1}/${repos.length}: ${r.repoName}`);
-        addLocalLog('INFO', `── ${r.repoName} 추출 시작 ──`);
+        addLocalLog('INFO', `── ${r.repoName} 추출 시작 (${i+1}/${repos.length}) ──`);
         try {
           const result = await extractOneRepo(r.rootPath, r.repoName, r.domain || '', r.apiPathPrefix || '', r.gitBinPath || 'git', r.pathConstants || '');
           if (result.savedCount >= 0) totalSaved += result.savedCount;
@@ -347,6 +640,11 @@
           errorCount++;
         }
       }
+      // 완료: 100%로 확정
+      overallProgress.completed = repos.length;
+      document.getElementById('progFill').style.width = '100%';
+      document.getElementById('progPct').textContent = '100%';
+      overallProgress = null;
 
       setExtracting(false);
       setRepoLabel('');
@@ -420,14 +718,24 @@
   }
 
   // ── 진행상황 업데이트 ─────────────────────────────────────
+  let overallProgress = null; // { completed, total } - 전체 추출 시에만 사용
   function updateProgress(p) {
-    const pct = p.percent || 0;
-    document.getElementById('progFill').style.width = pct + '%';
-    document.getElementById('progPct').textContent = pct + '%';
+    const currentPct = p.percent || 0;
+    let displayPct = currentPct;
+    // 전체 추출 모드일 때: (완료레포수 + 현재레포진행률) / 전체레포수
+    if (overallProgress && overallProgress.total > 0) {
+      displayPct = Math.round(
+        (overallProgress.completed * 100 + currentPct) / overallProgress.total
+      );
+    }
+    document.getElementById('progFill').style.width = displayPct + '%';
+    document.getElementById('progPct').textContent = displayPct + '%';
     document.getElementById('progFile').textContent = p.currentFile || '';
 
     if (p.total > 0) {
-      document.getElementById('progCount').textContent = `${p.processed} / ${p.total} 파일`;
+      const inner = `${p.processed} / ${p.total} 파일`;
+      const outer = overallProgress ? ` (레포 ${overallProgress.completed+1}/${overallProgress.total} · 현재 ${currentPct}%)` : '';
+      document.getElementById('progCount').textContent = inner + outer;
       document.getElementById('progStatus').textContent = p.extracting ? '분석 중...' : '완료';
     } else {
       document.getElementById('progCount').textContent = '파일 탐색 중...';
@@ -495,12 +803,12 @@
     document.getElementById('logCounts').innerHTML = parts.join('');
   }
 
-  // ── 진행 카드 UI ──────────────────────────────────────────
-  function showProgressCard(v) {
-    document.getElementById('progressCard').classList.toggle('show', v);
+  // ── 작업 카드 UI ──────────────────────────────────────────
+  function showWorkCard(v, title) {
+    document.getElementById('workCard').style.display = v ? 'block' : 'none';
     if (v) {
       document.getElementById('progSpinner').style.display = 'inline-block';
-      document.getElementById('progTitle').textContent = '추출 진행 중';
+      document.getElementById('progTitle').textContent = title || '작업 진행 중';
       document.getElementById('progFill').style.width = '0%';
       document.getElementById('progPct').textContent = '0%';
       document.getElementById('progCount').textContent = '준비 중...';
@@ -509,9 +817,9 @@
     }
   }
 
-  function showLogCard(v) {
-    document.getElementById('logCard').classList.toggle('show', v);
-  }
+  // 하위 호환용 alias
+  function showProgressCard(v) { showWorkCard(v, '추출 진행 중'); }
+  function showLogCard(v) { if (v) document.getElementById('workCard').style.display = 'block'; }
 
   function setRepoLabel(text) {
     const el = document.getElementById('progRepoLabel');
@@ -592,12 +900,52 @@
     const headers = ['apiPath','httpMethod','controllerName','methodName','programId','fullUrl','apiOperationValue','memo','teamOverride','managerOverride'];
     const hRow = ws.addRow(headers);
     hRow.eachCell(cell => { cell.font={bold:true}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
-    ws.addRow(['/api/sample','GET','SampleController','getSample','PGM001','https://example.com/api/sample','샘플 조회','비고 예시','IT개발팀','홍길동']);
     ws.columns = headers.map(h => ({width: Math.max(h.length*2, 12)}));
     wb.xlsx.writeBuffer().then(buf => {
       const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
       a.download='url-upload-template.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+    });
+  }
+
+  // 실제 업무 형식(/app/LPXXXAA_V100.lc)의 샘플 엑셀 다운로드
+  function downloadSample() {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Sample');
+    const headers = ['apiPath','httpMethod','controllerName','methodName','programId','fullUrl','apiOperationValue','memo','teamOverride','managerOverride'];
+    const hRow = ws.addRow(headers);
+    hRow.eachCell(cell => { cell.font={bold:true}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
+
+    // 실제 업무 형식 — /app/LPXXXAA_V100.lc 구조
+    const rows = [
+      ['/app/LPCDMA01_V100.lc','REQUEST','LPCDMA01_V100','execute','LPCDMA01','https://internal.example.com/app/LPCDMA01_V100.lc','카드회원 기본정보 조회','고객정보 서비스','IT카드개발팀','김철수'],
+      ['/app/LPCDMA02_V100.lc','REQUEST','LPCDMA02_V100','execute','LPCDMA02','https://internal.example.com/app/LPCDMA02_V100.lc','카드회원 상세정보 조회','','IT카드개발팀','김철수'],
+      ['/app/LPCDMA03_V100.lc','REQUEST','LPCDMA03_V100','execute','LPCDMA03','https://internal.example.com/app/LPCDMA03_V100.lc','카드회원 등록','회원가입 화면에서 호출','IT카드개발팀','이영희'],
+      ['/app/LPCDMA04_V100.lc','REQUEST','LPCDMA04_V100','execute','LPCDMA04','https://internal.example.com/app/LPCDMA04_V100.lc','카드회원 수정','','IT카드개발팀','이영희'],
+      ['/app/LPCDMA05_V100.lc','REQUEST','LPCDMA05_V100','execute','LPCDMA05','https://internal.example.com/app/LPCDMA05_V100.lc','카드회원 탈퇴','탈퇴 프로세스','IT카드개발팀','이영희'],
+      ['/app/LPCDPY01_V100.lc','REQUEST','LPCDPY01_V100','execute','LPCDPY01','https://internal.example.com/app/LPCDPY01_V100.lc','결제내역 조회','1달 이내 결제이력','IT카드개발팀','박지민'],
+      ['/app/LPCDPY02_V100.lc','REQUEST','LPCDPY02_V100','execute','LPCDPY02','https://internal.example.com/app/LPCDPY02_V100.lc','결제 승인요청','PG연동','IT카드개발팀','박지민'],
+      ['/app/LPCDPY03_V100.lc','REQUEST','LPCDPY03_V100','execute','LPCDPY03','https://internal.example.com/app/LPCDPY03_V100.lc','결제 취소','','IT카드개발팀','박지민'],
+      ['/app/LPCDLN01_V100.lc','REQUEST','LPCDLN01_V100','execute','LPCDLN01','https://internal.example.com/app/LPCDLN01_V100.lc','대출상품 목록','신용대출','IT카드개발팀','최수연'],
+      ['/app/LPCDLN02_V100.lc','REQUEST','LPCDLN02_V100','execute','LPCDLN02','https://internal.example.com/app/LPCDLN02_V100.lc','대출 신청','','IT카드개발팀','최수연'],
+      ['/app/LPCDLN03_V100.lc','REQUEST','LPCDLN03_V100','execute','LPCDLN03','https://internal.example.com/app/LPCDLN03_V100.lc','대출한도 조회','신용평가 연동','IT카드개발팀','최수연'],
+      ['/app/LPCDBN01_V100.lc','REQUEST','LPCDBN01_V100','execute','LPCDBN01','https://internal.example.com/app/LPCDBN01_V100.lc','혜택 목록 조회','마케팅 연계','IT카드개발팀','정하늘'],
+      ['/app/LPCDBN02_V100.lc','REQUEST','LPCDBN02_V100','execute','LPCDBN02','https://internal.example.com/app/LPCDBN02_V100.lc','쿠폰 발급','','IT카드개발팀','정하늘'],
+      ['/app/LPCDST01_V100.lc','REQUEST','LPCDST01_V100','execute','LPCDST01','https://internal.example.com/app/LPCDST01_V100.lc','통계 집계','일배치 실행용','IT카드개발팀','백명선'],
+      ['/app/LPCDST02_V100.lc','REQUEST','LPCDST02_V100','execute','LPCDST02','https://internal.example.com/app/LPCDST02_V100.lc','[폐기예정] 구 통계 API','차단대상 후보','IT카드개발팀','백명선']
+    ];
+    rows.forEach(r => ws.addRow(r));
+
+    ws.columns = headers.map(h => ({width: Math.max(h.length*2, 14)}));
+    // apiPath, fullUrl 컬럼 폭 넓게
+    ws.getColumn(1).width = 30;
+    ws.getColumn(6).width = 52;
+    ws.getColumn(7).width = 22;
+
+    wb.xlsx.writeBuffer().then(buf => {
+      const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download='url-upload-sample.xlsx'; a.click(); URL.revokeObjectURL(a.href);
     });
   }
 

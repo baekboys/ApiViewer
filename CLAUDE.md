@@ -102,6 +102,7 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | `call_count` / `call_count_month` / `call_count_week` | 호출건수 3분할 (총/1달/1주) |
 | `block_criteria` | 차단기준 텍스트 |
 | `team_override` / `manager_override` | 레코드별 팀/담당자 오버라이드 |
+| `manager_mappings` (repo_config) | 프로그램ID별 담당자 매핑 JSON. 매칭 없으면 `managerName`(팀 대표)로 폴백 |
 | `blocked_date` / `blocked_reason` | 차단일자/차단근거 (fullComment에서 파싱) |
 | `review_result` / `review_opinion` | 현업검토결과/의견 |
 | `git_history` | JSON 배열 (최근 5개 커밋) |

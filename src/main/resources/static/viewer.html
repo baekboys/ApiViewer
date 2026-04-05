@@ -175,6 +175,43 @@
     .detail-git-table th { background:#f1f5f9; padding:5px 8px; text-align:left; font-weight:600; color:var(--text-muted); }
     .detail-git-table td { padding:5px 8px; border-bottom:1px solid var(--border); }
 
+    /* 호출건수 클릭 가능 셀 */
+    .call-link { display:inline-flex; align-items:center; gap:4px; color:#1e40af; font-weight:700; cursor:pointer; text-decoration:none; padding:3px 10px 3px 8px; border-radius:4px; border:1px solid #93c5fd; background:#eff6ff; font-size:12px; line-height:1.3; transition:all .15s; font-variant-numeric:tabular-nums; min-width:64px; justify-content:flex-end; }
+    .call-link:hover { background:#3b82f6; color:#fff; border-color:#2563eb; box-shadow:0 1px 3px rgba(59,130,246,.4); }
+    .call-link::before { content:"📊"; font-size:9px; filter:saturate(.8); }
+    .call-link.zero { color:#94a3b8; background:#f1f5f9; border-color:#cbd5e1; }
+    .call-link.zero:hover { background:#cbd5e1; color:#475569; box-shadow:none; }
+
+    /* 차트 모달 */
+    .chart-modal { display:none; position:fixed; inset:0; z-index:200; align-items:center; justify-content:center; }
+    .chart-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; }
+    .chart-content { position:relative; z-index:201; background:var(--card); border-radius:12px; width:92%; max-width:960px; max-height:88vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+    .chart-header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--border); }
+    .chart-header h3 { font-size:15px; font-weight:700; color:var(--text); }
+    .chart-body { padding:18px 22px; }
+    .chart-api-header { font-size:14px; font-weight:700; padding:12px 16px; margin-bottom:10px; background:#f0fdf4; border-left:4px solid #22c55e; border-radius:4px; color:#166534; font-family:monospace; word-break:break-all; }
+    .chart-meta { font-size:11px; color:var(--text-muted); margin-bottom:14px; line-height:1.6; }
+    .chart-meta b { color:var(--text); }
+    .chart-container { display:flex; gap:10px; padding:12px; background:#fafbfc; border-radius:8px; }
+    .chart-yaxis { display:flex; flex-direction:column; justify-content:space-between; min-width:56px; text-align:right; font-size:10px; color:#64748b; font-variant-numeric:tabular-nums; }
+    .chart-area-wrap { flex:1; overflow-x:auto; }
+    .chart-area { position:relative; border-left:1px solid #94a3b8; border-bottom:1px solid #94a3b8; }
+    .chart-grid-line { position:absolute; left:0; right:0; height:1px; background:#e2e8f0; }
+    .chart-grid-line.zero { background:#94a3b8; }
+    .chart-cols { display:flex; align-items:flex-end; padding:0 4px; height:100%; position:relative; z-index:1; }
+    .chart-col { display:flex; flex-direction:column; justify-content:flex-end; position:relative; cursor:pointer; }
+    .chart-col:hover .bar-call { background:#16a34a; }
+    .chart-col:hover .bar-err  { background:#db2777; }
+    #chartTooltip { position:fixed; background:#1e293b; color:#fff; font-size:11px; line-height:1.5; padding:6px 10px; border-radius:6px; white-space:pre; pointer-events:none; z-index:300; box-shadow:0 2px 8px rgba(0,0,0,.3); font-variant-numeric:tabular-nums; display:none; }
+    .bar-call { background:#22c55e; width:100%; transition:background .15s; }
+    .bar-err  { background:#ec4899; width:100%; transition:background .15s; }
+    .chart-xlabels { display:flex; padding:0 4px; margin-top:6px; min-height:28px; }
+    .chart-xlabel { font-size:9px; color:#64748b; text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; line-height:1.25; }
+    .chart-xlabel .year { color:#94a3b8; font-size:8px; }
+    .chart-xlabel .md { font-weight:600; color:#475569; }
+    .chart-legend { margin-top:12px; display:flex; gap:18px; font-size:11px; color:var(--text-muted); }
+    .chart-legend-swatch { display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle; margin-right:5px; }
+
     .state-box { text-align:center; padding:60px 20px; color:var(--text-muted); }
     .spinner { display:inline-block; width:26px; height:26px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; margin-bottom:10px; }
     @keyframes spin { to{transform:rotate(360deg)} }
@@ -240,6 +277,7 @@
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
     <div class="stat-pill" id="pill-new" onclick="setFilter('new')" style="cursor:pointer;"><span>신규</span><strong id="stat-new" style="color:#1e40af;">0</strong></div>
     <div class="stat-pill" id="pill-changed" onclick="setFilter('changed')" style="cursor:pointer;"><span>상태변경</span><strong id="stat-changed" style="color:#dc2626;">0</strong></div>
+    <div class="stat-pill" id="pill-deleted" onclick="setFilter('deleted')" style="cursor:pointer;"><span>삭제</span><strong id="stat-deleted" style="color:#7c2d12;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
     <div class="stat-pill" style="cursor:default;"><span>GET</span>   <strong id="statGet">0</strong></div>
     <div class="stat-pill" style="cursor:default;"><span>POST</span>  <strong id="statPost">0</strong></div>
@@ -260,8 +298,26 @@
     <span class="filter-count" id="filterCount"></span>
   </div>
 
-  <div id="noticeBar" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:12px;color:#92400e;line-height:1.5;">
+  <div id="noticeBar" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:12px;color:#92400e;line-height:1.5;">
     ⚠️ 상태가 <b>차단대상</b> 또는 <b>검토필요</b>인 URL 중 담당자가 판단이 어려운 대상은 상태를 <b>"사용"</b>으로 변경해 주세요. 현업 검토가 필요한 건은 <b>현업 검토</b> 화면에서 의견을 남겨주시기 바랍니다.
+  </div>
+
+  <div id="changedNoticeBar" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:12px;color:#991b1b;line-height:1.5;">
+    <b>🔴 상태 변경건 <span id="changedNoticeCount">0</span>건 확인 필요</b> —
+    마지막 분석에서 상태가 바뀐 URL입니다. 내용을 확인하고 각 행의 <b>⚠️ 변경감지</b> 배지를 클릭하여 플래그를 해제해 주세요.
+    <span style="font-size:11px;color:#b91c1c;">(상단 필터 "상태변경" 클릭 시 변경건만 조회 가능)</span>
+  </div>
+
+  <div id="newNoticeBar" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:12px;color:#1e40af;line-height:1.5;">
+    <b>🆕 신규 API <span id="newNoticeCount">0</span>건 추가됨</b> —
+    마지막 분석에서 새로 발견된 URL입니다. 내용을 확인하고 각 행의 <b>🆕 신규추가</b> 배지를 클릭하여 확인 완료 처리해 주세요.
+    <span style="font-size:11px;color:#2563eb;">(상단 필터 "신규" 클릭 시 신규건만 조회 가능)</span>
+  </div>
+
+  <div id="deletedNoticeBar" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:12px;color:#7c2d12;line-height:1.5;">
+    <b>🗑️ 삭제된 API <span id="deletedNoticeCount">0</span>건 발견</b> —
+    마지막 분석에서 소스코드에서 사라진 URL입니다. 레코드는 이력 보존을 위해 유지됩니다.
+    <span style="font-size:11px;color:#c2410c;">(상단 필터 "삭제" 클릭 시 삭제건만 조회 가능)</span>
   </div>
 
   <!-- 일괄 변경 바 -->
@@ -279,12 +335,14 @@
     <select id="bulkBlockCriteria">
       <option value="__SKIP__">-- 차단기준 --</option>
     </select>
-    <input id="bulkTeam" type="text" placeholder="팀 변경" style="padding:5px 10px;border-radius:6px;font-size:12px;border:none;outline:none;width:90px;">
+    <input id="bulkTeam" type="text" list="teamsDatalist" placeholder="팀 변경" style="padding:5px 10px;border-radius:6px;font-size:12px;border:none;outline:none;width:120px;">
     <input id="bulkManager" type="text" placeholder="담당자 변경" style="padding:5px 10px;border-radius:6px;font-size:12px;border:none;outline:none;width:90px;">
+    <datalist id="teamsDatalist"></datalist>
     <button class="btn-apply" onclick="applyBulk()">적용</button>
     <button class="btn-apply" onclick="bulkLock(true)" style="background:#475569;">일괄 확정</button>
     <button class="btn-apply" onclick="bulkLock(false)" style="background:#94a3b8;">일괄 해제</button>
-    <button class="btn-apply" onclick="bulkClearStatusChange()" style="background:#6b7280;">상태변경 확인</button>
+    <button class="btn-apply" onclick="bulkClearStatusChange()" style="background:#6b7280;">알림 확인 (신규/변경/삭제)</button>
+    <button class="btn-apply" id="bulkPurgeBtn" onclick="bulkPurgeDeleted()" style="background:#7c2d12;display:none;">🗑 영구삭제</button>
     <button class="btn-cancel" onclick="clearSelection()">취소</button>
   </div>
 
@@ -309,9 +367,9 @@
           <th class="hg-dev no-sort">최근변경</th>
           <th class="hg-dev" onclick="sortBy('isDeprecated')">Deprecated <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('apiOperationValue')">관련 메뉴(또는 기능) <span class="sort-icon">↕</span></th>
-          <th class="hg-desc" onclick="sortBy('callCount')">총 호출건 <span class="sort-icon">↕</span></th>
-          <th class="hg-desc" onclick="sortBy('callCountMonth')">1달 호출건 <span class="sort-icon">↕</span></th>
-          <th class="hg-desc" onclick="sortBy('callCountWeek')">1주 호출건 <span class="sort-icon">↕</span></th>
+          <th class="hg-desc" style="min-width:120px;" onclick="sortBy('callCount')">총 호출건 <span class="sort-icon">↕</span></th>
+          <th class="hg-desc" style="min-width:110px;" onclick="sortBy('callCountMonth')">1달 호출건 <span class="sort-icon">↕</span></th>
+          <th class="hg-desc" style="min-width:110px;" onclick="sortBy('callCountWeek')">1주 호출건 <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
           <th class="hg-block" onclick="sortBy('blockCriteria')">차단기준 <span class="sort-icon">↕</span></th>
           <th class="hg-block" onclick="sortBy('blockedDate')">차단일자 <span class="sort-icon">↕</span></th>
@@ -327,6 +385,88 @@
         <tr><td colspan="28"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- 상태 변경건 알림 모달 -->
+<div id="changedAlertOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:250;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:420px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden;">
+    <div style="background:#fef2f2;border-bottom:1px solid #fca5a5;padding:16px 20px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:22px;">⚠️</span>
+      <h3 style="font-size:15px;font-weight:700;color:#991b1b;margin:0;">상태 변경건 확인 필요</h3>
+    </div>
+    <div style="padding:20px;">
+      <p style="font-size:13px;line-height:1.6;color:var(--text);margin-bottom:14px;">
+        상태가 변경된 URL이 <b style="color:#dc2626;font-size:16px;"><span id="changedAlertCount">0</span>건</b> 있습니다.<br>
+        내용을 확인하시고 각 행의 <b>⚠️ 변경감지</b> 배지를 클릭하여 플래그를 해제해 주세요.
+      </p>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 10px;background:#f8fafc;border-radius:6px;">
+        <input type="checkbox" id="changedAlertHideToday" style="width:14px;height:14px;cursor:pointer;">
+        오늘 하루 보지 않기 (다음 분석 실행 시 다시 표시)
+      </label>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-blue" style="padding:6px 20px;" onclick="closeChangedAlert()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 삭제건 알림 모달 -->
+<div id="deletedAlertOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:250;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:420px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden;">
+    <div style="background:#fff7ed;border-bottom:1px solid #fdba74;padding:16px 20px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:22px;">🗑️</span>
+      <h3 style="font-size:15px;font-weight:700;color:#7c2d12;margin:0;">삭제된 API 발견</h3>
+    </div>
+    <div style="padding:20px;">
+      <p style="font-size:13px;line-height:1.6;color:var(--text);margin-bottom:14px;">
+        소스코드에서 사라진 URL이 <b style="color:#c2410c;font-size:16px;"><span id="deletedAlertCount">0</span>건</b> 있습니다.<br>
+        레코드는 <b>이력 보존</b>을 위해 삭제되지 않고 "삭제" 상태로 유지됩니다.
+        상단 필터 <b>"삭제"</b> 클릭 시 확인 가능합니다.
+      </p>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 10px;background:#f8fafc;border-radius:6px;">
+        <input type="checkbox" id="deletedAlertHideToday" style="width:14px;height:14px;cursor:pointer;">
+        오늘 하루 보지 않기 (다음 분석 실행 시 다시 표시)
+      </label>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-blue" style="padding:6px 20px;" onclick="closeDeletedAlert()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 신규 API 알림 모달 -->
+<div id="newAlertOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:250;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:420px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden;">
+    <div style="background:#eff6ff;border-bottom:1px solid #93c5fd;padding:16px 20px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:22px;">🆕</span>
+      <h3 style="font-size:15px;font-weight:700;color:#1e40af;margin:0;">신규 API 확인 필요</h3>
+    </div>
+    <div style="padding:20px;">
+      <p style="font-size:13px;line-height:1.6;color:var(--text);margin-bottom:14px;">
+        새로 추가된 URL이 <b style="color:#2563eb;font-size:16px;"><span id="newAlertCount">0</span>건</b> 있습니다.<br>
+        내용을 확인하시고 각 행의 <b>🆕 신규추가</b> 배지를 클릭하여 확인 완료 처리해 주세요.
+      </p>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 10px;background:#f8fafc;border-radius:6px;">
+        <input type="checkbox" id="newAlertHideToday" style="width:14px;height:14px;cursor:pointer;">
+        오늘 하루 보지 않기 (다음 분석 실행 시 다시 표시)
+      </label>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-blue" style="padding:6px 20px;" onclick="closeNewAlert()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 호출건수 차트 모달 -->
+<div id="chartModal" class="chart-modal">
+  <div class="chart-overlay" onclick="closeChart()"></div>
+  <div class="chart-content">
+    <div class="chart-header">
+      <h3 id="chartTitle">호출건수 차트</h3>
+      <button onclick="closeChart()" class="btn btn-ghost btn-sm">닫기 ✕</button>
+    </div>
+    <div id="chartBody" class="chart-body"></div>
   </div>
 </div>
 
@@ -351,6 +491,7 @@
   let selectedIds = new Set(); // api id 기준
   let repoConfigMap = {}; // repoName → {team, manager}
   let reviewThreshold = 3; // default, 서버에서 갱신
+  let teamsList = [];      // 팀 자동완성 목록
 
   // ── 초기화 ────────────────────────────────────────────────
   async function initRepos() {
@@ -362,7 +503,19 @@
       ]);
       const repos = await repoRes.json();
       const cfgs  = await cfgRes.json();
-      try { const g = await globalRes.json(); if (g.reviewThreshold) reviewThreshold = g.reviewThreshold; } catch(e) {}
+      try {
+        const g = await globalRes.json();
+        if (g.reviewThreshold) reviewThreshold = g.reviewThreshold;
+        // 팀 목록을 datalist에 반영 (자동완성)
+        if (g.teams) {
+          try {
+            const teamsArr = JSON.parse(g.teams);
+            teamsList = Array.isArray(teamsArr) ? teamsArr : [];
+            const dl = document.getElementById('teamsDatalist');
+            if (dl) dl.innerHTML = teamsList.map(t => `<option value="${esc(t)}">`).join('');
+          } catch(e) {}
+        }
+      } catch(e) {}
 
       // 팀/담당자 매핑 캐싱
       cfgs.forEach(c => { repoConfigMap[c.repoName] = { team: c.teamName || '', manager: c.managerName || '', businessName: c.businessName || '' }; });
@@ -379,7 +532,11 @@
       if (repos.length === 0) showToast('저장된 데이터가 없습니다. 먼저 추출을 실행하세요.', 'error');
     } catch(e) { showToast('레포지토리 목록 조회 실패', 'error'); }
     const urlRepo = new URLSearchParams(location.search).get('repo');
-    if (urlRepo) document.getElementById('repoSelect').value = urlRepo;
+    if (urlRepo) {
+      document.getElementById('repoSelect').value = urlRepo;
+      // 대시보드에서 레포 지정으로 들어온 경우 자동 조회
+      loadApis();
+    }
   }
 
   // ── API 조회 ──────────────────────────────────────────────
@@ -417,6 +574,9 @@
 
       renderStats();
       filterTable();
+      updateChangedNotice(true); // 최초 1회 alert 포함
+      updateNewNotice(true);
+      updateDeletedNotice(true);
       document.getElementById('statsBar').style.display = 'flex';
       document.getElementById('noticeBar').style.display = 'block';
       document.getElementById('filterBar').style.display = 'flex';
@@ -440,6 +600,96 @@
     }
   }
 
+  // ── 상태 변경건 안내 ────────────────────────────────────
+  function updateChangedNotice(alertOnce) {
+    const count = allApis.filter(a => a.statusChanged).length;
+    const bar = document.getElementById('changedNoticeBar');
+    if (count > 0) {
+      document.getElementById('changedNoticeCount').textContent = count;
+      bar.style.display = 'block';
+      if (alertOnce && shouldShowAlert('changed')) showChangedAlertModal(count);
+    } else { bar.style.display = 'none'; }
+  }
+
+  function showChangedAlertModal(count) {
+    const overlay = document.getElementById('changedAlertOverlay');
+    document.getElementById('changedAlertCount').textContent = count;
+    document.getElementById('changedAlertHideToday').checked = false;
+    overlay.style.display = 'flex';
+  }
+
+  // 알림 표시 판단: "하루 안보기"는 동일 분석건에 대해서만 유효.
+  // 서버에서 새 분석이 실행되면(lastAnalyzedAt 변경) 자동 재표시.
+  function getMaxAnalyzedAt() {
+    return allApis.reduce((max, a) => {
+      if (!a.lastAnalyzedAt) return max;
+      return (!max || a.lastAnalyzedAt > max) ? a.lastAnalyzedAt : max;
+    }, '');
+  }
+  function shouldShowAlert(type) {
+    const key = type + 'AlertHideUntil';
+    const seenKey = type + 'LastSeenAnalyzedAt';
+    const hideUntil = localStorage.getItem(key);
+    const lastSeen  = localStorage.getItem(seenKey) || '';
+    const maxAt = getMaxAnalyzedAt();
+    // 서버에 새 분석이 있으면 "하루 안보기" 무시하고 표시
+    if (maxAt && maxAt > lastSeen) return true;
+    // 동일 분석 내에서는 "하루 안보기" 존중
+    return hideUntil !== new Date().toISOString().slice(0,10);
+  }
+  function markAlertSeen(type, hideToday) {
+    localStorage.setItem(type + 'LastSeenAnalyzedAt', getMaxAnalyzedAt() || '');
+    if (hideToday) {
+      localStorage.setItem(type + 'AlertHideUntil', new Date().toISOString().slice(0,10));
+      showToast('오늘 하루 알림이 표시되지 않습니다. (다음 분석 시 다시 표시됩니다)', 'info');
+    }
+  }
+
+  // ── 삭제건 안내 ────────────────────────────────────────
+  function updateDeletedNotice(alertOnce) {
+    const count = allApis.filter(a => a.status === '삭제').length;
+    const bar = document.getElementById('deletedNoticeBar');
+    if (count > 0) {
+      document.getElementById('deletedNoticeCount').textContent = count;
+      bar.style.display = 'block';
+      if (alertOnce && shouldShowAlert('deleted')) showDeletedAlertModal(count);
+    } else { bar.style.display = 'none'; }
+  }
+  function showDeletedAlertModal(count) {
+    document.getElementById('deletedAlertCount').textContent = count;
+    document.getElementById('deletedAlertHideToday').checked = false;
+    document.getElementById('deletedAlertOverlay').style.display = 'flex';
+  }
+  function closeDeletedAlert() {
+    markAlertSeen('deleted', document.getElementById('deletedAlertHideToday').checked);
+    document.getElementById('deletedAlertOverlay').style.display = 'none';
+  }
+
+  // ── 신규 API 안내 ─────────────────────────────────────
+  function updateNewNotice(alertOnce) {
+    const count = allApis.filter(a => a.isNew || a['new']).length;
+    const bar = document.getElementById('newNoticeBar');
+    if (count > 0) {
+      document.getElementById('newNoticeCount').textContent = count;
+      bar.style.display = 'block';
+      if (alertOnce && shouldShowAlert('new')) showNewAlertModal(count);
+    } else { bar.style.display = 'none'; }
+  }
+  function showNewAlertModal(count) {
+    document.getElementById('newAlertCount').textContent = count;
+    document.getElementById('newAlertHideToday').checked = false;
+    document.getElementById('newAlertOverlay').style.display = 'flex';
+  }
+  function closeNewAlert() {
+    markAlertSeen('new', document.getElementById('newAlertHideToday').checked);
+    document.getElementById('newAlertOverlay').style.display = 'none';
+  }
+
+  function closeChangedAlert() {
+    markAlertSeen('changed', document.getElementById('changedAlertHideToday').checked);
+    document.getElementById('changedAlertOverlay').style.display = 'none';
+  }
+
   // ── 통계 ──────────────────────────────────────────────────
   function renderStats() {
     const sCounts = { '사용':0, '차단완료':0, '최우선 차단대상':0, '후순위 차단대상':0, '검토필요 차단대상':0 };
@@ -457,6 +707,7 @@
     document.getElementById('stat-reviewed').textContent  = allApis.filter(a => a.reviewResult).length;
     document.getElementById('stat-new').textContent       = allApis.filter(a => a.isNew || a['new']).length;
     document.getElementById('stat-changed').textContent  = allApis.filter(a => a.statusChanged).length;
+    document.getElementById('stat-deleted').textContent  = allApis.filter(a => a.status === '삭제').length;
     document.getElementById('statGet').textContent      = allApis.filter(a => a.httpMethod === 'GET').length;
     document.getElementById('statPost').textContent     = allApis.filter(a => a.httpMethod === 'POST').length;
     document.getElementById('statPut').textContent      = allApis.filter(a => a.httpMethod === 'PUT').length;
@@ -476,7 +727,41 @@
     else if (val === 'reviewed') { document.getElementById('pill-reviewed').classList.add('active-filter'); }
     else if (val === 'new') { document.getElementById('pill-new').classList.add('active-filter'); }
     else if (val === 'changed') { document.getElementById('pill-changed').classList.add('active-filter'); }
+    else if (val === 'deleted') { document.getElementById('pill-deleted').classList.add('active-filter'); }
+    // 영구삭제 버튼 토글 (삭제 필터 활성 + 관리자일 때만 노출)
+    const purgeBtn = document.getElementById('bulkPurgeBtn');
+    if (purgeBtn) purgeBtn.style.display = (val === 'deleted' && isAdmin()) ? 'inline-block' : 'none';
     filterTable();
+  }
+
+  async function bulkPurgeDeleted() {
+    const ids = Array.from(selectedIds).filter(id => {
+      const a = allApis.find(x => x.id === id);
+      return a && a.status === '삭제';
+    });
+    if (!ids.length) { showToast('삭제 상태 항목이 선택되지 않았습니다.','error'); return; }
+    if (!confirm(`선택된 ${ids.length}건을 DB에서 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    const pw = prompt('관리자 비밀번호를 다시 입력하세요:');
+    if (!pw) return;
+    try {
+      const pwRes = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
+      const pwData = await pwRes.json();
+      if (!pwData.valid) { showToast('비밀번호가 일치하지 않습니다.', 'error'); return; }
+      const res = await fetch('/api/db/purge-deleted', {
+        method:'DELETE',
+        headers:{'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+        body: JSON.stringify({ ids })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '영구삭제 실패');
+      // 로컬에서도 제거
+      allApis = allApis.filter(a => !ids.includes(a.id));
+      clearSelection();
+      renderStats(); filterTable();
+      showToast(`${data.purged}건 영구삭제 완료${data.skipped>0?` (스킵 ${data.skipped}건)`:''}`, 'success');
+    } catch(e) {
+      showToast('실패: ' + e.message, 'error');
+    }
   }
 
   // ── 필터 ──────────────────────────────────────────────────
@@ -492,10 +777,13 @@
       const team = (a.teamOverride || cfg.team || '').toLowerCase();
       const mgr  = (a.managerOverride || cfg.manager || '').toLowerCase();
       let filterOk = true;
-      if (['사용','차단완료','최우선 차단대상','후순위 차단대상','검토필요 차단대상'].includes(activeFilter)) filterOk = a.status === activeFilter;
+      // 기본 조회(필터 없음) 시 삭제건은 숨김 — "삭제" 필터 클릭 시에만 표시
+      if (!activeFilter && a.status === '삭제') filterOk = false;
+      else if (['사용','차단완료','최우선 차단대상','후순위 차단대상','검토필요 차단대상'].includes(activeFilter)) filterOk = a.status === activeFilter;
       else if (activeFilter === 'new') filterOk = a.isNew || a['new'];
       else if (activeFilter === 'reviewed') filterOk = !!a.reviewResult;
       else if (activeFilter === 'changed') filterOk = a.statusChanged === true;
+      else if (activeFilter === 'deleted') filterOk = a.status === '삭제';
       return (!q || text.includes(q))
           && (!qTeam || team.includes(qTeam))
           && (!qMgr || mgr.includes(qMgr))
@@ -568,9 +856,9 @@
         <td class="git-col">${git1 ? `<span class="git-col-d">${esc(git1.date)}</span> <span class="git-col-a">${esc(git1.author)}</span><br><span class="git-col-m" title="${esc(git1.message)}">${esc(git1.message)}</span>` : '<span style="color:#cbd5e1;">-</span>'}</td>
         <td style="text-align:center;font-size:11px;">${a.isDeprecated==='Y' ? '<span style="color:#dc2626;font-weight:700;">Y</span>' : '<span style="color:#cbd5e1;">N</span>'}</td>
         <td class="desc-col" title="${esc(allDesc(a))}">${esc(allDesc(a))}</td>
-        <td style="text-align:right;font-size:12px;">${a.callCount != null ? a.callCount.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
-        <td style="text-align:right;font-size:12px;">${a.callCountMonth != null ? a.callCountMonth.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
-        <td style="text-align:right;font-size:12px;">${a.callCountWeek != null ? a.callCountWeek.toLocaleString() : '<span style="color:#cbd5e1;">-</span>'}</td>
+        <td style="text-align:right;font-size:12px;">${callCountCell(a, 'total')}</td>
+        <td style="text-align:right;font-size:12px;">${callCountCell(a, 'month')}</td>
+        <td style="text-align:right;font-size:12px;">${callCountCell(a, 'week')}</td>
         <td>${statusBadge(a.status)}${a.statusOverridden ? ' <span title="상태확정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.blockedDate || '')}</td>
@@ -585,7 +873,7 @@
   }
 
   function statusBadge(status) {
-    const cls = { '사용':'st-use', '차단완료':'st-done', '최우선 차단대상':'bt-top', '후순위 차단대상':'bt-low', '검토필요 차단대상':'bt-rev' };
+    const cls = { '사용':'st-use', '차단완료':'st-done', '삭제':'st-del', '최우선 차단대상':'bt-top', '후순위 차단대상':'bt-low', '검토필요 차단대상':'bt-rev' };
     const c = cls[status] || 'st-use';
     return `<span class="status-badge ${c}">${esc(status || '사용')}</span>`;
   }
@@ -614,37 +902,55 @@
   }
 
   async function bulkClearStatusChange() {
-    const changedIds = Array.from(selectedIds).filter(id => allApis.find(a => a.id===id && a.statusChanged));
-    if (!changedIds.length) { showToast('상태변경된 항목이 없습니다.','error'); return; }
-    if (!confirm(`${changedIds.length}개 항목의 상태변경 플래그를 해제하시겠습니까?`)) return;
+    // 선택된 항목 중 알림 플래그가 있는 레코드 (신규/상태변경/삭제)
+    const targetIds = Array.from(selectedIds).filter(id => {
+      const a = allApis.find(x => x.id === id);
+      if (!a) return false;
+      return (a.isNew || a['new']) || a.statusChanged || a.status === '삭제';
+    });
+    if (!targetIds.length) { showToast('알림 대상 항목이 선택되지 않았습니다.','error'); return; }
+    if (!confirm(`${targetIds.length}개 항목의 알림 플래그(신규/상태변경)를 해제하시겠습니까?`)) return;
     try {
-      await fetch('/api/db/clear-status-change', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:changedIds}) });
-      changedIds.forEach(id => { const a=allApis.find(x=>x.id===id); if(a){a.statusChanged=false;a.statusChangeLog=null;} });
-      renderStats(); filterTable(); showToast(`${changedIds.length}개 플래그 해제 완료`,'success');
-    } catch(e) { showToast('실패','error'); }
+      const res = await fetch('/api/db/clear-alerts', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:targetIds}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '서버 오류');
+      targetIds.forEach(id => {
+        const a = allApis.find(x=>x.id===id);
+        if (a) {
+          a.isNew = false; a['new'] = false;
+          a.statusChanged = false; a.statusChangeLog = null;
+        }
+      });
+      renderStats(); filterTable();
+      updateChangedNotice(false); updateNewNotice(false); updateDeletedNotice(false);
+      showToast(`${data.cleared}건 알림 해제 완료`,'success');
+    } catch(e) { showToast('실패: ' + e.message,'error'); }
   }
 
   async function clearNewFlag(event, id) {
     event.stopPropagation();
     try {
-      await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({isNew:false}) });
+      const res = await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({isNew:false}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '서버 오류');
       const a = allApis.find(x => x.id === id);
-      if (a) a.isNew = false;
-      filterTable();
+      if (a) { a.isNew = false; a['new'] = false; }
+      renderStats(); filterTable(); updateNewNotice(false);
       showToast('신규 확인 완료', 'success');
-    } catch(e) { showToast('실패','error'); }
+    } catch(e) { showToast('실패: ' + e.message,'error'); }
   }
 
   async function clearStatusFlag(event, id) {
     event.stopPropagation();
     if (!confirm('상태변경 플래그를 해제하시겠습니까?')) return;
     try {
-      await fetch('/api/db/clear-status-change', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id]}) });
+      const res = await fetch('/api/db/clear-status-change', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id]}) });
+      if (!res.ok) throw new Error('서버 오류');
       const a = allApis.find(x => x.id === id);
       if (a) { a.statusChanged = false; a.statusChangeLog = null; }
-      renderStats(); filterTable();
+      renderStats(); filterTable(); updateChangedNotice(false);
       showToast('플래그 해제 완료', 'success');
-    } catch(e) { showToast('실패','error'); }
+    } catch(e) { showToast('실패: ' + e.message,'error'); }
   }
 
   function reviewResultBadge(rv) {
@@ -689,7 +995,8 @@
   function editField(td, id, field) {
     if (td.querySelector('input')) return;
     const old = td.textContent.trim();
-    td.innerHTML = `<input type="text" value="${esc(old)}" style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
+    const listAttr = field === 'teamOverride' ? 'list="teamsDatalist"' : '';
+    td.innerHTML = `<input type="text" value="${esc(old)}" ${listAttr} style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
       onblur="saveFieldInline(this,${id},'${field}')"
       onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
     td.querySelector('input').focus();
@@ -699,10 +1006,20 @@
     const val = input.value.trim();
     try {
       const body = {}; body[field] = val || null;
-      await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-      const a = allApis.find(x=>x.id===id); if(a) a[field] = val||null;
+      const res = await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+      const a = allApis.find(x=>x.id===id);
+      if (a) {
+        a[field] = val || null;
+        if (data.modifiedAt) a.modifiedAt = data.modifiedAt;
+        if (data.reviewedAt) a.reviewedAt = data.reviewedAt;
+      }
       input.parentElement.textContent = val;
-    } catch(e) { showToast('저장 실패','error'); }
+      // 변경일시 컬럼도 즉시 갱신하도록 재렌더 (기억된 필터/정렬 유지)
+      filterTable();
+      showToast('저장 완료', 'success');
+    } catch(e) { showToast(e.message || '저장 실패','error'); }
   }
 
   // ── 정렬 ──────────────────────────────────────────────────
@@ -1032,7 +1349,202 @@
     }
   }
   function closeDetail() { document.getElementById('detailModal').style.display = 'none'; }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDetail(); closeChart(); } });
+
+  // ── 호출건수 차트 ─────────────────────────────────────────
+  function callCountCell(a, type) {
+    // type: total | month | week
+    const val = type==='total' ? a.callCount : (type==='month' ? a.callCountMonth : a.callCountWeek);
+    if (val == null) return '<span style="color:#cbd5e1;">-</span>';
+    const apiPathEsc = a.apiPath.replace(/'/g, "\\'");
+    const repoEsc = a.repositoryName.replace(/'/g, "\\'");
+    const cls = val === 0 ? 'call-link zero' : 'call-link';
+    return `<a class="${cls}" title="클릭하여 그래프 보기" onclick="openChart('${repoEsc}','${apiPathEsc}','${type}')">${val.toLocaleString()}</a>`;
+  }
+
+  function detailCallCell(r, type, val) {
+    if (val == null) return '미조회';
+    const apiPathEsc = r.apiPath.replace(/'/g, "\\'");
+    const repoEsc = r.repositoryName.replace(/'/g, "\\'");
+    const cls = val === 0 ? 'call-link zero' : 'call-link';
+    return `<a class="${cls}" title="클릭하여 그래프 보기" onclick="openChart('${repoEsc}','${apiPathEsc}','${type}')">${val.toLocaleString()}건</a>`;
+  }
+
+  async function openChart(repoName, apiPath, type) {
+    // type: total(일단위 1년) / month(일단위 1달) / week(일단위 1주일)
+    const cfg = (type==='total') ? { bucket:'daily', days:365, label:'일단위 · 최근 1년' }
+              : (type==='month') ? { bucket:'daily', days:30,  label:'일단위 · 최근 1달' }
+              :                    { bucket:'daily', days:7,   label:'일단위 · 최근 1주일' };
+    document.getElementById('chartModal').style.display = 'flex';
+    document.getElementById('chartTitle').textContent = `호출건수 차트 — ${apiPath}`;
+    document.getElementById('chartBody').innerHTML = '<div class="state-box"><div class="spinner"></div></div>';
+    try {
+      const url = `/api/apm/chart?repoName=${encodeURIComponent(repoName)}&apiPath=${encodeURIComponent(apiPath)}&bucket=${cfg.bucket}&days=${cfg.days}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('조회 실패');
+      const data = await res.json();
+      renderChart(data, cfg.label);
+    } catch(e) {
+      document.getElementById('chartBody').innerHTML = `<div class="state-box">오류: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function closeChart() {
+    document.getElementById('chartModal').style.display = 'none';
+    const tip = document.getElementById('chartTooltip'); if (tip) tip.style.display = 'none';
+  }
+
+  function renderChart(data, title) {
+    const buckets = data.buckets || [];
+    const totalCall = buckets.reduce((s,b) => s + (b.callCount||0), 0);
+    const totalErr  = buckets.reduce((s,b) => s + (b.errorCount||0), 0);
+    const maxCall   = Math.max(0, ...buckets.map(b => b.callCount || 0));
+
+    // API명 강조 헤더
+    const header = `<div class="chart-api-header">📍 ${esc(data.apiPath)}</div>
+      <div class="chart-meta">
+        <b>${esc(data.repoName)}</b> · ${title} ·
+        합계 호출 <b style="color:#16a34a;">${totalCall.toLocaleString()}</b>건 ·
+        합계 에러 <b style="color:#db2777;">${totalErr.toLocaleString()}</b>건 ·
+        기간 ${fmtMD(data.from)} ~ ${fmtMD(data.to)}
+      </div>`;
+
+    if (buckets.length === 0 || totalCall === 0) {
+      document.getElementById('chartBody').innerHTML = header +
+        '<div class="state-box">해당 기간에 호출이력이 없습니다.<br><span style="font-size:11px;">(APM 수집을 먼저 실행해주세요 — URL 분석 화면의 "APM 호출건수 수집")</span></div>';
+      return;
+    }
+
+    // Y축 스케일 — 100 단위, 최소 1000
+    let yMax = 1000;
+    if (maxCall > yMax) yMax = Math.ceil(maxCall / 100) * 100;
+    // 눈금 간격 자동 조정 (너무 촘촘하지 않도록)
+    let tickStep = 100;
+    if (yMax > 3000) tickStep = 500;
+    else if (yMax > 1500) tickStep = 200;
+    const ticks = [];
+    for (let v = 0; v <= yMax; v += tickStep) ticks.push(v);
+
+    const chartHeight = 260;
+    const barWidth = 28;         // 고정 폭 (넓게)
+    const barGap = 8;            // 막대 간격
+    const colWidth = barWidth + barGap;
+    const chartMinWidth = buckets.length * colWidth + 10;
+
+    // Y축 레이블 (위→아래)
+    const yLabels = ticks.slice().reverse().map(v =>
+      `<div>${v.toLocaleString()}</div>`
+    ).join('');
+
+    // 그리드 라인
+    const gridLines = ticks.map(v => {
+      const pct = (v / yMax) * 100;
+      return `<div class="chart-grid-line${v===0?' zero':''}" style="bottom:${pct}%;"></div>`;
+    }).join('');
+
+    // X축 레이블 건너뛰기 (너무 많을 경우) — 2줄 레이블이라 더 공간 필요
+    let labelSkip = 1;
+    if (buckets.length > 200) labelSkip = 14;      // 1년: 약 26개
+    else if (buckets.length > 60) labelSkip = 7;   // 3개월: 약 13개
+    else if (buckets.length > 14) labelSkip = 2;   // 1달: 15개
+
+    // 막대 컬럼
+    const columns = buckets.map((b, i) => {
+      const call = b.callCount || 0;
+      const err = Math.min(b.errorCount || 0, call);
+      const callH = (call / yMax) * chartHeight;
+      const errH  = (err / yMax) * chartHeight;
+      const greenH = Math.max(0, callH - errH);
+      const ym = fmtYearMD(b.label);
+      const tooltip = `${ym.year} ${ym.md}\n호출: ${call.toLocaleString()}건\n에러: ${(b.errorCount||0).toLocaleString()}건`;
+      return `<div class="chart-col" style="width:${barWidth}px;height:${chartHeight}px;margin-right:${barGap}px;" data-tip="${esc(tooltip)}">
+        ${errH>0?`<div class="bar-err" style="height:${errH}px;"></div>`:''}
+        ${greenH>0?`<div class="bar-call" style="height:${greenH}px;"></div>`:''}
+      </div>`;
+    }).join('');
+
+    // X축 레이블 (2줄: 연도 / 월일)
+    const xLabels = buckets.map((b, i) => {
+      const show = (i % labelSkip === 0) || i === buckets.length - 1;
+      if (!show) return `<div class="chart-xlabel" style="width:${barWidth}px;margin-right:${barGap}px;"></div>`;
+      const ym = fmtYearMD(b.label);
+      return `<div class="chart-xlabel" style="width:${barWidth}px;margin-right:${barGap}px;">
+        <span class="year">${esc(ym.year)}</span><br><span class="md">${esc(ym.md)}</span>
+      </div>`;
+    }).join('');
+
+    document.getElementById('chartBody').innerHTML = header + `
+      <div class="chart-container">
+        <div class="chart-yaxis" style="height:${chartHeight}px;">${yLabels}</div>
+        <div class="chart-area-wrap" id="chartAreaWrap">
+          <div class="chart-area" style="height:${chartHeight}px;min-width:${chartMinWidth}px;">
+            ${gridLines}
+            <div class="chart-cols">${columns}</div>
+          </div>
+          <div class="chart-xlabels" style="min-width:${chartMinWidth}px;">${xLabels}</div>
+        </div>
+      </div>
+      <div class="chart-legend">
+        <span><span class="chart-legend-swatch" style="background:#22c55e;"></span>호출건수</span>
+        <span><span class="chart-legend-swatch" style="background:#ec4899;"></span>에러건수</span>
+      </div>`;
+
+    // 가장 최근 일자가 보이도록 오른쪽 끝으로 스크롤
+    const wrap = document.getElementById('chartAreaWrap');
+    if (wrap) wrap.scrollLeft = wrap.scrollWidth;
+
+    // floating 툴팁 연결 (overflow:auto에 클리핑되지 않도록 body에 부착)
+    attachChartTooltips();
+  }
+
+  function attachChartTooltips() {
+    let tip = document.getElementById('chartTooltip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'chartTooltip';
+      document.body.appendChild(tip);
+    }
+    document.querySelectorAll('#chartBody .chart-col').forEach(col => {
+      col.addEventListener('mouseenter', () => {
+        tip.textContent = col.dataset.tip || '';
+        tip.style.display = 'block';
+      });
+      col.addEventListener('mousemove', (e) => {
+        const w = tip.offsetWidth || 140;
+        const h = tip.offsetHeight || 60;
+        let left = e.clientX + 14;
+        let top  = e.clientY - h - 12;
+        if (left + w > window.innerWidth) left = e.clientX - w - 14;
+        if (top < 8) top = e.clientY + 18;
+        tip.style.left = left + 'px';
+        tip.style.top  = top + 'px';
+      });
+      col.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    });
+  }
+
+  // "MM-DD" → "M월D일", "MM-DD~MM-DD" → "M월D일~M월D일", "YYYY-MM-DD" → "M월D일"
+  function fmtMD(s) {
+    if (!s) return '';
+    const f = v => {
+      const m = v.match(/(\d{1,2})-(\d{1,2})$/);
+      return m ? `${parseInt(m[1])}월${parseInt(m[2])}일` : v;
+    };
+    if (s.includes('~')) {
+      const [a,b] = s.split('~');
+      return f(a) + '~' + f(b);
+    }
+    return f(s);
+  }
+
+  // "YYYY-MM-DD" → { year: "26년", md: "4월5일" }
+  function fmtYearMD(s) {
+    if (!s) return { year:'', md:'' };
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!m) return { year:'', md: fmtMD(s) };
+    const yr = m[1].slice(2);
+    return { year: `${yr}년`, md: `${parseInt(m[2])}월${parseInt(m[3])}일` };
+  }
 
   function renderDetailModal(r) {
     const cfg = repoConfigMap[r.repositoryName] || {};
@@ -1076,9 +1588,9 @@
         <div class="detail-section-title">상태 / 차단</div>
         <div class="detail-grid">
           <div class="detail-label">상태</div><div class="detail-value">${statusBadge(r.status)}${r.statusOverridden ? ' 🔒 수동설정' : ''}</div>
-          <div class="detail-label">총 호출건</div><div class="detail-value">${r.callCount != null ? r.callCount.toLocaleString()+'건' : '미조회'}</div>
-          <div class="detail-label">최근 1달 호출건</div><div class="detail-value">${r.callCountMonth != null ? r.callCountMonth.toLocaleString()+'건' : '미조회'}</div>
-          <div class="detail-label">최근 1주 호출건</div><div class="detail-value">${r.callCountWeek != null ? r.callCountWeek.toLocaleString()+'건' : '미조회'}</div>
+          <div class="detail-label">총 호출건</div><div class="detail-value">${detailCallCell(r, 'total', r.callCount)}</div>
+          <div class="detail-label">최근 1달 호출건</div><div class="detail-value">${detailCallCell(r, 'month', r.callCountMonth)}</div>
+          <div class="detail-label">최근 1주 호출건</div><div class="detail-value">${detailCallCell(r, 'week', r.callCountWeek)}</div>
           <div class="detail-label">차단일자</div><div class="detail-value">${esc(r.blockedDate || '-')}</div>
           <div class="detail-label">차단근거</div><div class="detail-value">${esc(r.blockedReason || '-')}</div>
           <div class="detail-label">차단기준</div><div class="detail-value">${esc(r.blockCriteria || '-')}</div>
@@ -1121,10 +1633,11 @@
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
-    // 인라인 편집 중이면 무시 (input/select 포커스)
-    const tag = document.activeElement?.tagName;
+    // 인라인 편집 중이면 무시 — event.target은 blur 이후에도 원래 요소 유지됨
+    const tag = e.target?.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (document.getElementById('detailModal').style.display.includes('flex')) return;
+    if (document.getElementById('chartModal').style.display.includes('flex')) return;
     loadApis();
   });
 

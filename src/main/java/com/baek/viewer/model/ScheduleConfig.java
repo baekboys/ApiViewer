@@ -10,9 +10,13 @@ public class ScheduleConfig {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 작업 유형: GIT_PULL_EXTRACT, APM_DAILY, APM_WEEKLY */
+    /** 작업 유형: GIT_PULL_EXTRACT, APM_COLLECT */
     @Column(name = "job_type", nullable = false, unique = true, length = 50)
     private String jobType;
+
+    /** 작업별 부가 파라미터 (APM_COLLECT: 수집 범위 일수 "1"/"7"/"30"/"90"/"365") */
+    @Column(name = "job_param", length = 100)
+    private String jobParam;
 
     /** 활성화 여부 */
     @Column(name = "enabled")
@@ -55,6 +59,8 @@ public class ScheduleConfig {
     public void setId(Long id) { this.id = id; }
     public String getJobType() { return jobType; }
     public void setJobType(String jobType) { this.jobType = jobType; }
+    public String getJobParam() { return jobParam; }
+    public void setJobParam(String jobParam) { this.jobParam = jobParam; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public String getScheduleType() { return scheduleType; }

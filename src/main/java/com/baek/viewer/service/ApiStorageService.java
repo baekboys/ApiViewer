@@ -118,7 +118,9 @@ public class ApiStorageService {
                 String oldStatus = r.getStatus();
                 r.setStatus("삭제");
                 r.setStatusOverridden(true);
+                r.setStatusChanged(true);  // 확인 플래그로 사용자 인지 유도
                 appendChangeLog(r, oldStatus + "→삭제: 재추출 시 소스에서 미발견");
+                repository.save(r);  // 명시적 저장
             }
         }
 

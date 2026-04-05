@@ -32,14 +32,41 @@ public class ScheduleService {
         repository.findAll().forEach(this::applySchedule);
     }
 
-    /** 기본 스케줄 설정이 없으면 생성 */
-    private void ensureDefaultConfigs() {
-        createIfAbsent("GIT_PULL_EXTRACT", "Git Pull & 소스 분석", "DAILY", "03:00");
-        createIfAbsent("APM_DAILY", "APM 호출건수 일별 수집", "DAILY", "06:00");
-        createIfAbsent("APM_WEEKLY", "APM 호출건수 주별 수집", "WEEKLY", "07:00");
+    /** 외부에서 기본값 재생성 호출용 */
+    public void ensureAndApplyDefaults() {
+        ensureDefaultConfigs();
+        repository.findAll().forEach(this::applySchedule);
     }
 
-    private void createIfAbsent(String jobType, String desc, String scheduleType, String runTime) {
+    /** 기본 스케줄 설정이 없으면 생성 + 구 APM_DAILY/APM_WEEKLY → APM_COLLECT 통합 */
+    private void ensureDefaultConfigs() {
+        createIfAbsent("GIT_PULL_EXTRACT", "Git Pull & 소스 분석", "DAILY", "03:00", null);
+
+        // APM 배치 통합: APM_DAILY/APM_WEEKLY 제거, APM_COLLECT 생성 (기본 수집범위 7일)
+        boolean hasDaily = repository.findByJobType("APM_DAILY").isPresent();
+        boolean hasWeekly = repository.findByJobType("APM_WEEKLY").isPresent();
+        if (hasDaily || hasWeekly) {
+            // 기존 엔트리가 있으면 APM_DAILY를 APM_COLLECT로 재명명, APM_WEEKLY 삭제
+            repository.findByJobType("APM_DAILY").ifPresent(c -> {
+                if (repository.findByJobType("APM_COLLECT").isEmpty()) {
+                    c.setJobType("APM_COLLECT");
+                    c.setDescription("APM 호출건수 수집 (와탭/제니퍼)");
+                    if (c.getJobParam() == null) c.setJobParam("7");
+                    repository.save(c);
+                    log.info("[스케줄 마이그레이션] APM_DAILY → APM_COLLECT");
+                } else {
+                    repository.delete(c);
+                }
+            });
+            repository.findByJobType("APM_WEEKLY").ifPresent(c -> {
+                repository.delete(c);
+                log.info("[스케줄 마이그레이션] APM_WEEKLY 삭제");
+            });
+        }
+        createIfAbsent("APM_COLLECT", "APM 호출건수 수집 (와탭/제니퍼)", "DAILY", "06:00", "7");
+    }
+
+    private void createIfAbsent(String jobType, String desc, String scheduleType, String runTime, String jobParam) {
         if (repository.findByJobType(jobType).isEmpty()) {
             ScheduleConfig c = new ScheduleConfig();
             c.setJobType(jobType);
@@ -47,6 +74,7 @@ public class ScheduleService {
             c.setScheduleType(scheduleType);
             c.setRunTime(runTime);
             c.setEnabled(false);
+            c.setJobParam(jobParam);
             if ("WEEKLY".equals(scheduleType)) c.setRunDay("MON");
             repository.save(c);
         }
@@ -76,6 +104,7 @@ public class ScheduleService {
             JobDetail job = JobBuilder.newJob(jobClass)
                     .withIdentity(jobKey)
                     .usingJobData("period", config.getJobType().contains("WEEKLY") ? "WEEKLY" : "DAILY")
+                    .usingJobData("jobParam", config.getJobParam() != null ? config.getJobParam() : "")
                     .storeDurably()
                     .build();
 
@@ -106,7 +135,7 @@ public class ScheduleService {
     private Class<? extends Job> resolveJobClass(String jobType) {
         return switch (jobType) {
             case "GIT_PULL_EXTRACT" -> GitPullExtractJob.class;
-            case "APM_DAILY", "APM_WEEKLY" -> ApmCollectJob.class;
+            case "APM_COLLECT", "APM_DAILY", "APM_WEEKLY" -> ApmCollectJob.class;
             default -> null;
         };
     }

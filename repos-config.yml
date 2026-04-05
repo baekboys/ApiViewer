@@ -5,12 +5,20 @@
 
 # 공통 설정
 global:
-  period:
-    startDate: "20250201"
-    endDate: "20260220"
   reviewThreshold: 3      # 호출건수 기준으로 차단대상 판단 시 1~최대 허용할수 있는 건수, 예) 1~3건은 차단대상으로 본다.
   password: "lotte1!"
   gitBinPath: git
+
+  # 팀 목록 (현업검토/담당자 입력 시 자동완성용 — 오타/공백 방지)
+  teams:
+    - IT카드개발팀
+    - IT커머스개발팀
+    - IT인프라팀
+    - IT기반기술팀
+    - 결제사업팀
+    - 대출사업팀
+    - 멤버십운영팀
+    - 보안관리팀
 
   # 와탭 공통 프로필 (URL/쿠키 공유, 레포에서 profileName으로 참조)
   whatapProfiles:
@@ -38,12 +46,20 @@ repositories:
     rootPath: /Users/baegmyeongseon/Downloads/개발_코드/spring-petclinic
     gitPullEnabled: "N"
     teamName: IT카드개발팀
-    managerName: 백명선
+    managerName: 백명선            # ← 팀 대표 담당자 (매핑에 없으면 이 사람)
     businessName: 펫클리닉
     apiPathPrefix: ""
     pathConstants: ""
+    # 프로그램ID별 담당자 매핑 (API 경로에 programId 포함 시 해당 담당자 배정)
+    managerMappings:
+      - programId: owner
+        managerName: 김철수
+      - programId: pet
+        managerName: 이영희
+      - programId: vet
+        managerName: 박지민
     whatap:
-      enabled: N
+      enabled: Y
       profileName: "운영"
       pcode: 8
       filter: ""
@@ -60,10 +76,17 @@ repositories:
     rootPath: /Users/baegmyeongseon/Downloads/개발_코드/mall-tiny
     gitPullEnabled: "Y"
     teamName: IT커머스개발팀
-    managerName: 김민수
+    managerName: 김민수            # ← 팀 대표 담당자
     businessName: 쇼핑몰(경량)
     apiPathPrefix: ""
     pathConstants: ""
+    managerMappings:
+      - programId: product
+        managerName: 한소라
+      - programId: order
+        managerName: 오준혁
+      - programId: brand
+        managerName: 김민수
     whatap:
       enabled: N
       profileName: "운영"
@@ -72,7 +95,7 @@ repositories:
       okinds: ""
       okindsName: ""
     jennifer:
-      enabled: N
+      enabled: Y
       profileName: "운영"
       sid: 1002
       filter: ""
@@ -87,7 +110,7 @@ repositories:
     apiPathPrefix: ""
     pathConstants: ""
     whatap:
-      enabled: N
+      enabled: Y
       profileName: "운영"
       pcode: 10
       filter: ""
@@ -116,7 +139,7 @@ repositories:
       okinds: ""
       okindsName: ""
     jennifer:
-      enabled: N
+      enabled: Y
       profileName: "운영"
       sid: 1004
       filter: ""
@@ -131,7 +154,7 @@ repositories:
     apiPathPrefix: ""
     pathConstants: ""
     whatap:
-      enabled: N
+      enabled: Y
       profileName: "개발"
       pcode: 12
       filter: ""
@@ -160,7 +183,7 @@ repositories:
       okinds: ""
       okindsName: ""
     jennifer:
-      enabled: N
+      enabled: Y
       profileName: "개발"
       sid: 1006
       filter: ""

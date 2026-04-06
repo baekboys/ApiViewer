@@ -604,8 +604,10 @@
     if (scope !== 'all' && !repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
     const label = scope === 'all' ? '전체 레포의 MOCK 데이터' : `"${repoName}"의 MOCK 데이터`;
     if (!confirm(`${label}를 삭제하시겠습니까?\nWHATAP/JENNIFER 데이터는 유지됩니다.`)) return;
-    showLogCard(true);
+    clearLogs(); hideResult();
+    showWorkCard(true, `MOCK 삭제`);
     addLocalLog('INFO', `── MOCK 삭제 시작: ${label} ──`);
+    document.getElementById('progCount').textContent = '삭제 중...';
     try {
       const res = await fetch(`/api/apm/data?repoName=${encodeURIComponent(repoName)}&source=MOCK`, {
         method:'DELETE',
@@ -614,11 +616,20 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '삭제 실패');
       addLocalLog('INFO', `MOCK 삭제 완료: ${data.deleted}건`);
+      document.getElementById('progFill').style.width = '100%';
+      document.getElementById('progPct').textContent = '100%';
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progStatus').textContent = '완료';
+      document.getElementById('progCount').textContent = `${data.deleted}건 삭제 완료`;
       document.getElementById('apmCollectResult').innerHTML =
         `<span style="color:var(--success);">✓ ${label} 삭제 완료: ${data.deleted}건</span>`;
+      showResult('ok', `${label} 삭제 완료 — ${data.deleted}건`);
       showToast(`MOCK ${data.deleted}건 삭제 완료`,'success');
     } catch(e) {
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progStatus').textContent = '실패';
       addLocalLog('ERROR', `MOCK 삭제 실패: ${e.message}`);
+      showResult('fail', `MOCK 삭제 실패: ${e.message}`);
       showToast(e.message,'error');
     }
   }

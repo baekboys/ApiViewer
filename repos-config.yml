@@ -6,6 +6,8 @@
 # 공통 설정
 global:
   reviewThreshold: 3      # 호출건수 기준으로 차단대상 판단 시 1~최대 허용할수 있는 건수, 예) 1~3건은 차단대상으로 본다.
+  whatapMockEnabled: true  # true: Whatap 실제 API 대신 Whatap 응답 스키마 형태의 Mock 데이터 사용
+  jenniferMockEnabled: true # true: Jennifer 실제 API 대신 Jennifer 응답 스키마 형태의 Mock 데이터 사용
   password: "lotte1!"
   gitBinPath: git
   pageSize: 200            # 페이지당 표시 건수 (URL호출현황 등)
@@ -72,6 +74,11 @@ repositories:
       profileName: "운영"
       sid: 1001
       filter: ""
+      oids:
+        - oid: 10011
+          shortName: petclinic-api-1
+        - oid: 10012
+          shortName: petclinic-api-2
 
   - repoName: mall-tiny
     domain: https://api.mall-tiny.com
@@ -101,6 +108,13 @@ repositories:
       profileName: "운영"
       sid: 1002
       filter: ""
+      oids:
+        - oid: 10021
+          shortName: mall-tiny-api-1
+        - oid: 10022
+          shortName: mall-tiny-api-2
+        - oid: 10023
+          shortName: mall-tiny-batch
 
   - repoName: mall-admin
     domain: https://admin.mall.com
@@ -123,6 +137,11 @@ repositories:
       profileName: "운영"
       sid: 1003
       filter: ""
+      oids:
+        - oid: 10031
+          shortName: mall-admin-api-1
+        - oid: 10032
+          shortName: mall-admin-api-2
 
   - repoName: mall-portal
     domain: https://portal.mall.com
@@ -145,6 +164,13 @@ repositories:
       profileName: "운영"
       sid: 1004
       filter: ""
+      oids:
+        - oid: 10041
+          shortName: mall-portal-api-1
+        - oid: 10042
+          shortName: mall-portal-api-2
+        - oid: 10043
+          shortName: mall-portal-front
 
   - repoName: mall-search
     domain: https://search.mall.com
@@ -167,6 +193,11 @@ repositories:
       profileName: "개발"
       sid: 1005
       filter: ""
+      oids:
+        - oid: 10051
+          shortName: mall-search-api-1
+        - oid: 10052
+          shortName: mall-search-indexer
 
   - repoName: spring-mvc-showcase
     domain: https://mvc.example.com
@@ -189,3 +220,8 @@ repositories:
       profileName: "개발"
       sid: 1006
       filter: ""
+      oids:
+        - oid: 10061
+          shortName: mvc-showcase-api-1
+        - oid: 10062
+          shortName: mvc-showcase-api-2

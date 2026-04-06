@@ -18,7 +18,7 @@ import java.util.List;
  * APM(Whatap/Jennifer) 호출건수 수집 배치 — 전체 레포 대상.
  * jobParam="days"만큼 과거 데이터를 각 레포의 활성화된 APM source별로 수집 후 집계 반영.
  * WHATAP 최대 365일, JENNIFER 최대 30일로 clamp됨.
- * 실제 APM 연동 전까지는 MockApmService로 랜덤 데이터 생성.
+ * 레포에 URL이 설정된 경우 실제 APM API 호출, 미설정 시 Mock 랜덤 데이터 생성.
  */
 @Component
 public class ApmCollectJob implements Job {

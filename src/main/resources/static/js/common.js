@@ -2,6 +2,24 @@
  * URL Viewer — 공통 JavaScript
  * ═══════════════════════════════════════════════════════════════ */
 
+// ─── ngrok 프록시 환경 지원 ─────────────────────────────────────
+// ngrok 무료 플랜은 fetch/XHR 요청을 가로채 경고 페이지를 반환할 수 있음.
+// 모든 fetch 요청에 ngrok-skip-browser-warning 헤더를 추가하여 우회.
+(function() {
+  var _origFetch = window.fetch;
+  window.fetch = function(url, options) {
+    options = options || {};
+    if (options.headers instanceof Headers) {
+      if (!options.headers.has('ngrok-skip-browser-warning')) {
+        options.headers.set('ngrok-skip-browser-warning', 'true');
+      }
+    } else {
+      options.headers = Object.assign({ 'ngrok-skip-browser-warning': 'true' }, options.headers || {});
+    }
+    return _origFetch.call(this, url, options);
+  };
+})();
+
 // ─── HTML 이스케이프 ────────────────────────────────────────
 function esc(s) {
   if (s == null) return '';

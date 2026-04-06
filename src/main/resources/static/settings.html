@@ -88,10 +88,25 @@
     .settings-section { display:none; }
     .settings-section.active { display:block; }
     @media (max-width:900px) { .settings-layout { grid-template-columns:1fr; } .settings-sidebar { flex-direction:row; flex-wrap:wrap; position:static; } .settings-tab { flex:0 1 auto; } }
+    /* 프로그레스 오버레이 */
+    .del-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:9999; justify-content:center; align-items:center; }
+    .del-overlay.show { display:flex; }
+    .del-overlay-box { background:#fff; border-radius:12px; padding:32px 40px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,.2); min-width:260px; }
+    .del-overlay-box .spinner { width:36px; height:36px; border:4px solid #e2e8f0; border-top-color:#ef4444; border-radius:50%; animation:delSpin .7s linear infinite; margin:0 auto 16px; }
+    .del-overlay-box .msg { font-size:14px; font-weight:600; color:#334155; }
+    @keyframes delSpin { to { transform:rotate(360deg); } }
   </style>
   <script src="/js/dialog.js"></script>
 </head>
 <body>
+
+<!-- 삭제 프로그레스 오버레이 -->
+<div class="del-overlay" id="delOverlay">
+  <div class="del-overlay-box">
+    <div class="spinner"></div>
+    <div class="msg" id="delOverlayMsg">삭제 처리 중...</div>
+  </div>
+</div>
 
 <script>
 (async function guard() {
@@ -1201,11 +1216,20 @@
     return true;
   }
 
+  function showDelProgress(msg) {
+    document.getElementById('delOverlayMsg').textContent = msg;
+    document.getElementById('delOverlay').classList.add('show');
+  }
+  function hideDelProgress() {
+    document.getElementById('delOverlay').classList.remove('show');
+  }
+
   async function deleteAnalysisData() {
     const repoName = document.getElementById('delRepoSelect').value;
     const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
     if (!await customConfirm(`${scope}의 분석데이터(api_record)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     if (!await verifyPwPrompt()) return;
+    showDelProgress(`분석데이터 삭제 중... (${scope})`);
     try {
       const url = `/api/db/delete-all?repoName=${encodeURIComponent(repoName)}`;
       const res = await adminFetch(url, { method:'DELETE' });
@@ -1217,7 +1241,7 @@
     } catch(e) {
       document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
       showToast(e.message || '삭제 실패', 'error');
-    }
+    } finally { hideDelProgress(); }
   }
 
   async function deleteCallHistoryData() {
@@ -1225,6 +1249,7 @@
     const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
     if (!await customConfirm(`${scope}의 호출이력(apm_call_data)을 삭제하시겠습니까?\nMOCK/WHATAP/JENNIFER 모두 포함됩니다.\n이 작업은 되돌릴 수 없습니다.`)) return;
     if (!await verifyPwPrompt()) return;
+    showDelProgress(`호출이력 삭제 중... (${scope})`);
     try {
       const url = `/api/apm/data?repoName=${encodeURIComponent(repoName)}&source=ALL`;
       const res = await adminFetch(url, { method:'DELETE' });
@@ -1236,7 +1261,7 @@
     } catch(e) {
       document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
       showToast(e.message || '삭제 실패', 'error');
-    }
+    } finally { hideDelProgress(); }
   }
 
   // ── DB 모니터링 ──────────────────────────────────────────

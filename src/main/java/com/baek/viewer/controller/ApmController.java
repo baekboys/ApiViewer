@@ -56,6 +56,22 @@ public class ApmController {
         }
     }
 
+    /** APM 수집 실시간 로그 조회 */
+    @GetMapping("/logs")
+    public ResponseEntity<?> getApmLogs(@RequestParam(defaultValue = "0") int from) {
+        var logs = mockApmService.getApmLogs();
+        int total = logs.size();
+        var slice = from < total ? logs.subList(from, total) : List.of();
+        return ResponseEntity.ok(Map.of("logs", slice, "total", total, "collecting", mockApmService.isApmCollecting()));
+    }
+
+    /** APM 수집 로그 초기화 */
+    @DeleteMapping("/logs")
+    public ResponseEntity<?> clearApmLogs() {
+        mockApmService.getApmLogs().clear();
+        return ResponseEntity.ok(Map.of("cleared", true));
+    }
+
     /** Mock 데이터 생성 (source: MOCK/WHATAP/JENNIFER, 기본 MOCK) */
     @PostMapping("/mock/generate")
     public ResponseEntity<?> generateMock(@RequestBody Map<String, Object> body) {
@@ -85,6 +101,7 @@ public class ApmController {
             if (from == null || to == null)
                 return ResponseEntity.badRequest().body(Map.of("error", "from/to 날짜 필수"));
             log.info("[APM 수동수집 요청] repo={}, source={}, {}~{}", repoName, source, from, to);
+            mockApmService.getApmLogs().clear();
             return ResponseEntity.ok(mockApmService.generateMockDataByRange(
                     repoName, LocalDate.parse(from), LocalDate.parse(to), source));
         } catch (IllegalArgumentException e) {

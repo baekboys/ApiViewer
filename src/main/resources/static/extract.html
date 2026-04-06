@@ -463,6 +463,9 @@
     clearLogs(); hideResult();
     showWorkCard(true, `APM ${label}`);
     addLocalLog('INFO', `── APM ${label} 시작: ${targets.length}개 레포 / ${totalSteps}단계 ──`);
+    // 서버 로그 초기화 후 폴링 시작
+    await fetch('/api/apm/logs', { method: 'DELETE' }).catch(() => {});
+    startApmLogPolling();
 
     document.getElementById('apmCollectResult').innerHTML =
       `<span style="color:var(--text-muted);">${label} 실행 중... (작업 로그 확인)</span>`;
@@ -540,6 +543,9 @@
     document.getElementById('progCount').textContent = `레포 ${repoCount}개 · 총 ${totalGenerated}건 수집 완료`;
     setRepoLabel('');
 
+    // 폴링 잠시 유지 후 중단 (마지막 로그 수신용)
+    setTimeout(() => stopApmLogPolling(), 1500);
+
     const resultKind = errorCount > 0 ? 'fail' : 'ok';
     const msg = `${label} 완료 — 레포 ${repoCount}개, 총 ${totalGenerated}건 수집${errorCount>0?`, 실패 ${errorCount}건`:''}`;
     document.getElementById('apmCollectResult').innerHTML =
@@ -569,6 +575,7 @@
     addLocalLog('INFO', `── APM 수집 시작: ${repoName} / ${source} / ${from}~${to} (${diff}일) ──`);
     document.getElementById('progCount').textContent = `${source} 데이터 수집 중...`;
     document.getElementById('apmCollectResult').innerHTML = `<span style="color:var(--text-muted);">${source} 수집 중... (${diff}일)</span>`;
+    startApmLogPolling();
     try {
       const res = await fetch('/api/apm/collect', {
         method: 'POST',
@@ -581,10 +588,9 @@
       document.getElementById('progPct').textContent = '100%';
       document.getElementById('progStatus').textContent = '완료';
       document.getElementById('progSpinner').style.display = 'none';
-      document.getElementById('progCount').textContent = `${data.generated}건 수집 완료 (API ${data.apis}개)`;
+      document.getElementById('progCount').textContent = `${data.generated}건 수집 완료`;
       document.getElementById('apmCollectResult').innerHTML =
-        `<span style="color:var(--success);">✓ ${data.source} 수집 완료: ${data.generated}건 (API ${data.apis}개 · ${data.from}~${data.to})</span>`;
-      addLocalLog('INFO', `APM 수집 완료: ${data.generated}건 (API ${data.apis}개)`);
+        `<span style="color:var(--success);">✓ ${data.source} 수집 완료: ${data.generated}건 (${data.from}~${data.to})</span>`;
       showResult('ok', `APM 수집 완료 — ${data.generated}건`);
       showToast(`${data.source} ${data.generated}건 수집`,'success');
     } catch(e) {
@@ -595,6 +601,8 @@
       showResult('fail', `APM 수집 실패: ${e.message}`);
       showToast(e.message,'error');
     } finally {
+      // 폴링 잠시 유지 후 중단 (마지막 로그 수신용)
+      setTimeout(() => stopApmLogPolling(), 1500);
       btn.disabled = false; btn.textContent = '수집 실행';
       setRepoLabel('');
     }
@@ -879,6 +887,30 @@
       newLogs.forEach(line => appendLogLine(line));
       lastLogCount = logs.length;
     }
+  }
+
+  // ── APM 서버 로그 폴링 ──────────────────────────────────────
+  let apmLogTimer = null;
+  let apmLogOffset = 0;
+
+  function startApmLogPolling() {
+    apmLogOffset = 0;
+    if (apmLogTimer) clearInterval(apmLogTimer);
+    apmLogTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/apm/logs?from=${apmLogOffset}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.logs && data.logs.length > 0) {
+          data.logs.forEach(line => appendLogLine(line));
+          apmLogOffset = data.total;
+        }
+      } catch(e) { /* ignore */ }
+    }, 500);
+  }
+
+  function stopApmLogPolling() {
+    if (apmLogTimer) { clearInterval(apmLogTimer); apmLogTimer = null; }
   }
 
   // ── 로그 패널 ──────────────────────────────────────────────

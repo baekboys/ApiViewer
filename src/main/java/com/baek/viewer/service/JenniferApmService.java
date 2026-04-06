@@ -65,9 +65,14 @@ public class JenniferApmService {
      * jenniferMockEnabled=true 이면 Mock, false 이면 실제 API (URL 필수).
      * 트랜잭션은 호출자(MockApmService.generateMockDataByRange)가 관리.
      */
-    public Map<String, Object> collect(RepoConfig repo, LocalDate from, LocalDate to) {
+    /**
+     * @param logCallback UI 로그 콜백 (nullable) — MockApmService.addApmLog 전달용
+     */
+    public Map<String, Object> collect(RepoConfig repo, LocalDate from, LocalDate to,
+                                        java.util.function.BiConsumer<String, String> logCallback) {
         GlobalConfig gc = globalConfigRepo.findById(1L).orElse(new GlobalConfig());
         boolean useMock = gc.isJenniferMockEnabled();
+        String mode = useMock ? "MOCK" : "실제API";
 
         if (!useMock && (repo.getJenniferUrl() == null || repo.getJenniferUrl().isBlank())) {
             throw new IllegalStateException(
@@ -76,44 +81,91 @@ public class JenniferApmService {
         }
 
         List<ApiRecord> records = apiRecordRepo.findByRepositoryName(repo.getRepoName());
-        if (records.isEmpty()) {
+
+        if (useMock && records.isEmpty()) {
+            emit(logCallback, "WARN", "JENNIFER — API 없음, Mock 수집 건너뜀");
             return Map.of("generated", 0, "message", "해당 레포에 분석된 API가 없습니다.");
         }
+
+        emit(logCallback, "INFO", String.format("JENNIFER(%s) 일별 수집 시작 — %s, sid=%s",
+                mode, useMock ? "API " + records.size() + "개" : "응답 전체 적재", repo.getJenniferSid()));
 
         String instanceId = buildInstanceId(repo.getJenniferOids());
 
         int generated = 0;
+        int dayCount = 0;
+        long totalDays = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1;
         List<ApmCallData> batch = new ArrayList<>();
         LocalDate cursor = from;
 
         while (!cursor.isAfter(to)) {
-            // 자정은 분/초 = 0이므로 시 단위 조건 충족
             long startTime = cursor.atStartOfDay(KST).toInstant().toEpochMilli();
             long endTime   = cursor.plusDays(1).atStartOfDay(KST).toInstant().toEpochMilli();
+            dayCount++;
 
             try {
                 Map<String, long[]> dayData = useMock
-                        ? buildMockDayData(records)
+                        ? buildMockDayData(records, cursor)
                         : fetchRealDay(repo, instanceId, startTime, endTime);
 
-                for (ApiRecord rec : records) {
-                    long[] counts = dayData.getOrDefault(rec.getApiPath(), new long[]{0L, 0L});
-                    batch.add(buildEntry(repo.getRepoName(), rec, cursor, counts[0], counts[1]));
-                    generated++;
-                    if (batch.size() >= 1000) { apmRepo.saveAll(batch); batch.clear(); }
+                long dayTotal = dayData.values().stream().mapToLong(c -> c[0]).sum();
+                long dayErrors = dayData.values().stream().mapToLong(c -> c[1]).sum();
+
+                if (useMock) {
+                    // Mock: DB records 기반으로 매핑
+                    for (ApiRecord rec : records) {
+                        long[] counts = dayData.getOrDefault(rec.getApiPath(), new long[]{0L, 0L});
+                        batch.add(buildEntry(repo.getRepoName(), rec.getApiPath(), rec.getControllerName(),
+                                cursor, counts[0], counts[1]));
+                        generated++;
+                        if (batch.size() >= 1000) { apmRepo.saveAll(batch); batch.clear(); }
+                    }
+                } else {
+                    // 실제 API: 제니퍼 응답 JSON 그대로 전체 적재
+                    for (var entry : dayData.entrySet()) {
+                        batch.add(buildEntry(repo.getRepoName(), entry.getKey(), null,
+                                cursor, entry.getValue()[0], entry.getValue()[1]));
+                        generated++;
+                        if (batch.size() >= 1000) { apmRepo.saveAll(batch); batch.clear(); }
+                    }
                 }
-                log.debug("[JENNIFER{}] {} 수집: {}건", useMock ? "-MOCK" : "", cursor, dayData.size());
+                StringBuilder sample = new StringBuilder();
+                int sc = 0;
+                for (var e : dayData.entrySet()) {
+                    if (sc++ >= 3) break;
+                    String shortPath = e.getKey().length() > 25 ? e.getKey().substring(e.getKey().length()-25) : e.getKey();
+                    sample.append(String.format(" [%s=%d]", shortPath, e.getValue()[0]));
+                }
+                emit(logCallback, "OK", String.format("JENNIFER %s [%d/%d] 호출=%,d건 에러=%,d건 (API %d개)%s",
+                        cursor, dayCount, totalDays, dayTotal, dayErrors, dayData.size(), sample));
             } catch (Exception e) {
-                log.warn("[JENNIFER{}] {} 수집 실패 (스킵): {}", useMock ? "-MOCK" : "", cursor, e.getMessage());
+                emit(logCallback, "WARN", String.format("JENNIFER %s [%d/%d] 수집 실패 (스킵): %s",
+                        cursor, dayCount, totalDays, e.getMessage()));
             }
             cursor = cursor.plusDays(1);
         }
 
         if (!batch.isEmpty()) apmRepo.saveAll(batch);
-        log.info("[JENNIFER{}] 수집 완료: repo={}, {}건 ({}~{})",
-                useMock ? "-MOCK" : "", repo.getRepoName(), generated, from, to);
+        emit(logCallback, "OK", String.format("JENNIFER(%s) 수집 완료 — %,d건 저장 (%s~%s)",
+                mode, generated, from, to));
         return Map.of("generated", generated, "from", from.toString(), "to", to.toString(),
                 "source", "JENNIFER", "mock", useMock);
+    }
+
+    /** logCallback 없이 호출하는 기존 호환 메서드 */
+    public Map<String, Object> collect(RepoConfig repo, LocalDate from, LocalDate to) {
+        return collect(repo, from, to, null);
+    }
+
+    private void emit(java.util.function.BiConsumer<String, String> cb, String level, String msg) {
+        if (cb != null) cb.accept(level, msg);
+        else {
+            switch (level) {
+                case "ERROR" -> log.error("[JENNIFER] {}", msg);
+                case "WARN"  -> log.warn("[JENNIFER] {}", msg);
+                default      -> log.info("[JENNIFER] {}", msg);
+            }
+        }
     }
 
     /**
@@ -122,22 +174,26 @@ public class JenniferApmService {
      * 생성 스키마:
      * { result:[{ name:"apiPath", calls:N, badResponses:N, failures:N }] }
      */
-    private Map<String, long[]> buildMockDayData(List<ApiRecord> records) throws Exception {
-        List<Map<String, Object>> resultList = new ArrayList<>();
-        for (ApiRecord rec : records) {
-            long calls = "차단완료".equals(rec.getStatus())
-                    ? 0L : ThreadLocalRandom.current().nextLong(0, 150);
-            long badResponses = calls > 0 ? ThreadLocalRandom.current().nextLong(0, Math.max(1, calls / 20)) : 0L;
-            Map<String, Object> r = new LinkedHashMap<>();
-            r.put("name", rec.getApiPath());
-            r.put("calls", calls);
-            r.put("badResponses", badResponses);
-            r.put("failures", 0);
-            resultList.add(r);
-        }
-        Map<String, Object> mockResponse = Map.of("result", resultList);
+    /**
+     * Jennifer Mock: 요일별 가중치 + API별 기본부하 + 랜덤 변동으로 현실적인 데이터 생성.
+     */
+    private Map<String, long[]> buildMockDayData(List<ApiRecord> records, LocalDate date) {
+        double[] dayWeight = {0.3, 1.1, 1.0, 1.0, 0.95, 1.05, 0.3};
+        double weight = dayWeight[date.getDayOfWeek().getValue() % 7];
 
-        return parseResponse(objectMapper.writeValueAsString(mockResponse));
+        Map<String, long[]> result = new HashMap<>();
+        for (ApiRecord rec : records) {
+            if ("차단완료".equals(rec.getStatus())) {
+                result.put(rec.getApiPath(), new long[]{0L, 0L});
+                continue;
+            }
+            int baseLoad = Math.abs(rec.getApiPath().hashCode() % 120) + 10;
+            double variation = 0.6 + ThreadLocalRandom.current().nextDouble() * 0.8;
+            long calls = Math.max(0, Math.round(baseLoad * weight * variation));
+            long errors = calls > 0 ? ThreadLocalRandom.current().nextLong(0, Math.max(1, calls / 20)) : 0L;
+            result.put(rec.getApiPath(), new long[]{calls, errors});
+        }
+        return result;
     }
 
     private Map<String, long[]> fetchRealDay(RepoConfig repo, String instanceId,
@@ -201,15 +257,15 @@ public class JenniferApmService {
         }
     }
 
-    private ApmCallData buildEntry(String repoName, ApiRecord rec, LocalDate date,
-                                    long callCount, long errorCount) {
+    private ApmCallData buildEntry(String repoName, String apiPath, String className,
+                                    LocalDate date, long callCount, long errorCount) {
         ApmCallData d = new ApmCallData();
         d.setRepositoryName(repoName);
-        d.setApiPath(rec.getApiPath());
+        d.setApiPath(apiPath);
         d.setCallDate(date);
         d.setCallCount(callCount);
         d.setErrorCount(errorCount);
-        d.setClassName(rec.getControllerName());
+        d.setClassName(className);
         d.setSource("JENNIFER");
         return d;
     }

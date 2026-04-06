@@ -43,6 +43,30 @@ public interface ApmCallDataRepository extends JpaRepository<ApmCallData, Long> 
 
     void deleteByRepositoryNameAndSource(String repositoryName, String source);
 
+    /** 전체 TRUNCATE 대용 — JPQL bulk DELETE (JPA deleteAll()보다 훨씬 빠름) */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM ApmCallData a")
+    int bulkDeleteAll();
+
+    /** 레포 전체 bulk DELETE */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM ApmCallData a WHERE a.repositoryName = :repo")
+    int bulkDeleteByRepo(@Param("repo") String repo);
+
+    /** 특정 source bulk DELETE (전체 레포) */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM ApmCallData a WHERE a.source = :source")
+    int bulkDeleteBySource(@Param("source") String source);
+
+    /** 레포 + source bulk DELETE */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM ApmCallData a WHERE a.repositoryName = :repo AND a.source = :source")
+    int bulkDeleteByRepoAndSource(@Param("repo") String repo, @Param("source") String source);
+
     /** (repo, source, 기간) 일괄 삭제 — 수집 전 기존 데이터 제거용 */
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying

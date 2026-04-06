@@ -54,6 +54,12 @@ public class ApiExtractorService {
     private void addLog(String level, String msg) {
         String ts = java.time.LocalTime.now().toString().substring(0, 8);
         extractLogs.add(ts + " [" + level + "] " + msg);
+        // 콘솔/파일 로그에도 동시 기록
+        switch (level) {
+            case "ERROR" -> log.error("[추출] {}", msg);
+            case "WARN"  -> log.warn("[추출] {}", msg);
+            default      -> log.info("[추출] {}", msg);
+        }
     }
 
     public boolean isExtracting() { return extracting; }
@@ -85,8 +91,6 @@ public class ApiExtractorService {
     public List<ApiInfo> extract(ExtractRequest req) {
         if (extracting) throw new IllegalStateException("이미 추출 중입니다.");
         extracting = true;
-        log.info("[추출 시작] rootPath={}, repo={}", req.getRootPath(), req.getRepositoryName());
-
         String rootPath = req.getRootPath();
         String domain = req.getDomain() != null ? req.getDomain() : "";
         String apiPathPrefix = req.getApiPathPrefix() != null ? req.getApiPathPrefix() : "";
@@ -114,7 +118,6 @@ public class ApiExtractorService {
                 if (rcOpt.isPresent() && "N".equals(rcOpt.get().getGitPullEnabled())) {
                     doPull = false;
                     addLog("INFO", "Git Pull 건너뜀 (설정에서 비활성화)");
-                    log.info("[Git Pull 건너뜀] repo={}", repoName);
                 }
             }
             if (doPull) {
@@ -130,10 +133,8 @@ public class ApiExtractorService {
                     }
                     int exitCode = proc.waitFor();
                     addLog(exitCode == 0 ? "OK" : "WARN", "Git Pull 완료 (exit=" + exitCode + ") " + output.toString().trim());
-                    log.info("[Git Pull] exit={}, output={}", exitCode, output.toString().trim());
                 } catch (Exception gitEx) {
                     addLog("WARN", "Git Pull 실패 (분석은 계속): " + gitEx.getMessage());
-                    log.warn("[Git Pull 실패] {}", gitEx.getMessage());
                 }
             }
 
@@ -164,7 +165,6 @@ public class ApiExtractorService {
         } catch (Exception e) {
             lastError = e.getMessage();
             addLog("ERROR", "추출 실패: " + e.getMessage());
-            log.error("[추출 실패] rootPath={}, 오류={}", rootPath, e.getMessage(), e);
             extracting = false;
             throw new RuntimeException("추출 실패: " + e.getMessage(), e);
         }
@@ -179,8 +179,7 @@ public class ApiExtractorService {
         }
 
         cachedApis = sorted;
-        addLog("INFO", "추출 완료 — 총 " + sorted.size() + "개 API");
-        log.info("[추출 완료] 총 {}개 API, 파일 {}개 처리", sorted.size(), totalFiles);
+        addLog("INFO", "추출 완료 — 총 " + sorted.size() + "개 API, 파일 " + totalFiles + "개 처리");
 
         // DB 저장 (레포지토리명이 있을 때만)
         String repoName = req.getRepositoryName();
@@ -211,7 +210,6 @@ public class ApiExtractorService {
             return extractWithJavaParser(path, rel, git, apiPathPrefix, pathConstantsMap);
         } catch (Exception e) {
             addLog("WARN", path.getFileName() + " — JavaParser 실패 (" + e.getClass().getSimpleName() + "), Regex 폴백 적용");
-            log.warn("[Regex 폴백] 파일={}, 사유={}", path.getFileName(), e.getMessage());
             return extractWithRegex(path, rel, git, apiPathPrefix, pathConstantsMap);
         }
     }

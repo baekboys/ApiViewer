@@ -78,6 +78,15 @@
     .btn-cancel { background: #475569; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
     .btn-cancel:hover { background: #334155; }
 
+    /* 일괄처리 프로그레스 오버레이 */
+    .bulk-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:9999; justify-content:center; align-items:center; }
+    .bulk-overlay.show { display:flex; }
+    .bulk-overlay-box { background:#fff; border-radius:12px; padding:32px 40px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,.2); min-width:280px; }
+    .bulk-overlay-box .spinner { width:36px; height:36px; border:4px solid #e2e8f0; border-top-color:var(--primary); border-radius:50%; animation:bulkSpin .7s linear infinite; margin:0 auto 16px; }
+    .bulk-overlay-box .msg { font-size:14px; font-weight:600; color:#334155; }
+    .bulk-overlay-box .sub { font-size:12px; color:#64748b; margin-top:6px; }
+    @keyframes bulkSpin { to { transform:rotate(360deg); } }
+
     /* 테이블 */
     .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: auto; box-shadow: var(--shadow); max-height: calc(100vh - 290px); }
     table { width: 100%; border-collapse: collapse; }
@@ -324,6 +333,15 @@
     마지막 분석에서 소스코드에서 사라진 URL입니다. 레코드는 이력 보존을 위해 유지됩니다.
     <span style="font-size:11px;color:#c2410c;">(상단 필터 "삭제" 클릭 시 삭제건만 조회 가능)</span>
     <button onclick="dismissNotice('deletedNoticeBar')" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#7c2d12;cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;" title="닫기">×</button>
+  </div>
+
+  <!-- 일괄처리 프로그레스 오버레이 -->
+  <div class="bulk-overlay" id="bulkOverlay">
+    <div class="bulk-overlay-box">
+      <div class="spinner"></div>
+      <div class="msg" id="bulkOverlayMsg">처리 중...</div>
+      <div class="sub" id="bulkOverlaySub"></div>
+    </div>
   </div>
 
   <!-- 일괄 변경 바 -->
@@ -827,6 +845,7 @@
       const pwRes = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
       const pwData = await pwRes.json();
       if (!pwData.valid) { showToast('비밀번호가 일치하지 않습니다.', 'error'); return; }
+      showBulkProgress('영구삭제 처리 중...', ids.length);
       const res = await fetch('/api/db/purge-deleted', {
         method:'DELETE',
         headers:{'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
@@ -841,7 +860,7 @@
       showToast(`${data.purged}건 영구삭제 완료${data.skipped>0?` (스킵 ${data.skipped}건)`:''}`, 'success');
     } catch(e) {
       showToast('실패: ' + e.message, 'error');
-    }
+    } finally { hideBulkProgress(); }
   }
 
   // ── 필터 ──────────────────────────────────────────────────
@@ -997,6 +1016,7 @@
     });
     if (!targetIds.length) { showToast('알림 대상 항목이 선택되지 않았습니다.','error'); return; }
     if (!await customConfirm(`${targetIds.length}개 항목의 알림 플래그(신규/상태변경)를 해제하시겠습니까?`)) return;
+    showBulkProgress('알림 플래그 해제 중...', targetIds.length);
     try {
       const res = await fetch('/api/db/clear-alerts', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:targetIds}) });
       const data = await res.json();
@@ -1011,7 +1031,7 @@
       renderStats(); filterTable();
       updateChangedNotice(false); updateNewNotice(false); updateDeletedNotice(false);
       showToast(`${data.cleared}건 알림 해제 완료`,'success');
-    } catch(e) { showToast('실패: ' + e.message,'error'); }
+    } catch(e) { showToast('실패: ' + e.message,'error'); } finally { hideBulkProgress(); }
   }
 
   async function clearNewFlag(event, id) {
@@ -1059,13 +1079,14 @@
     });
     if (!ids.length) { showToast('차단완료 항목은 확정/해제할 수 없습니다.','error'); return; }
     if (!await customConfirm(`${ids.length}개 항목을 ${lock?'상태 확정':'확정 해제'}하시겠습니까?`)) return;
+    showBulkProgress(lock ? '일괄 확정 중...' : '일괄 해제 중...', ids.length);
     try {
       await fetch('/api/db/status', { method:'PATCH', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ ids, statusOverridden: lock }) });
       ids.forEach(id => { const a=allApis.find(x=>x.id===id); if(a) a.statusOverridden=lock; });
       clearSelection(); filterTable();
       showToast(`${ids.length}개 ${lock?'확정':'해제'} 완료`,'success');
-    } catch(e) { showToast('변경 실패','error'); }
+    } catch(e) { showToast('변경 실패','error'); } finally { hideBulkProgress(); }
   }
 
   async function toggleLock(id, lock) {
@@ -1225,6 +1246,7 @@
     if (!parts.length) { showToast('변경할 항목을 선택하세요.', 'error'); return; }
     if (!await customConfirm(`선택된 ${selectedIds.size}개 항목: ${parts.join(', ')} 변경하시겠습니까?`)) return;
 
+    showBulkProgress('일괄 변경 중...', selectedIds.size);
     try {
       const res = await fetch('/api/db/status', {
         method: 'PATCH',
@@ -1239,7 +1261,7 @@
       await loadApis();
     } catch(e) {
       showToast(e.message, 'error');
-    }
+    } finally { hideBulkProgress(); }
   }
 
   // ── 엑셀 다운로드 (전체 상세 데이터) ─────────────────────────
@@ -1735,6 +1757,15 @@
         </div>
       </div>
     `;
+  }
+
+  function showBulkProgress(msg, count) {
+    document.getElementById('bulkOverlayMsg').textContent = msg;
+    document.getElementById('bulkOverlaySub').textContent = count ? `${count}건 처리 중...` : '';
+    document.getElementById('bulkOverlay').classList.add('show');
+  }
+  function hideBulkProgress() {
+    document.getElementById('bulkOverlay').classList.remove('show');
   }
 
   function showToast(msg, type='success') {

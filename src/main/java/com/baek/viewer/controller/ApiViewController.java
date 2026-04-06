@@ -545,16 +545,13 @@ public class ApiViewController {
     @DeleteMapping("/db/delete-all")
     public ResponseEntity<?> deleteAllRecords(@RequestParam(required = false) String repoName) {
         log.warn("[분석데이터 삭제] DELETE /api/db/delete-all repoName={}", repoName);
-        long deleted;
+        int deleted;
         if (repoName == null || repoName.isBlank() || "ALL".equalsIgnoreCase(repoName)) {
-            deleted = recordRepository.count();
-            recordRepository.deleteAll();
+            deleted = recordRepository.bulkDeleteAll();
         } else {
-            long before = recordRepository.count();
-            recordRepository.deleteByRepositoryName(repoName);
-            deleted = before - recordRepository.count();
+            deleted = recordRepository.bulkDeleteByRepo(repoName);
         }
-        log.info("[분석데이터 삭제 완료] {}건 삭제", deleted);
+        log.info("[분석데이터 삭제 완료] {}건 삭제 (bulk DELETE)", deleted);
         return ResponseEntity.ok(Map.of("deleted", deleted));
     }
 

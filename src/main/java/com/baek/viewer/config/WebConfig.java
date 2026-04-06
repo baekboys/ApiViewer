@@ -1,6 +1,7 @@
 package com.baek.viewer.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -13,6 +14,17 @@ public class WebConfig implements WebMvcConfigurer {
     public WebConfig(AdminInterceptor adminInterceptor, PageGuardInterceptor pageGuardInterceptor) {
         this.adminInterceptor = adminInterceptor;
         this.pageGuardInterceptor = pageGuardInterceptor;
+    }
+
+    /** CORS — 도메인/ngrok 등 외부 접근 허용 */
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")          // 모든 origin 허용
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)              // 쿠키/인증헤더 포함 허용
+                .maxAge(3600);                       // preflight 캐시 1시간
     }
 
     @Override

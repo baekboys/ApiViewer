@@ -89,20 +89,21 @@
     .settings-section.active { display:block; }
     @media (max-width:900px) { .settings-layout { grid-template-columns:1fr; } .settings-sidebar { flex-direction:row; flex-wrap:wrap; position:static; } .settings-tab { flex:0 1 auto; } }
   </style>
+  <script src="/js/dialog.js"></script>
 </head>
 <body>
 
 <script>
 (async function guard() {
   if (sessionStorage.getItem('isAdmin') === 'true') return;
-  const pw = prompt('관리자 비밀번호를 입력하세요:');
+  const pw = await customPrompt('관리자 비밀번호를 입력하세요:', {type:'password', title:'🔑 관리자 인증'});
   if (!pw) { location.href = '/'; return; }
   try {
     const res = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
     const d = await res.json();
     if (d.valid) { sessionStorage.setItem('isAdmin','true'); sessionStorage.setItem('adminToken',d.token); }
-    else { alert('비밀번호가 일치하지 않습니다.'); location.href = '/'; }
-  } catch(e) { alert('인증 실패'); location.href = '/'; }
+    else { await customAlert('비밀번호가 일치하지 않습니다.', {title:'인증 실패'}); location.href = '/'; }
+  } catch(e) { await customAlert('인증 실패', {title:'오류'}); location.href = '/'; }
 })();
 </script>
 <div class="header">
@@ -170,8 +171,16 @@
     <div class="card-title"><span class="dot dot-blue"></span>공통 설정 (모든 레포지토리에 적용)</div>
     <div class="field-row" style="grid-template-columns:200px;margin-bottom:14px;">
       <label class="field">차단검토 기준 호출건수
-        <input id="gReviewThreshold" type="number" min="0" placeholder="3">
+        <input id="gReviewThreshold" type="number" min="0" placeholder="3" style="width:120px;">
         <span class="field-hint">이 값 이하이면서 소스변경 1년 초과 시 차단검토필요</span>
+      </label>
+      <label class="field">페이지당 건수
+        <input id="gPageSize" type="number" min="10" max="1000" placeholder="200" style="width:120px;">
+        <span class="field-hint">URL호출현황 등 목록 페이지당 표시 건수</span>
+      </label>
+      <label class="field">페이지 네비 개수
+        <input id="gPageNavSize" type="number" min="3" max="20" placeholder="10" style="width:120px;">
+        <span class="field-hint">페이지 번호 표시 개수 (예: 10 = 1~10)</span>
       </label>
     </div>
 
@@ -465,6 +474,8 @@
       const res = await fetch('/api/config/global');
       const g = await res.json();
       document.getElementById('gReviewThreshold').value  = g.reviewThreshold  ?? 3;
+      document.getElementById('gPageSize').value         = g.pageSize         ?? 200;
+      document.getElementById('gPageNavSize').value      = g.pageNavSize      ?? 10;
       // 팀 목록 로드
       document.getElementById('teamsList').innerHTML = '';
       try {
@@ -518,6 +529,8 @@
     const body = {
       id: 1,
       reviewThreshold: parseInt(document.getElementById('gReviewThreshold').value) || 3,
+      pageSize: parseInt(document.getElementById('gPageSize').value) || 200,
+      pageNavSize: parseInt(document.getElementById('gPageNavSize').value) || 10,
       teams: (() => { const t = collectTeams(); return t.length ? JSON.stringify(t) : null; })(),
       whatapProfiles: wpList.length ? JSON.stringify(wpList) : null,
       jenniferProfiles: jpList.length ? JSON.stringify(jpList) : null
@@ -790,7 +803,7 @@
   async function deleteRepo(id, name) {
     const repoCards = document.querySelectorAll('.repo-card');
     if (repoCards.length <= 1) { showToast('최소 1개의 레포지토리는 유지해야 합니다.', 'error'); return; }
-    if (!confirm(`"${name}" 레포지토리 설정을 삭제하시겠습니까?`)) return;
+    if (!await customConfirm(`"${name}" 레포지토리 설정을 삭제하시겠습니까?`)) return;
     try {
       const res = await adminFetch(`/api/config/repos/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -826,7 +839,7 @@
 
   // 401 응답 시 비밀번호 재입력 → 토큰 갱신
   async function reAuth() {
-    const pw = prompt('관리자 토큰이 만료되었습니다. 비밀번호를 다시 입력하세요:');
+    const pw = await customPrompt('관리자 토큰이 만료되었습니다.\n비밀번호를 다시 입력하세요:', {type:'password', title:'🔑 재인증'});
     if (!pw) return false;
     try {
       const res = await fetch('/api/verify-password', {
@@ -909,7 +922,11 @@
       const newContent = data.content || '(빈 로그)';
       if (el.textContent !== newContent) {
         el.textContent = newContent;
-        if (atBottom || !quiet) el.scrollTop = el.scrollHeight;
+      }
+      // 로그 영역 + 페이지 스크롤 모두 하단으로
+      if (atBottom || !quiet) {
+        el.scrollTop = el.scrollHeight;
+        el.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }
     } catch(e) {
       if (!quiet) el.textContent = '로그 조회 실패: ' + e.message;
@@ -1100,7 +1117,7 @@
   }
 
   async function verifyPwPrompt() {
-    const pw = prompt('관리자 비밀번호를 다시 입력하세요:');
+    const pw = await customPrompt('관리자 비밀번호를 다시 입력하세요:', {type:'password', title:'🔑 비밀번호 확인'});
     if (!pw) return false;
     const pwRes = await fetch('/api/verify-password', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})
@@ -1113,7 +1130,7 @@
   async function deleteAnalysisData() {
     const repoName = document.getElementById('delRepoSelect').value;
     const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!confirm(`${scope}의 분석데이터(api_record)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!await customConfirm(`${scope}의 분석데이터(api_record)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     if (!await verifyPwPrompt()) return;
     try {
       const url = `/api/db/delete-all?repoName=${encodeURIComponent(repoName)}`;
@@ -1132,7 +1149,7 @@
   async function deleteCallHistoryData() {
     const repoName = document.getElementById('delRepoSelect').value;
     const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!confirm(`${scope}의 호출이력(apm_call_data)을 삭제하시겠습니까?\nMOCK/WHATAP/JENNIFER 모두 포함됩니다.\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!await customConfirm(`${scope}의 호출이력(apm_call_data)을 삭제하시겠습니까?\nMOCK/WHATAP/JENNIFER 모두 포함됩니다.\n이 작업은 되돌릴 수 없습니다.`)) return;
     if (!await verifyPwPrompt()) return;
     try {
       const url = `/api/apm/data?repoName=${encodeURIComponent(repoName)}&source=ALL`;
@@ -1274,7 +1291,7 @@
   async function runArchive(dryRun) {
     const keepDays = parseInt(document.getElementById('archKeepDays').value) || 365;
     const resEl = document.getElementById('archResult');
-    if (!dryRun && !confirm(`${keepDays}일 이전의 APM 호출이력을 CSV로 백업하고 DB에서 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!dryRun && !await customConfirm(`${keepDays}일 이전의 APM 호출이력을 CSV로 백업하고 DB에서 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     resEl.innerHTML = '<span style="color:var(--text-muted);">처리 중...</span>';
     try {
       const res = await adminFetch('/api/apm/archive', {

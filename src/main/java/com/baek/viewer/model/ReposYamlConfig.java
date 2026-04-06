@@ -19,6 +19,8 @@ public class ReposYamlConfig {
         private Integer reviewThreshold;
         private String password;
         private String gitBinPath;
+        private Integer pageSize;
+        private Integer pageNavSize;
         private List<String> teams;
         private List<WhatapProfile> whatapProfiles;
         private List<JenniferProfile> jenniferProfiles;
@@ -31,6 +33,10 @@ public class ReposYamlConfig {
         public void setPassword(String password) { this.password = password; }
         public String getGitBinPath() { return gitBinPath; }
         public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
+        public Integer getPageSize() { return pageSize; }
+        public void setPageSize(Integer pageSize) { this.pageSize = pageSize; }
+        public Integer getPageNavSize() { return pageNavSize; }
+        public void setPageNavSize(Integer pageNavSize) { this.pageNavSize = pageNavSize; }
         public List<String> getTeams() { return teams; }
         public void setTeams(List<String> teams) { this.teams = teams; }
         public List<WhatapProfile> getWhatapProfiles() { return whatapProfiles; }

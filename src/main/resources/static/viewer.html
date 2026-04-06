@@ -223,6 +223,7 @@
     .toast.info    { background:var(--purple); }
   </style>
   <script src="/exceljs.min.js"></script>
+  <script src="/js/dialog.js"></script>
 </head>
 <body>
 
@@ -391,6 +392,7 @@
       </tbody>
     </table>
   </div>
+  <div class="pagination" id="viewerPagination" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:10px;padding:8px 0;font-size:12px;"></div>
 </div>
 
 <!-- 상태 변경건 알림 모달 -->
@@ -495,6 +497,7 @@
   let sortKey = 'apiPath', sortAsc = true;
   let selectedIds = new Set(); // api id 기준
   let repoConfigMap = {}; // repoName → {team, manager}
+  let vPageSize = 200, vPageNavSize = 10, vCurrentPage = 0;
   let reviewThreshold = 3; // default, 서버에서 갱신
   let teamsList = [];      // 팀 자동완성 목록
 
@@ -511,6 +514,8 @@
       try {
         const g = await globalRes.json();
         if (g.reviewThreshold) reviewThreshold = g.reviewThreshold;
+        if (g.pageSize) vPageSize = g.pageSize;
+        if (g.pageNavSize) vPageNavSize = g.pageNavSize;
         // 팀 목록을 datalist에 반영 (자동완성)
         if (g.teams) {
           try {
@@ -744,7 +749,30 @@
   }
 
   let activeFilter = '';
+  // ── 페이징 ──────────────────────────────────────────────
+  function renderViewerPagination(totalItems, totalPages) {
+    const el = document.getElementById('viewerPagination');
+    if (totalPages <= 1) { el.innerHTML = `<span style="color:var(--text-muted);">총 ${totalItems}건</span>`; return; }
+    const cur = vCurrentPage;
+    let html = `<span style="color:var(--text-muted);">총 ${totalItems.toLocaleString()}건 / ${totalPages}페이지</span>`;
+    html += `<button class="page-btn" onclick="vGotoPage(0)" ${cur===0?'disabled':''} style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;font-size:11px;">≪</button>`;
+    html += `<button class="page-btn" onclick="vGotoPage(${cur-1})" ${cur===0?'disabled':''} style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;font-size:11px;">‹</button>`;
+    const half = Math.floor(vPageNavSize / 2);
+    let start = Math.max(0, cur - half);
+    let end = Math.min(totalPages - 1, start + vPageNavSize - 1);
+    if (end - start + 1 < vPageNavSize) start = Math.max(0, end - vPageNavSize + 1);
+    for (let i = start; i <= end; i++) {
+      const active = i === cur ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+      html += `<button onclick="vGotoPage(${i})" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;font-size:11px;min-width:30px;${active}">${i+1}</button>`;
+    }
+    html += `<button class="page-btn" onclick="vGotoPage(${cur+1})" ${cur>=totalPages-1?'disabled':''} style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;font-size:11px;">›</button>`;
+    html += `<button class="page-btn" onclick="vGotoPage(${totalPages-1})" ${cur>=totalPages-1?'disabled':''} style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;font-size:11px;">≫</button>`;
+    el.innerHTML = html;
+  }
+  function vGotoPage(p) { vCurrentPage = Math.max(0, p); filterTable(); window.scrollTo({top:0, behavior:'smooth'}); }
+
   function setFilter(val) {
+    vCurrentPage = 0; // 필터 변경 시 첫 페이지로
     activeFilter = val;
     document.querySelectorAll('.stat-pill').forEach(p => p.classList.remove('active-filter'));
     if (val === '') { document.getElementById('pill-all').classList.add('active-filter'); }
@@ -769,8 +797,8 @@
       return a && a.status === '삭제';
     });
     if (!ids.length) { showToast('삭제 상태 항목이 선택되지 않았습니다.','error'); return; }
-    if (!confirm(`선택된 ${ids.length}건을 DB에서 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    const pw = prompt('관리자 비밀번호를 다시 입력하세요:');
+    if (!await customConfirm(`선택된 ${ids.length}건을 DB에서 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    const pw = await customPrompt('관리자 비밀번호를 다시 입력하세요:', {type:'password', title:'🔑 비밀번호 확인'});
     if (!pw) return;
     try {
       const pwRes = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
@@ -844,18 +872,25 @@
     });
 
     document.getElementById('filterCount').textContent = `${filteredApis.length} / ${allApis.length}건`;
-    renderRows(filteredApis);
+    // 페이지 범위 내 렌더링
+    const totalPages = Math.max(1, Math.ceil(filteredApis.length / vPageSize));
+    if (vCurrentPage >= totalPages) vCurrentPage = totalPages - 1;
+    const pageStart = vCurrentPage * vPageSize;
+    const pageSlice = filteredApis.slice(pageStart, pageStart + vPageSize);
+    renderRows(pageSlice, pageStart);
+    renderViewerPagination(filteredApis.length, totalPages);
     syncCheckAll();
   }
 
   // ── 테이블 렌더 ───────────────────────────────────────────
-  function renderRows(list) {
+  function renderRows(list, startOffset) {
+    const off = startOffset || 0;
     const tbody = document.getElementById('tbody');
     if (!list.length) {
       tbody.innerHTML = '<tr><td colspan="28"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = list.map(a => {
+    tbody.innerHTML = list.map((a, idx) => {
       const checked = selectedIds.has(a.id) ? 'checked' : '';
       const locked = a.statusOverridden;
       const isBlocked = a.status === '차단완료';
@@ -869,7 +904,7 @@
         : `<span class="lock-btn lock-off" onclick="toggleLock(${a.id},true)" title="클릭하여 확정">미확정</span>`;
       return `
       <tr class="${rowCls}" id="row-${a.id}">
-        <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;"><input type="checkbox" data-id="${a.id}" ${checked} ${isBlocked?'disabled':''} onchange="toggleRow(this)"></td>
+        <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;text-align:center;font-size:10px;color:var(--text-muted);">${off+idx+1}<br><input type="checkbox" data-id="${a.id}" ${checked} ${isBlocked?'disabled':''} onchange="toggleRow(this)"></td>
         <td class="sk" style="left:36px;min-width:46px;width:46px;text-align:center;"><button class="btn btn-ghost btn-sm" onclick="openDetail(${a.id})" style="padding:2px 6px;font-size:10px;">상세</button></td>
         <td class="sk" style="left:82px;min-width:52px;width:52px;text-align:center;">${lockIcon}</td>
         <td class="sk" style="left:134px;min-width:110px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b></td>
@@ -938,7 +973,7 @@
       return (a.isNew || a['new']) || a.statusChanged || a.status === '삭제';
     });
     if (!targetIds.length) { showToast('알림 대상 항목이 선택되지 않았습니다.','error'); return; }
-    if (!confirm(`${targetIds.length}개 항목의 알림 플래그(신규/상태변경)를 해제하시겠습니까?`)) return;
+    if (!await customConfirm(`${targetIds.length}개 항목의 알림 플래그(신규/상태변경)를 해제하시겠습니까?`)) return;
     try {
       const res = await fetch('/api/db/clear-alerts', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:targetIds}) });
       const data = await res.json();
@@ -971,7 +1006,7 @@
 
   async function clearStatusFlag(event, id) {
     event.stopPropagation();
-    if (!confirm('상태변경 플래그를 해제하시겠습니까?')) return;
+    if (!await customConfirm('상태변경 플래그를 해제하시겠습니까?')) return;
     try {
       const res = await fetch('/api/db/clear-status-change', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id]}) });
       if (!res.ok) throw new Error('서버 오류');
@@ -1000,7 +1035,7 @@
       return a && a.status !== '차단완료';
     });
     if (!ids.length) { showToast('차단완료 항목은 확정/해제할 수 없습니다.','error'); return; }
-    if (!confirm(`${ids.length}개 항목을 ${lock?'상태 확정':'확정 해제'}하시겠습니까?`)) return;
+    if (!await customConfirm(`${ids.length}개 항목을 ${lock?'상태 확정':'확정 해제'}하시겠습니까?`)) return;
     try {
       await fetch('/api/db/status', { method:'PATCH', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ ids, statusOverridden: lock }) });
@@ -1057,6 +1092,7 @@
                         isDeprecated:14, apiOperationValue:15, callCount:16, callCountMonth:17, callCountWeek:18,
                         status:19, blockCriteria:20, blockedDate:21, reviewResult:24, lastAnalyzedAt:26, modifiedAt:27 };
   function sortBy(key) {
+    vCurrentPage = 0; // 정렬 변경 시 첫 페이지로
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
     const idx = colIndexMap[key];
@@ -1164,7 +1200,7 @@
     if (mgrVal)  { body.managerOverride = mgrVal; parts.push('담당자→' + mgrVal); }
 
     if (!parts.length) { showToast('변경할 항목을 선택하세요.', 'error'); return; }
-    if (!confirm(`선택된 ${selectedIds.size}개 항목: ${parts.join(', ')} 변경하시겠습니까?`)) return;
+    if (!await customConfirm(`선택된 ${selectedIds.size}개 항목: ${parts.join(', ')} 변경하시겠습니까?`)) return;
 
     try {
       const res = await fetch('/api/db/status', {
@@ -1704,12 +1740,12 @@
   }
   async function toggleAdmin() {
     if (isAdmin()) { sessionStorage.removeItem('isAdmin'); sessionStorage.removeItem('adminToken'); applyAdminUI(); showToast('관리자 모드 해제','info'); return; }
-    const pw = prompt('관리자 비밀번호를 입력하세요:');
+    const pw = await customPrompt('관리자 비밀번호를 입력하세요:', {type:'password', title:'🔑 관리자 인증'});
     if (!pw) return;
     try {
       const res = await fetch('/api/verify-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
       const d = await res.json();
-      if (d.valid) { sessionStorage.setItem('isAdmin','true'); sessionStorage.setItem('adminToken',d.token); applyAdminUI(); showToast('관리자 모드 활성화','success'); }
+      if (d.valid) { sessionStorage.setItem('isAdmin','true'); sessionStorage.setItem('adminToken',d.token); applyAdminUI(); location.href = '/settings.html'; }
       else showToast('비밀번호가 일치하지 않습니다.','error');
     } catch(e) { showToast('확인 실패','error'); }
   }

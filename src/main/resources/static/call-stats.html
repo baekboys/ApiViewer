@@ -100,6 +100,7 @@
     .toast.error{background:var(--danger);} .toast.success{background:var(--success);}
   </style>
   <script src="/exceljs.min.js"></script>
+  <script src="/js/dialog.js"></script>
 </head>
 <body>
 <div class="header">
@@ -202,6 +203,7 @@
     </div>
     <table id="apiTable">
       <thead><tr>
+        <th style="width:40px;text-align:center;">No.</th>
         <th class="sortable" onclick="toggleSort('apiPath')">URL <span class="sort-icon" id="sort-apiPath"></span></th>
         <th>레포</th>
         <th class="num sortable" onclick="toggleSort('totalAll')">총 건수<br><span style="font-weight:400;font-size:9px;">(전체)</span> <span class="sort-icon" id="sort-totalAll"></span></th>
@@ -211,7 +213,7 @@
         <th class="num sortable" onclick="toggleSort('totalError')">에러(전체) <span class="sort-icon" id="sort-totalError"></span></th>
         <th class="num">상세</th>
       </tr></thead>
-      <tbody id="apiTbody"><tr><td colspan="8" class="empty">조회 결과가 여기 표시됩니다.</td></tr></tbody>
+      <tbody id="apiTbody"><tr><td colspan="9" class="empty">조회 결과가 여기 표시됩니다.</td></tr></tbody>
     </table>
     <div class="pagination" id="pagination"></div>
   </div>
@@ -239,7 +241,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  let currentPage = 0, currentSize = 50, currentSort = 'totalYear', currentDir = 'desc';
+  let currentPage = 0, currentSize = 200, currentSort = 'totalYear', currentDir = 'desc';
+  let pageNavSize = 10;
   let currentDetail = { repo:'', apiPath:'', tab:'daily' };
 
   function showToast(msg, type='success') {
@@ -254,6 +257,13 @@
   function fmt(n) { return (n||0).toLocaleString(); }
 
   async function init() {
+    // 글로벌 설정에서 pageSize, pageNavSize 로드
+    try {
+      const gRes = await fetch('/api/config/global');
+      const g = await gRes.json();
+      if (g.pageSize) currentSize = g.pageSize;
+      if (g.pageNavSize) pageNavSize = g.pageNavSize;
+    } catch(e) {}
     // 기본 기간: 최근 1년
     const today = new Date();
     const from = new Date(today); from.setDate(today.getDate() - 365);
@@ -367,9 +377,8 @@
       const d = await res.json();
       const tbody = document.getElementById('apiTbody');
       if (!d.items || d.items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">검색 결과가 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">검색 결과가 없습니다.</td></tr>';
       } else {
-        // 현재 페이지 내 최대값 계산 (미니바 비율용)
         const maxAll   = Math.max(1, ...d.items.map(i => i.totalAll));
         const maxYear  = Math.max(1, ...d.items.map(i => i.totalYear));
         const maxMonth = Math.max(1, ...d.items.map(i => i.totalMonth));
@@ -381,8 +390,10 @@
             <span style="position:relative;">${fmt(val)}</span>
           </td>`;
         };
-        tbody.innerHTML = d.items.map(a => `
+        const startNo = d.page * d.size;
+        tbody.innerHTML = d.items.map((a, idx) => `
           <tr>
+            <td style="text-align:center;color:var(--text-muted);font-size:11px;">${startNo + idx + 1}</td>
             <td><div class="api-path">${esc(a.apiPath)}</div></td>
             <td><span class="repo-badge">${esc(a.repoName)}</span></td>
             ${cell(a.totalAll, maxAll, '#64748b')}
@@ -406,9 +417,11 @@
     let html = `<span class="page-info">총 ${fmt(data.totalElements)}건 / ${total}페이지</span>`;
     html += `<button class="page-btn" onclick="gotoPage(0)" ${cur===0?'disabled':''}>≪</button>`;
     html += `<button class="page-btn" onclick="gotoPage(${cur-1})" ${cur===0?'disabled':''}>‹</button>`;
-    // 페이지 번호 (현재 ±3)
-    const start = Math.max(0, cur - 3);
-    const end   = Math.min(total - 1, cur + 3);
+    // 페이지 번호 (글로벌 설정 pageNavSize 기준)
+    const half = Math.floor(pageNavSize / 2);
+    let start = Math.max(0, cur - half);
+    let end   = Math.min(total - 1, start + pageNavSize - 1);
+    if (end - start + 1 < pageNavSize) start = Math.max(0, end - pageNavSize + 1);
     for (let i = start; i <= end; i++) {
       html += `<button class="page-btn ${i===cur?'active':''}" onclick="gotoPage(${i})">${i+1}</button>`;
     }
@@ -648,9 +661,11 @@
         <span><span style="display:inline-block;width:12px;height:12px;background:#ec4899;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>에러건수</span>
       </div>`;
 
-    // 스크롤 우측 끝 (최신 날짜)
-    const wrap = document.getElementById('csChartWrap');
-    if (wrap) wrap.scrollLeft = wrap.scrollWidth;
+    // 스크롤 우측 끝 (최신 날짜) — DOM 렌더링 완료 후 실행
+    setTimeout(() => {
+      const wrap = document.getElementById('csChartWrap');
+      if (wrap) wrap.scrollLeft = wrap.scrollWidth;
+    }, 50);
 
     // 플로팅 툴팁
     let tip = document.getElementById('csChartTooltip');

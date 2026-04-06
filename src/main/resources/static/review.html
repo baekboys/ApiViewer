@@ -120,6 +120,7 @@
     .btn-cancel:hover{background:#334155;}
   </style>
   <script src="/exceljs.min.js"></script>
+  <script src="/js/dialog.js"></script>
 </head>
 <body>
 <div class="header">
@@ -391,7 +392,7 @@
     if(rvT) body.reviewTeam=rvT;
     if(rvM) body.reviewManager=rvM;
     if(Object.keys(body).length<=1){showToast('변경할 내용을 입력하세요.','error');return;}
-    if(!confirm(`선택된 ${selectedIds.size}개 항목을 일괄 변경하시겠습니까?`)) return;
+    if(!await customConfirm(`선택된 ${selectedIds.size}개 항목을 일괄 변경하시겠습니까?`)) return;
     try{
       const res=await fetch('/api/db/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const data=await res.json(); if(!res.ok) throw new Error(data.error);
@@ -434,9 +435,9 @@
   }
   async function toggleAdmin(){
     if(isAdmin()){sessionStorage.removeItem('isAdmin');sessionStorage.removeItem('adminToken');applyAdminUI();showToast('관리자 모드 해제','info');return;}
-    const pw=prompt('관리자 비밀번호를 입력하세요:');if(!pw)return;
+    const pw = await customPrompt('관리자 비밀번호를 입력하세요:', {type:'password', title:'🔑 관리자 인증'}); if(!pw) return;
     try{const res=await fetch('/api/verify-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});const d=await res.json();
-    if(d.valid){sessionStorage.setItem('isAdmin','true');sessionStorage.setItem('adminToken',d.token);applyAdminUI();showToast('관리자 모드 활성화','success');}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
+    if(d.valid){sessionStorage.setItem('isAdmin','true');sessionStorage.setItem('adminToken',d.token);applyAdminUI();location.href='/settings.html';}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
   }
   applyAdminUI();
   loadReviewData();

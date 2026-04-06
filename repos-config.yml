@@ -8,6 +8,8 @@ global:
   reviewThreshold: 3      # 호출건수 기준으로 차단대상 판단 시 1~최대 허용할수 있는 건수, 예) 1~3건은 차단대상으로 본다.
   password: "lotte1!"
   gitBinPath: git
+  pageSize: 200            # 페이지당 표시 건수 (URL호출현황 등)
+  pageNavSize: 10          # 페이지 네비게이션 표시 개수
 
   # 팀 목록 (현업검토/담당자 입력 시 자동완성용 — 오타/공백 방지)
   teams:

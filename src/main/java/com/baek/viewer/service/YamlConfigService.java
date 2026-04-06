@@ -82,6 +82,8 @@ public class YamlConfigService {
             }
             if (g.getReviewThreshold() != null) gc.setReviewThreshold(g.getReviewThreshold());
             if (g.getPassword() != null) gc.setPassword(g.getPassword());
+            if (g.getPageSize() != null) gc.setPageSize(g.getPageSize());
+            if (g.getPageNavSize() != null) gc.setPageNavSize(g.getPageNavSize());
 
             // teams, 와탭/제니퍼 공통 프로필 JSON 저장
             try {

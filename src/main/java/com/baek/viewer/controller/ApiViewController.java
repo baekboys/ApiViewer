@@ -69,10 +69,9 @@ public class ApiViewController {
             String token = authService.issueToken();
             log.info("[인증 성공] 토큰 발급");
             // HTML 페이지 보호용 쿠키 (세션 쿠키 — 브라우저 종료 시 삭제)
-            jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("adminToken", token);
-            cookie.setPath("/");
-            cookie.setHttpOnly(false); // JS에서도 체크 가능하게
-            response.addCookie(cookie);
+            // Set-Cookie 직접 작성: SameSite=Lax 명시 (크로스사이트 안전 + 도메인/ngrok 호환)
+            String cookieValue = String.format("adminToken=%s; Path=/; SameSite=Lax", token);
+            response.addHeader("Set-Cookie", cookieValue);
             return ResponseEntity.ok(Map.of("valid", true, "token", token));
         }
         log.warn("[인증 실패] 비밀번호 불일치");

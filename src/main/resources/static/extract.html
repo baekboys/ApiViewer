@@ -115,6 +115,7 @@
     .log-empty { color: #475569; padding: 20px; text-align: center; }
   </style>
   <script src="/exceljs.min.js"></script>
+  <script src="/js/dialog.js"></script>
 </head>
 <body>
 
@@ -131,14 +132,14 @@
     } catch(e) {}
   }
   if (sessionStorage.getItem('isAdmin') === 'true') return;
-  const pw = prompt('관리자 비밀번호를 입력하세요:');
+  const pw = await customPrompt('관리자 비밀번호를 입력하세요:', {type:'password', title:'🔑 관리자 인증'});
   if (!pw) { location.href = '/'; return; }
   try {
     const res = await fetch('/api/verify-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
     const d = await res.json();
     if (d.valid) { sessionStorage.setItem('isAdmin','true'); sessionStorage.setItem('adminToken',d.token); }
-    else { alert('비밀번호가 일치하지 않습니다.'); location.href = '/'; }
-  } catch(e) { alert('인증 실패'); location.href = '/'; }
+    else { await customAlert('비밀번호가 일치하지 않습니다.', {title:'인증 실패'}); location.href = '/'; }
+  } catch(e) { await customAlert('인증 실패', {title:'오류'}); location.href = '/'; }
 })();
 </script>
 <script>
@@ -457,7 +458,7 @@
     }
 
     const totalSteps = targets.reduce((s, t) => s + t.sources.length + 1, 0); // 수집 + 집계
-    if (!confirm(`모든 레포에 대해 ${label}을 실행하시겠습니까?\n대상 레포: ${targets.length}개 / 작업 수: ${totalSteps}단계\n(각 레포의 APM 최대 기간까지 수집)`)) return;
+    if (!await customConfirm(`모든 레포에 대해 ${label}을 실행하시겠습니까?\n대상 레포: ${targets.length}개 / 작업 수: ${totalSteps}단계\n(각 레포의 APM 최대 기간까지 수집)`)) return;
 
     clearLogs(); hideResult();
     showWorkCard(true, `APM ${label}`);
@@ -603,7 +604,7 @@
     const repoName = scope === 'all' ? 'ALL' : document.getElementById('apmCollectRepo').value;
     if (scope !== 'all' && !repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
     const label = scope === 'all' ? '전체 레포의 MOCK 데이터' : `"${repoName}"의 MOCK 데이터`;
-    if (!confirm(`${label}를 삭제하시겠습니까?\nWHATAP/JENNIFER 데이터는 유지됩니다.`)) return;
+    if (!await customConfirm(`${label}를 삭제하시겠습니까?\nWHATAP/JENNIFER 데이터는 유지됩니다.`)) return;
     clearLogs(); hideResult();
     showWorkCard(true, `MOCK 삭제`);
     addLocalLog('INFO', `── MOCK 삭제 시작: ${label} ──`);

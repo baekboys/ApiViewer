@@ -21,6 +21,14 @@ public class GlobalConfig {
     @Column(name = "password", length = 100)
     private String password;
 
+    /** 페이지당 표시 건수 (기본 200) */
+    @Column(name = "page_size")
+    private Integer pageSize = 200;
+
+    /** 페이지 네비게이션 표시 개수 (기본 10) */
+    @Column(name = "page_nav_size")
+    private Integer pageNavSize = 10;
+
     /** 팀 목록 JSON: ["IT카드개발팀","IT커머스개발팀"] — 자동완성용 */
     @Column(name = "teams", columnDefinition = "TEXT")
     private String teams;
@@ -42,6 +50,10 @@ public class GlobalConfig {
     public void setReviewThreshold(Integer reviewThreshold) { this.reviewThreshold = reviewThreshold; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    public Integer getPageSize() { return pageSize != null ? pageSize : 200; }
+    public void setPageSize(Integer pageSize) { this.pageSize = pageSize; }
+    public Integer getPageNavSize() { return pageNavSize != null ? pageNavSize : 10; }
+    public void setPageNavSize(Integer pageNavSize) { this.pageNavSize = pageNavSize; }
     public String getTeams() { return teams; }
     public void setTeams(String teams) { this.teams = teams; }
     public String getWhatapProfiles() { return whatapProfiles; }

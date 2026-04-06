@@ -14,7 +14,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
 
-    .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); }
+    .header { position:sticky;top:0;z-index:50; background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); }
     .header h1 { font-size: 18px; font-weight: 700; color: var(--primary); }
     .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
     .tag { font-size: 11px; background: #ede9fe; color: #5b21b6; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
@@ -1020,6 +1020,7 @@
     const hRow = ws.addRow(headers);
     hRow.eachCell(cell => { cell.font={bold:true}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
     ws.columns = headers.map(h => ({width: Math.max(h.length*2, 12)}));
+    ws.autoFilter = {from:'A1', to:`${String.fromCharCode(64+headers.length)}1`};
     wb.xlsx.writeBuffer().then(buf => {
       const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
@@ -1060,6 +1061,7 @@
     ws.getColumn(1).width = 30;
     ws.getColumn(6).width = 52;
     ws.getColumn(7).width = 22;
+    ws.autoFilter = {from:'A1', to:`${String.fromCharCode(64+headers.length)}1`};
 
     wb.xlsx.writeBuffer().then(buf => {
       const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});

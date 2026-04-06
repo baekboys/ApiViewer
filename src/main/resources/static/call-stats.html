@@ -13,7 +13,7 @@
     }
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
-    .header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
+    .header{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
     .header h1{font-size:18px;font-weight:700;color:var(--primary);}
     .header-sub{font-size:12px;color:var(--text-muted);background:#f1f5f9;padding:3px 10px;border-radius:4px;font-weight:600;}
     .header-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
@@ -85,7 +85,7 @@
 
     /* 상세 모달 */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;align-items:center;justify-content:center;}
-    .modal{background:var(--card);border-radius:12px;width:900px;max-width:92%;max-height:90vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);}
+    .modal{background:var(--card);border-radius:12px;width:1000px;max-width:95%;max-height:90vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);}
     .modal-header{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;}
     .modal-header h3{font-size:14px;font-weight:700;}
     .modal-body{padding:16px 22px;}
@@ -99,6 +99,7 @@
     .toast.show{opacity:1;}
     .toast.error{background:var(--danger);} .toast.success{background:var(--success);}
   </style>
+  <script src="/exceljs.min.js"></script>
 </head>
 <body>
 <div class="header">
@@ -225,8 +226,8 @@
     </div>
     <div class="modal-body">
       <div class="tab-bar">
-        <button class="tab-btn active" id="tabDaily" onclick="switchDetailTab('daily')">일별</button>
-        <button class="tab-btn" id="tabMonthly" onclick="switchDetailTab('monthly')">월별</button>
+        <button class="tab-btn active" id="tabList" onclick="switchDetailTab('list')">📋 목록</button>
+        <button class="tab-btn" id="tabChart" onclick="switchDetailTab('chart')">📊 그래프 (1년)</button>
       </div>
       <div id="detailBody">
         <div class="loading">로딩 중...</div>
@@ -431,54 +432,312 @@
   async function openDetail(repo, apiPath) {
     currentDetail.repo = repo;
     currentDetail.apiPath = apiPath;
-    currentDetail.tab = 'daily';
+    currentDetail.tab = 'list';
     document.getElementById('detailTitle').textContent = `${apiPath}  (${repo})`;
     document.getElementById('detailModal').style.display = 'flex';
-    document.getElementById('tabDaily').classList.add('active');
-    document.getElementById('tabMonthly').classList.remove('active');
+    document.getElementById('tabList').classList.add('active');
+    document.getElementById('tabChart').classList.remove('active');
     await loadDetail();
   }
-  function closeDetail() { document.getElementById('detailModal').style.display = 'none'; }
+  function closeDetail() {
+    document.getElementById('detailModal').style.display = 'none';
+    const tip = document.getElementById('csChartTooltip'); if (tip) tip.style.display = 'none';
+  }
   function switchDetailTab(tab) {
     currentDetail.tab = tab;
-    document.getElementById('tabDaily').classList.toggle('active', tab==='daily');
-    document.getElementById('tabMonthly').classList.toggle('active', tab==='monthly');
+    document.getElementById('tabList').classList.toggle('active', tab==='list');
+    document.getElementById('tabChart').classList.toggle('active', tab==='chart');
     loadDetail();
   }
+
   async function loadDetail() {
-    document.getElementById('detailBody').innerHTML = '<div class="loading">로딩 중...</div>';
+    const body = document.getElementById('detailBody');
+    body.innerHTML = '<div class="loading">로딩 중...</div>';
+
+    if (currentDetail.tab === 'chart') {
+      await loadDetailChart();
+      return;
+    }
+    await loadDetailList();
+  }
+
+  // ── 목록 탭 (월별합계 체��� 시 월요약 + 일별 목록) ────────
+  // 상세 목록 데이터 (엑셀용 보존)
+  let detailMonthRows = [], detailDailyRows = [];
+
+  async function loadDetailList() {
+    const body = document.getElementById('detailBody');
     const params = new URLSearchParams();
     params.set('repo', currentDetail.repo);
     params.set('apiPath', currentDetail.apiPath);
-    const from = document.getElementById('fromDate').value;
-    const to   = document.getElementById('toDate').value;
-    if (from) params.set('from', from);
-    if (to)   params.set('to', to);
+    const to = new Date().toLocaleDateString('sv-SE');
+    const from = new Date(Date.now()-364*86400000).toLocaleDateString('sv-SE');
+    params.set('from', from);
+    params.set('to', to);
     try {
-      const res = await fetch(`/api/call-stats/${currentDetail.tab}?${params}`);
-      const d = await res.json();
-      const rows = d.rows || [];
-      if (!rows.length) {
-        document.getElementById('detailBody').innerHTML = '<div class="empty">데이터 없음</div>';
+      const [monthRes, dailyRes] = await Promise.all([
+        fetch(`/api/call-stats/monthly?${params}`),
+        fetch(`/api/call-stats/daily?${params}`)
+      ]);
+      const monthData = await monthRes.json();
+      const dailyData = await dailyRes.json();
+      const monthRows = monthData.rows || [];
+      const dailyRows = dailyData.rows || [];
+      detailMonthRows = monthRows;
+      detailDailyRows = dailyRows;
+
+      if (!dailyRows.length && !monthRows.length) {
+        body.innerHTML = '<div class="empty">데이터 없음</div>';
         return;
       }
-      const labelKey = currentDetail.tab === 'daily' ? 'callDate' : 'month';
-      const labelTitle = currentDetail.tab === 'daily' ? '일자' : '월';
-      document.getElementById('detailBody').innerHTML = `
-        <table>
-          <thead><tr>
-            <th>${labelTitle}</th><th>APM 종류</th><th class="num">호출건수</th><th class="num">에러건수</th>
-          </tr></thead>
-          <tbody>${rows.map(r => `<tr>
-            <td>${esc(r[labelKey])}</td>
-            <td><span class="src-badge src-${r.source}">${esc(r.source)}</span></td>
-            <td class="num">${fmt(r.callCount)}</td>
-            <td class="num" style="color:${r.errorCount>0?'#dc2626':'inherit'};">${fmt(r.errorCount)}</td>
-          </tr>`).join('')}</tbody>
-        </table>`;
+
+      // URL 경로 헤더 + 엑셀 다운로드 버튼
+      let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="flex:1;font-size:13px;font-weight:700;padding:10px 14px;background:#f0fdf4;border-left:4px solid #22c55e;border-radius:4px;color:#166534;font-family:monospace;word-break:break-all;">
+          📍 ${esc(currentDetail.apiPath)}</div>
+        <button class="btn" style="background:#22c55e;color:#fff;height:34px;flex-shrink:0;" onclick="downloadDetailExcel()">⬇ 엑셀 다운로드</button>
+      </div>`;
+
+      // 월별 합계
+      if (monthRows.length > 0) {
+        const monthMap = {};
+        monthRows.forEach(r => {
+          const key = r.month;
+          if (!monthMap[key]) monthMap[key] = { month: key, callCount: 0, errorCount: 0 };
+          monthMap[key].callCount += r.callCount;
+          monthMap[key].errorCount += r.errorCount;
+        });
+        const months = Object.values(monthMap).sort((a,b) => b.month.localeCompare(a.month));
+        const totalCall = months.reduce((s,m) => s + m.callCount, 0);
+        const totalErr = months.reduce((s,m) => s + m.errorCount, 0);
+        html += `<div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">📅 월별 합계</div>
+          <table><thead><tr>
+            <th>월</th><th class="num">호출건수</th><th class="num">에러건수</th>
+          </tr></thead><tbody>
+          ${months.map(m => `<tr>
+            <td style="font-weight:600;">${esc(m.month)}</td>
+            <td class="num">${fmt(m.callCount)}</td>
+            <td class="num" style="color:${m.errorCount>0?'#dc2626':'inherit'};">${fmt(m.errorCount)}</td>
+          </tr>`).join('')}
+          <tr style="border-top:2px solid var(--border);font-weight:700;background:#f1f5f9;">
+            <td>합계</td>
+            <td class="num">${fmt(totalCall)}</td>
+            <td class="num" style="color:${totalErr>0?'#dc2626':'inherit'};">${fmt(totalErr)}</td>
+          </tr>
+          </tbody></table></div>`;
+      }
+
+      // 일별 목록 (헤더 고정)
+      html += `<div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">📋 일별 상세 (${fmt(dailyRows.length)}건)</div>
+        <div style="max-height:400px;overflow:auto;">
+        <table><thead style="position:sticky;top:0;z-index:1;"><tr>
+          <th>일자</th><th>APM 종류</th><th class="num">호출건수</th><th class="num">에러건수</th>
+        </tr></thead><tbody>
+        ${dailyRows.map(r => `<tr>
+          <td>${esc(r.callDate)}</td>
+          <td><span class="src-badge src-${r.source}">${esc(r.source)}</span></td>
+          <td class="num">${fmt(r.callCount)}</td>
+          <td class="num" style="color:${r.errorCount>0?'#dc2626':'inherit'};">${fmt(r.errorCount)}</td>
+        </tr>`).join('')}
+        </tbody></table></div></div>`;
+
+      body.innerHTML = html;
     } catch(e) {
-      document.getElementById('detailBody').innerHTML = `<div class="empty">조회 실패: ${esc(e.message)}</div>`;
+      body.innerHTML = `<div class="empty">조회 실패: ${esc(e.message)}</div>`;
     }
+  }
+
+  // ── 그래프 탭 (1년 일단위 차트 — viewer와 동일) ────────
+  async function loadDetailChart() {
+    const body = document.getElementById('detailBody');
+    try {
+      const url = `/api/apm/chart?repoName=${encodeURIComponent(currentDetail.repo)}&apiPath=${encodeURIComponent(currentDetail.apiPath)}&bucket=daily&days=365`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('조회 실패');
+      const data = await res.json();
+      renderDetailChartSvg(data);
+    } catch(e) {
+      body.innerHTML = `<div class="empty">조회 실패: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function renderDetailChartSvg(data) {
+    const body = document.getElementById('detailBody');
+    const buckets = data.buckets || [];
+    const totalCall = buckets.reduce((s,b) => s + (b.callCount||0), 0);
+    const totalErr  = buckets.reduce((s,b) => s + (b.errorCount||0), 0);
+    const maxCall   = Math.max(0, ...buckets.map(b => b.callCount || 0));
+
+    const header = `<div style="font-size:14px;font-weight:700;padding:10px 14px;margin-bottom:8px;background:#f0fdf4;border-left:4px solid #22c55e;border-radius:4px;color:#166534;font-family:monospace;word-break:break-all;">
+      📍 ${esc(data.apiPath)}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
+        <b>${esc(data.repoName)}</b> · 일단위 · 최근 1년 ·
+        합계 호출 <b style="color:#16a34a;">${fmt(totalCall)}</b>건 ·
+        합계 에러 <b style="color:#db2777;">${fmt(totalErr)}</b>건 ·
+        기간 ${data.from} ~ ${data.to}
+      </div>`;
+
+    if (!buckets.length || totalCall === 0) {
+      body.innerHTML = header + '<div class="empty">해당 기간에 호출이력이 없습니다.</div>';
+      return;
+    }
+
+    // Y축 자동 스��일
+    const ys = calcYScale(maxCall);
+    const yMax = ys.yMax, tickStep = ys.tickStep;
+    const ticks = [];
+    for (let v = 0; v <= yMax; v += tickStep) ticks.push(v);
+
+    const chartHeight = 220;
+    let barWidth, barGap;
+    if (buckets.length <= 7) { barWidth = 70; barGap = 20; }
+    else if (buckets.length <= 31) { barWidth = 28; barGap = 6; }
+    else { barWidth = 20; barGap = 3; }
+    const chartMinWidth = buckets.length * (barWidth + barGap) + 10;
+
+    let labelSkip = 1;
+    if (buckets.length > 200) labelSkip = 14;
+    else if (buckets.length > 60) labelSkip = 7;
+    else if (buckets.length > 14) labelSkip = 2;
+
+    const yLabels = ticks.slice().reverse().map(v => `<div>${v.toLocaleString()}</div>`).join('');
+    const gridLines = ticks.map(v => {
+      const pct = (v / yMax) * 100;
+      return `<div style="position:absolute;left:0;right:0;bottom:${pct}%;height:1px;background:${v===0?'#94a3b8':'#e2e8f0'};"></div>`;
+    }).join('');
+
+    const columns = buckets.map(b => {
+      const call = b.callCount || 0;
+      const err = Math.min(b.errorCount || 0, call);
+      const callH = (call / yMax) * chartHeight;
+      const errH  = (err / yMax) * chartHeight;
+      const greenH = Math.max(0, callH - errH);
+      const ym = fmtYearMD(b.label);
+      const tip = `${ym.year} ${ym.md} ${ym.dow}\n호출: ${call.toLocaleString()}건\n에러: ${(b.errorCount||0).toLocaleString()}건`;
+      return `<div class="cs-chart-col" data-tip="${esc(tip)}" style="width:${barWidth}px;height:${chartHeight}px;margin-right:${barGap}px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;">
+        ${errH>0?`<div style="background:#ec4899;height:${errH}px;width:100%;"></div>`:''}
+        ${greenH>0?`<div style="background:#22c55e;height:${greenH}px;width:100%;"></div>`:''}
+      </div>`;
+    }).join('');
+
+    const xLabels = buckets.map((b, i) => {
+      const show = (i % labelSkip === 0) || i === buckets.length - 1;
+      if (!show) return `<div style="width:${barWidth}px;margin-right:${barGap}px;"></div>`;
+      const ym = fmtYearMD(b.label);
+      const dowColor = ym.dowIdx === 0 ? '#dc2626' : (ym.dowIdx === 6 ? '#2563eb' : '#64748b');
+      return `<div style="width:${barWidth}px;margin-right:${barGap}px;font-size:8px;color:#64748b;text-align:center;line-height:1.25;">
+        <span style="color:#94a3b8;">${esc(ym.year)}</span><br><span style="font-weight:600;color:#475569;">${esc(ym.md)}</span><br><span style="color:${dowColor};font-weight:600;">${esc(ym.dow)}</span>
+      </div>`;
+    }).join('');
+
+    body.innerHTML = header + `
+      <div style="display:flex;gap:8px;padding:10px;background:#fafbfc;border-radius:8px;">
+        <div style="display:flex;flex-direction:column;justify-content:space-between;height:${chartHeight}px;min-width:50px;text-align:right;font-size:10px;color:#64748b;">${yLabels}</div>
+        <div style="flex:1;overflow-x:auto;" id="csChartWrap">
+          <div style="position:relative;height:${chartHeight}px;min-width:${chartMinWidth}px;border-left:1px solid #94a3b8;border-bottom:1px solid #94a3b8;">
+            ${gridLines}
+            <div style="display:flex;align-items:flex-end;padding:0 4px;height:100%;position:relative;z-index:1;">${columns}</div>
+          </div>
+          <div style="display:flex;padding:0 4px;margin-top:6px;min-width:${chartMinWidth}px;min-height:36px;">${xLabels}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:16px;font-size:11px;color:var(--text-muted);">
+        <span><span style="display:inline-block;width:12px;height:12px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>호출건수</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#ec4899;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>에러건수</span>
+      </div>`;
+
+    // 스크롤 우측 끝 (최신 날짜)
+    const wrap = document.getElementById('csChartWrap');
+    if (wrap) wrap.scrollLeft = wrap.scrollWidth;
+
+    // 플로팅 툴팁
+    let tip = document.getElementById('csChartTooltip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'csChartTooltip';
+      tip.style.cssText = 'position:fixed;background:#1e293b;color:#fff;font-size:11px;line-height:1.5;padding:6px 10px;border-radius:6px;white-space:pre;pointer-events:none;z-index:300;box-shadow:0 2px 8px rgba(0,0,0,.3);display:none;';
+      document.body.appendChild(tip);
+    }
+    body.querySelectorAll('.cs-chart-col').forEach(col => {
+      col.addEventListener('mouseenter', () => { tip.textContent = col.dataset.tip||''; tip.style.display = 'block'; });
+      col.addEventListener('mousemove', e => {
+        let left = e.clientX+14, top = e.clientY-60;
+        if (left+140>window.innerWidth) left = e.clientX-154;
+        if (top<8) top = e.clientY+18;
+        tip.style.left=left+'px'; tip.style.top=top+'px';
+      });
+      col.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    });
+  }
+
+  // ── 상세 목록 엑셀 다운로드 ────��─────────────────────
+  async function downloadDetailExcel() {
+    const wb = new ExcelJS.Workbook();
+
+    // Sheet 1: 월별 합계
+    const ws1 = wb.addWorksheet('Monthly');
+    ws1.addRow([`URL: ${currentDetail.apiPath}`]);
+    ws1.addRow([`레포: ${currentDetail.repo}`]);
+    ws1.addRow([]);
+    const mh = ws1.addRow(['월', '호출건수', '에러건수']);
+    mh.eachCell(c => { c.font = {bold:true}; c.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
+    const monthMap = {};
+    detailMonthRows.forEach(r => {
+      if (!monthMap[r.month]) monthMap[r.month] = {callCount:0, errorCount:0};
+      monthMap[r.month].callCount += r.callCount;
+      monthMap[r.month].errorCount += r.errorCount;
+    });
+    Object.entries(monthMap).sort((a,b) => b[0].localeCompare(a[0])).forEach(([m,v]) => {
+      ws1.addRow([m, v.callCount, v.errorCount]);
+    });
+    ws1.columns = [{width:14},{width:14},{width:14}];
+    if (ws1.rowCount > 4) ws1.autoFilter = {from:'A4',to:'C4'};
+
+    // Sheet 2: 일별 상세
+    const ws2 = wb.addWorksheet('Daily');
+    ws2.addRow([`URL: ${currentDetail.apiPath}`]);
+    ws2.addRow([`레포: ${currentDetail.repo}`]);
+    ws2.addRow([]);
+    const dh = ws2.addRow(['일자', 'APM종류', '호출건수', '에러건수']);
+    dh.eachCell(c => { c.font = {bold:true}; c.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
+    detailDailyRows.forEach(r => {
+      ws2.addRow([r.callDate, r.source, r.callCount, r.errorCount]);
+    });
+    ws2.columns = [{width:14},{width:12},{width:14},{width:14}];
+    if (ws2.rowCount > 4) ws2.autoFilter = {from:'A4',to:'D4'};
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `호출현황_${currentDetail.repo}_${currentDetail.apiPath.replace(/\//g,'_')}.xlsx`;
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  // Y축 자동 스케일 (viewer와 동일)
+  function calcYScale(maxVal) {
+    if (maxVal <= 0) return { yMax: 10, tickStep: 1 };
+    const rough = maxVal / 8;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+    const normalized = rough / magnitude;
+    let tickStep;
+    if (normalized < 1.5) tickStep = 1 * magnitude;
+    else if (normalized < 3) tickStep = 2 * magnitude;
+    else if (normalized < 7) tickStep = 5 * magnitude;
+    else tickStep = 10 * magnitude;
+    const yMax = Math.ceil(maxVal / tickStep) * tickStep;
+    return { yMax, tickStep };
+  }
+
+  function fmtYearMD(s) {
+    if (!s) return { year:'', md:'', dow:'', dowIdx:-1 };
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!m) return { year:'', md:s, dow:'', dowIdx:-1 };
+    const d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+    const dowIdx = d.getDay();
+    const dowNames = ['일','월','화','수','목','금','토'];
+    return { year:`${m[1].slice(2)}년`, md:`${parseInt(m[2])}월${parseInt(m[3])}일`, dow:`(${dowNames[dowIdx]})`, dowIdx };
   }
 
   // Enter 키로 조회

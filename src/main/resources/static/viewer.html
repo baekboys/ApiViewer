@@ -234,7 +234,6 @@
   <span class="header-sub">URL분석현황</span>
   <div class="header-right">
     <a href="/"             class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link" id="navExtract" style="display:none;">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link nav-active">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
@@ -665,12 +664,12 @@
     // 서버에 새 분석이 있으면 "하루 안보기" 무시하고 표시
     if (maxAt && maxAt > lastSeen) return true;
     // 동일 분석 내에서는 "하루 안보기" 존중
-    return hideUntil !== new Date().toISOString().slice(0,10);
+    return hideUntil !== new Date().toLocaleDateString('sv-SE');
   }
   function markAlertSeen(type, hideToday) {
     localStorage.setItem(type + 'LastSeenAnalyzedAt', getMaxAnalyzedAt() || '');
     if (hideToday) {
-      localStorage.setItem(type + 'AlertHideUntil', new Date().toISOString().slice(0,10));
+      localStorage.setItem(type + 'AlertHideUntil', new Date().toLocaleDateString('sv-SE'));
       showToast('오늘 하루 알림이 표시되지 않습니다. (다음 분석 시 다시 표시됩니다)', 'info');
     }
   }
@@ -1334,7 +1333,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}-${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.download = `${filename}-${new Date().toLocaleDateString('sv-SE')}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1694,7 +1693,7 @@
   function isAdmin() { return sessionStorage.getItem('isAdmin') === 'true'; }
   function applyAdminUI() {
     const admin = isAdmin();
-    document.getElementById('navExtract').style.display = admin ? '' : 'none';
+    const _ne=document.getElementById('navExtract'); if(_ne) _ne.style.display = admin ? '' : 'none';
     document.getElementById('navSettings').style.display = admin ? '' : 'none';
     document.getElementById('adminBtn').textContent = admin ? '🔓 관리자 해제' : '🔑 관리자';
     if (typeof renderRows === 'function' && filteredApis.length) renderRows(filteredApis);

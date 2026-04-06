@@ -25,6 +25,9 @@ public class PageGuardInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // settings 내장 모드 (embedded=1) — settings에서 이미 인증되었으므로 허용
+        if ("1".equals(request.getParameter("embedded"))) return true;
+
         String token = null;
         if (request.getCookies() != null) {
             for (Cookie c : request.getCookies()) {

@@ -443,6 +443,26 @@ public class MockApmService {
         return deleteMockData(repoName, null);
     }
 
+    /** 호출이력 삭제 후 api_record의 callCount/callCountMonth/callCountWeek를 0으로 리셋 */
+    @Transactional
+    public void resetCallCounts(String repoName) {
+        boolean allRepos = repoName == null || repoName.isBlank() || "ALL".equalsIgnoreCase(repoName);
+        List<com.baek.viewer.model.ApiRecord> records = allRepos
+                ? apiRecordRepo.findAll()
+                : apiRecordRepo.findByRepositoryName(repoName);
+        int reset = 0;
+        for (var r : records) {
+            if (r.getCallCount() != 0 || r.getCallCountMonth() != 0 || r.getCallCountWeek() != 0) {
+                r.setCallCount(0L);
+                r.setCallCountMonth(0L);
+                r.setCallCountWeek(0L);
+                apiRecordRepo.save(r);
+                reset++;
+            }
+        }
+        log.info("[호출건수 리셋] repo={}, 리셋={}건", allRepos ? "ALL" : repoName, reset);
+    }
+
     /** source 문자열 정규화 (MOCK/WHATAP/JENNIFER) */
     private String normalizeSource(String source) {
         if (source == null || source.isBlank()) return "MOCK";

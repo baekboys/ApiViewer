@@ -120,6 +120,16 @@
 
 <script>
 (async function guard() {
+  // 설정화면 내장 모드에서는 부모의 인증 공유
+  if (new URLSearchParams(location.search).get('embedded') === '1') {
+    try { const parentSS = window.parent.sessionStorage;
+      if (parentSS.getItem('isAdmin') === 'true') {
+        sessionStorage.setItem('isAdmin', 'true');
+        sessionStorage.setItem('adminToken', parentSS.getItem('adminToken') || '');
+        return;
+      }
+    } catch(e) {}
+  }
   if (sessionStorage.getItem('isAdmin') === 'true') return;
   const pw = prompt('관리자 비밀번호를 입력하세요:');
   if (!pw) { location.href = '/'; return; }
@@ -130,6 +140,15 @@
     else { alert('비밀번호가 일치하지 않습니다.'); location.href = '/'; }
   } catch(e) { alert('인증 실패'); location.href = '/'; }
 })();
+</script>
+<script>
+  // 설정화면 내장 모드: 헤더 숨기기 + 관리자 가드 스킵
+  if (new URLSearchParams(location.search).get('embedded') === '1') {
+    document.addEventListener('DOMContentLoaded', () => {
+      const h = document.querySelector('.header'); if (h) h.style.display = 'none';
+      const m = document.querySelector('.main'); if (m) m.style.padding = '10px 0';
+    });
+  }
 </script>
 <div class="header">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -222,43 +241,77 @@
     </div>
   </div>
 
-  <!-- ─── APM 호출건수 수집 (수동) ─── -->
+  <!-- ─── APM 호출건수 수집 ─── -->
   <div class="card">
     <div class="card-title">
-      <span class="dot" style="background:#0ea5e9;"></span>APM 호출건수 수집 (수동)
-      <span style="font-size:10px;font-weight:400;color:var(--text-muted);">와탭/제니퍼에서 일자별 호출건수를 가져옵니다. 제니퍼 최대 30일, 와탭 최대 365일.</span>
+      <span class="dot" style="background:#0ea5e9;"></span>APM 호출건수 수집
+      <span style="font-size:10px;font-weight:400;color:var(--text-muted);">와탭/제니퍼/Mock에서 일자별 호출건수를 수집합니다.</span>
     </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-      <label class="field">레포지토리 *
-        <select id="apmCollectRepo" onchange="onApmRepoChange()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;"></select>
-      </label>
-      <label class="field">APM 종류 *
-        <select id="apmCollectSource" onchange="onApmSourceChange(true)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-          <option value="WHATAP">WHATAP (와탭, 최대 365일)</option>
-          <option value="JENNIFER">JENNIFER (제니퍼, 최대 30일)</option>
-          <option value="MOCK">MOCK (테스트, 365일)</option>
-        </select>
-      </label>
-      <label class="field">시작일 *
-        <input id="apmCollectFrom" type="date" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-      </label>
-      <label class="field">종료일 *
-        <input id="apmCollectTo" type="date" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-      </label>
-      <button class="btn" id="apmCollectBtn" style="background:#0ea5e9;color:#fff;height:34px;" onclick="collectApm()">수집 실행</button>
-      <button class="btn btn-blue" style="height:34px;" onclick="aggregateAfterCollect()">집계 반영</button>
-    </div>
-    <div id="apmCollectResult" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
-    <div style="margin-top:14px;padding:12px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;">
-      <div style="font-size:11px;font-weight:700;color:#0c4a6e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">⚡ 전체 자동 수집 (모든 레포 일괄)</div>
+
+    <!-- ① 전체 수집 (가장 자주 사용) -->
+    <div style="padding:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#3b82f6;color:#fff;font-size:12px;font-weight:700;">1</span>
+        <span style="font-size:13px;font-weight:700;color:#1e40af;">전체 수집</span>
+        <span style="font-size:10px;color:#0369a1;">모든 레포를 순차적으로 수집 + 집계 자동 반영</span>
+      </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <button class="btn" style="background:#6366f1;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(false)">전체 자동수집 (레포설정 기준)</button>
-        <button class="btn" style="background:#a78bfa;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(true)">전체 자동수집 (MOCK)</button>
-        <span style="font-size:10px;color:#0369a1;">각 레포의 APM별 최대기간까지 수집 (WHATAP 365일 / JENNIFER 30일)</span>
+        <button class="btn" style="background:#3b82f6;color:#fff;height:36px;font-size:13px;padding:0 20px;" onclick="collectAllApm(false)">⚡ 전체 자동수집 (레포설정 기준)</button>
+        <button class="btn" style="background:#0ea5e9;color:#fff;height:36px;font-size:13px;padding:0 20px;" onclick="aggregateAll()">📊 전체 집계반영</button>
+      </div>
+      <div style="font-size:10px;color:#0369a1;margin-top:6px;">
+        레포 설정의 APM 활성화 상태에 따라 자동 판단 · WHATAP 최대 365일 / JENNIFER 최대 30일 · 수집 후 집계까지 자동 반영
       </div>
     </div>
-    <div style="margin-top:6px;font-size:11px;color:var(--text-muted);">
-      ※ 실제 APM 연동 전까지는 Mock 데이터를 랜덤 생성합니다. 일부 API는 테스트용으로 호출이력 없이 생성됩니다.
+
+    <!-- ② 레포별 수집 (상세 제어) -->
+    <div style="padding:14px;background:#fafbfc;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#64748b;color:#fff;font-size:12px;font-weight:700;">2</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text);">레포별 수집</span>
+        <span style="font-size:10px;color:var(--text-muted);">특정 레포 · APM 종류 · 기간을 지정하여 수집</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <label class="field">레포지토리
+          <select id="apmCollectRepo" onchange="onApmRepoChange()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;"></select>
+        </label>
+        <label class="field">APM 종류
+          <select id="apmCollectSource" onchange="onApmSourceChange(true)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+            <option value="WHATAP">WHATAP (최대 365일)</option>
+            <option value="JENNIFER">JENNIFER (최대 30일)</option>
+            <option value="MOCK">MOCK (테스트)</option>
+          </select>
+        </label>
+        <label class="field">시작일
+          <input id="apmCollectFrom" type="date" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+        </label>
+        <label class="field">종료일
+          <input id="apmCollectTo" type="date" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+        </label>
+        <button class="btn" id="apmCollectBtn" style="background:#0ea5e9;color:#fff;height:34px;" onclick="collectApm()">수집 실행</button>
+        <button class="btn btn-blue" style="height:34px;" onclick="aggregateAfterCollect()">집계 반영</button>
+      </div>
+    </div>
+
+    <!-- 결과 메시지 -->
+    <div id="apmCollectResult" style="margin-bottom:10px;font-size:12px;color:var(--text-muted);"></div>
+
+    <!-- ③ MOCK 데이터 (테스트용 수집 + 삭제) -->
+    <div style="padding:12px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#d97706;color:#fff;font-size:12px;font-weight:700;">3</span>
+        <span style="font-size:13px;font-weight:700;color:#92400e;">MOCK 데이터 (테스트용)</span>
+        <span style="font-size:10px;color:#92400e;">실제 APM 연동 전까지 랜덤 데이터로 테스트합니다.</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <button class="btn" style="background:#8b5cf6;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(true)">🧪 전체 MOCK 수집</button>
+        <span style="border-left:2px solid #fcd34d;height:20px;margin:0 4px;"></span>
+        <button class="btn" style="background:#f59e0b;color:#fff;height:32px;font-size:12px;" onclick="deleteMockData('repo')">🗑 선택 레포 삭제</button>
+        <button class="btn" style="background:#d97706;color:#fff;height:32px;font-size:12px;" onclick="deleteMockData('all')">🗑 전체 MOCK 삭제</button>
+      </div>
+      <div style="font-size:10px;color:#92400e;">
+        수집: 모든 레포에 365일치 MOCK 랜덤 데이터 생성 + 집계 반영 &nbsp;·&nbsp; 삭제: WHATAP/JENNIFER 데이터는 유지
+      </div>
     </div>
   </div>
 
@@ -344,8 +397,8 @@
       // 자동으로 기간 세팅
       const today = new Date();
       const fromDate = new Date(today.getTime() - (maxDays - 1) * 86400000);
-      document.getElementById('apmCollectTo').value = today.toISOString().slice(0,10);
-      document.getElementById('apmCollectFrom').value = fromDate.toISOString().slice(0,10);
+      document.getElementById('apmCollectTo').value = today.toLocaleDateString('sv-SE');
+      document.getElementById('apmCollectFrom').value = fromDate.toLocaleDateString('sv-SE');
       document.getElementById('apmCollectResult').innerHTML =
         `<span style="color:var(--text-muted);">ℹ ${src} 최대 기간 ${maxDays}일로 자동 세팅되었습니다.</span>`;
       return;
@@ -413,10 +466,10 @@
     document.getElementById('apmCollectResult').innerHTML =
       `<span style="color:var(--text-muted);">${label} 실행 중... (작업 로그 확인)</span>`;
 
-    const today = new Date().toISOString().slice(0,10);
+    const today = new Date().toLocaleDateString('sv-SE');
     const todayDate = new Date();
     todayDate.setDate(todayDate.getDate() - 1); // 어제까지
-    const to = todayDate.toISOString().slice(0,10);
+    const to = todayDate.toLocaleDateString('sv-SE');
 
     let stepDone = 0;
     let totalGenerated = 0;
@@ -438,7 +491,7 @@
 
         const fromDate = new Date();
         fromDate.setDate(fromDate.getDate() - s.days);
-        const from = fromDate.toISOString().slice(0,10);
+        const from = fromDate.toLocaleDateString('sv-SE');
 
         try {
           const res = await fetch('/api/apm/collect', {
@@ -544,6 +597,69 @@
       btn.disabled = false; btn.textContent = '수집 실행';
       setRepoLabel('');
     }
+  }
+
+  async function deleteMockData(scope) {
+    const repoName = scope === 'all' ? 'ALL' : document.getElementById('apmCollectRepo').value;
+    if (scope !== 'all' && !repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
+    const label = scope === 'all' ? '전체 레포의 MOCK 데이터' : `"${repoName}"의 MOCK 데이터`;
+    if (!confirm(`${label}를 삭제하시겠습니까?\nWHATAP/JENNIFER 데이터는 유지됩니다.`)) return;
+    showLogCard(true);
+    addLocalLog('INFO', `── MOCK 삭제 시작: ${label} ──`);
+    try {
+      const res = await fetch(`/api/apm/data?repoName=${encodeURIComponent(repoName)}&source=MOCK`, {
+        method:'DELETE',
+        headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '삭제 실패');
+      addLocalLog('INFO', `MOCK 삭제 완료: ${data.deleted}건`);
+      document.getElementById('apmCollectResult').innerHTML =
+        `<span style="color:var(--success);">✓ ${label} 삭제 완료: ${data.deleted}건</span>`;
+      showToast(`MOCK ${data.deleted}건 삭제 완료`,'success');
+    } catch(e) {
+      addLocalLog('ERROR', `MOCK 삭제 실패: ${e.message}`);
+      showToast(e.message,'error');
+    }
+  }
+
+  async function aggregateAll() {
+    clearLogs(); hideResult();
+    showWorkCard(true, '전체 집계 반영');
+    addLocalLog('INFO', '── 전체 집계 반영 시작 ──');
+    let totalUpdated = 0, repoCount = 0;
+    for (let i = 0; i < allRepos.length; i++) {
+      const r = allRepos[i];
+      setRepoLabel(`레포 ${i+1}/${allRepos.length}: ${r.repoName}`);
+      const pct = Math.round(((i+1) / allRepos.length) * 100);
+      document.getElementById('progFill').style.width = pct + '%';
+      document.getElementById('progPct').textContent = pct + '%';
+      document.getElementById('progCount').textContent = `${r.repoName} 집계 중 (${i+1}/${allRepos.length})`;
+      try {
+        const res = await fetch('/api/apm/aggregate', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+          body: JSON.stringify({ repoName: r.repoName })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '실패');
+        const n = data.updated || 0;
+        totalUpdated += n;
+        repoCount++;
+        addLocalLog('INFO', `  · ${r.repoName}: ${n}건 업데이트`);
+      } catch(e) {
+        addLocalLog('ERROR', `  · ${r.repoName}: 실패 - ${e.message}`);
+      }
+    }
+    document.getElementById('progFill').style.width = '100%';
+    document.getElementById('progPct').textContent = '100%';
+    document.getElementById('progSpinner').style.display = 'none';
+    document.getElementById('progStatus').textContent = '완료';
+    document.getElementById('progCount').textContent = `레포 ${repoCount}개 · 총 ${totalUpdated}건 업데이트`;
+    setRepoLabel('');
+    addLocalLog('INFO', `── 전체 집계 반영 완료: ${repoCount}개 레포, ${totalUpdated}건 ──`);
+    showResult('ok', `전체 집계 반영 완료 — ${repoCount}개 레포, ${totalUpdated}건 업데이트`);
+    showToast(`전체 집계 반영: ${totalUpdated}건`,'success');
   }
 
   async function aggregateAfterCollect() {

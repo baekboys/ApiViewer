@@ -148,7 +148,6 @@
   <span class="header-sub">대시보드</span>
   <div class="header-right">
     <a href="/"             class="nav-link nav-active">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link" id="navExtract" style="display:none;">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
@@ -359,8 +358,8 @@
   }
   async function loadTopApis() {
     try {
-      const to = new Date().toISOString().slice(0,10);
-      const from = new Date(Date.now()-365*86400000).toISOString().slice(0,10);
+      const to = new Date().toLocaleDateString('sv-SE');
+      const from = new Date(Date.now()-365*86400000).toLocaleDateString('sv-SE');
       const res = await fetch(`/api/call-stats/summary?from=${from}&to=${to}&topN=10`);
       if (!res.ok) throw new Error();
       const d = await res.json();
@@ -390,8 +389,8 @@
       return;
     }
     try {
-      const to = new Date().toISOString().slice(0,10);
-      const from = new Date(Date.now()-365*86400000).toISOString().slice(0,10);
+      const to = new Date().toLocaleDateString('sv-SE');
+      const from = new Date(Date.now()-365*86400000).toLocaleDateString('sv-SE');
       const res = await fetch(`/api/call-stats/summary?from=${from}&to=${to}&repo=${encodeURIComponent(repo)}&topN=5`);
       if (!res.ok) throw new Error();
       const d = await res.json();
@@ -690,7 +689,7 @@
   function isAdmin() { return sessionStorage.getItem('isAdmin') === 'true'; }
   function applyAdminUI() {
     const admin = isAdmin();
-    document.getElementById('navExtract').style.display = admin ? '' : 'none';
+    const navExt = document.getElementById('navExtract'); if (navExt) navExt.style.display = admin ? '' : 'none';
     document.getElementById('navSettings').style.display = admin ? '' : 'none';
     document.getElementById('adminBtn').textContent = admin ? '🔓 관리자 해제' : '🔑 관리자';
   }

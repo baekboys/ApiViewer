@@ -113,7 +113,6 @@
   <span class="header-sub">설정 관리</span>
   <div class="header-right">
     <a href="/"             class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
@@ -133,6 +132,8 @@
       <button class="settings-tab" data-tab="logs">📄 로그</button>
       <button class="settings-tab" data-tab="archive">📁 APM 아카이브</button>
       <button class="settings-tab danger" data-tab="danger">🗑 데이터 삭제</button>
+      <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
+      <button class="settings-tab" data-tab="extract">🔍 URL 분석 (추출)</button>
     </aside>
 
     <!-- 메인 컨텐츠 (섹션별) -->
@@ -312,6 +313,10 @@
     </div>
     <div id="delResult" style="margin-top:8px;font-size:12px;"></div>
   </div>
+</section>
+
+<section class="settings-section" data-section="extract">
+  <div id="extractContent"><div style="text-align:center;padding:40px;color:var(--text-muted);">탭을 클릭하면 로드됩니다.</div></div>
 </section>
 
     </div><!-- /settings-content -->
@@ -925,7 +930,7 @@
       return;
     }
     // 오늘 날짜 자동 설정 (실시간 모드는 서버 시각 기준 오늘 로그를 계속 추적)
-    const todayStr = () => new Date().toISOString().slice(0,10);
+    const todayStr = () => new Date().toLocaleDateString('sv-SE');
     document.getElementById('logDate').value = todayStr();
     loadLog();
     tailTimer = setInterval(() => {
@@ -1313,7 +1318,7 @@
       if (sessionStorage.getItem('adminToken')) break;
       await new Promise(r => setTimeout(r, 100));
     }
-    document.getElementById('logDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('logDate').value = new Date().toLocaleDateString('sv-SE');
     await init();
     loadLogDates();
     loadSchedules();
@@ -1329,7 +1334,8 @@
       document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       document.querySelectorAll('.settings-section').forEach(s => s.classList.toggle('active', s.dataset.section === target));
-      // URL 해시 업데이트
+      // extract 탭 lazy-load (fetch → DOM 직접 삽입, iframe 미사용)
+      if (target === 'extract') loadExtractContent();
       history.replaceState({}, '', '#' + target);
     });
   });
@@ -1338,6 +1344,59 @@
   if (hash) {
     const tab = document.querySelector(`.settings-tab[data-tab="${hash}"]`);
     if (tab) tab.click();
+  }
+
+  // extract.html 콘텐츠를 fetch 후 DOM에 직접 삽입
+  let extractLoaded = false;
+  async function loadExtractContent() {
+    if (extractLoaded) return;
+    const wrap = document.getElementById('extractContent');
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><div class="spinner" style="display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;"></div><br>로딩 중...</div>';
+    try {
+      const res = await fetch('/extract.html?embedded=1');
+      const html = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      // CSS 스타일 주입 (extract.html 고유 CSS)
+      if (!document.getElementById('extractStyles')) {
+        doc.querySelectorAll('style').forEach(s => {
+          const el = document.createElement('style');
+          el.id = 'extractStyles';
+          el.textContent = s.textContent;
+          document.head.appendChild(el);
+        });
+      }
+      // 본문 카드만 추출 (.main 안의 내용)
+      const main = doc.querySelector('.main');
+      if (main) {
+        wrap.innerHTML = main.innerHTML;
+      }
+      // <script> 실행 (가드/헤더 스크립트 제외, 메인 로직만)
+      const scripts = doc.querySelectorAll('script');
+      scripts.forEach(s => {
+        const txt = s.textContent || '';
+        // 가드/embedded 감지 스크립트는 스킵
+        if (txt.includes('guard()') || txt.includes('embedded')) return;
+        // ExcelJS src 스크립트는 별도 처리
+        if (s.src && s.src.includes('exceljs')) {
+          if (!document.querySelector('script[src*="exceljs"]')) {
+            const el = document.createElement('script');
+            el.src = s.getAttribute('src');
+            document.body.appendChild(el);
+          }
+          return;
+        }
+        // 인라인 스크립트 → <script> 태그로 DOM에 삽입 (글로벌 스코프 실행)
+        if (txt.length > 50) {
+          const el = document.createElement('script');
+          el.textContent = txt;
+          document.body.appendChild(el);
+        }
+      });
+      extractLoaded = true;
+    } catch(e) {
+      wrap.innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger);">로드 실패: ${e.message}</div>`;
+    }
   }
 </script>
 </body>

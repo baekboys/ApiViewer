@@ -176,6 +176,9 @@ public class ApmController {
     public ResponseEntity<?> deleteCallData(@RequestParam(required = false, defaultValue = "ALL") String repoName,
                                             @RequestParam(required = false, defaultValue = "ALL") String source) {
         log.warn("[APM 호출이력 삭제] repo={}, source={}", repoName, source);
-        return ResponseEntity.ok(mockApmService.deleteMockData(repoName, source));
+        var result = mockApmService.deleteMockData(repoName, source);
+        // 호출이력 삭제 후 api_record의 집계 컬럼도 리셋
+        mockApmService.resetCallCounts(repoName);
+        return ResponseEntity.ok(result);
     }
 }

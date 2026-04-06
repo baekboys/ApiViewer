@@ -128,7 +128,6 @@
   <span class="header-sub">현업 검토</span>
   <div class="header-right">
     <a href="/" class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link" id="navExtract" style="display:none;">🔍 URL 분석</a>
     <a href="/viewer.html" class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
     <a href="/review.html" class="nav-link nav-active">📝 현업 검토</a>
@@ -418,7 +417,7 @@
     ws.columns=h.map(hd=>({width:Math.max(hd.length*1.8+2,8)}));
     ws.views=[{state:'frozen',xSplit:5,ySplit:1}]; // URL 경로(5열)까지 틀고정
     const buf=await wb.xlsx.writeBuffer();
-    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`review-${new Date().toISOString().slice(0,10)}.xlsx`;a.click();URL.revokeObjectURL(url);
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`review-${new Date().toLocaleDateString('sv-SE')}.xlsx`;a.click();URL.revokeObjectURL(url);
     showToast(`${filteredApis.length}건 다운로드 완료`,'success');
   }
 
@@ -427,7 +426,7 @@
   function isAdmin(){return sessionStorage.getItem('isAdmin')==='true';}
   function applyAdminUI(){
     const admin=isAdmin();
-    document.getElementById('navExtract').style.display=admin?'':'none';
+    const _ne=document.getElementById('navExtract'); if(_ne) _ne.style.display=admin?'':'none';
     document.getElementById('navSettings').style.display=admin?'':'none';
     document.getElementById('adminBtn').textContent=admin?'🔓 관리자 해제':'🔑 관리자';
     if(typeof renderRows==='function'&&filteredApis.length) renderRows(filteredApis);

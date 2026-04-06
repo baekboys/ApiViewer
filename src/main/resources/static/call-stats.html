@@ -109,7 +109,6 @@
   <span class="header-sub">URL호출현황</span>
   <div class="header-right">
     <a href="/"             class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link">🔍 URL 분석</a>
     <a href="/viewer.html"  class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link nav-active">📈 URL호출현황</a>
     <a href="/review.html"  class="nav-link">📝 현업 검토</a>
@@ -257,8 +256,8 @@
     // 기본 기간: 최근 1년
     const today = new Date();
     const from = new Date(today); from.setDate(today.getDate() - 365);
-    document.getElementById('toDate').value = today.toISOString().slice(0,10);
-    document.getElementById('fromDate').value = from.toISOString().slice(0,10);
+    document.getElementById('toDate').value = today.toLocaleDateString('sv-SE');
+    document.getElementById('fromDate').value = from.toLocaleDateString('sv-SE');
     // 레포 드롭다운
     try {
       const res = await fetch('/api/config/repos');
@@ -277,8 +276,8 @@
   function setPeriod(days) {
     const today = new Date();
     const from = new Date(today); from.setDate(today.getDate() - days);
-    document.getElementById('toDate').value = today.toISOString().slice(0,10);
-    document.getElementById('fromDate').value = from.toISOString().slice(0,10);
+    document.getElementById('toDate').value = today.toLocaleDateString('sv-SE');
+    document.getElementById('fromDate').value = from.toLocaleDateString('sv-SE');
     loadAll();
   }
 

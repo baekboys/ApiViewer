@@ -88,6 +88,10 @@ public class RepoConfig {
     @Column(name = "jennifer_bearer_token", columnDefinition = "TEXT")
     private String jenniferBearerToken;
 
+    /** 제니퍼 OID 목록 JSON — [{"oid":10021,"shortName":"mall-tiny-api-1"}, ...] */
+    @Column(name = "jennifer_oids", columnDefinition = "TEXT")
+    private String jenniferOids;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getRepoName() { return repoName; }
@@ -140,4 +144,6 @@ public class RepoConfig {
     public void setJenniferFilter(String jenniferFilter) { this.jenniferFilter = jenniferFilter; }
     public String getJenniferBearerToken() { return jenniferBearerToken; }
     public void setJenniferBearerToken(String jenniferBearerToken) { this.jenniferBearerToken = jenniferBearerToken; }
+    public String getJenniferOids() { return jenniferOids; }
+    public void setJenniferOids(String jenniferOids) { this.jenniferOids = jenniferOids; }
 }

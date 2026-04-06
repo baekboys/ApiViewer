@@ -17,6 +17,8 @@ public class ReposYamlConfig {
     public static class GlobalSection {
         private PeriodGlobal period;
         private Integer reviewThreshold;
+        private Boolean whatapMockEnabled;
+        private Boolean jenniferMockEnabled;
         private String password;
         private String gitBinPath;
         private List<String> teams;
@@ -27,6 +29,10 @@ public class ReposYamlConfig {
         public void setPeriod(PeriodGlobal period) { this.period = period; }
         public Integer getReviewThreshold() { return reviewThreshold; }
         public void setReviewThreshold(Integer reviewThreshold) { this.reviewThreshold = reviewThreshold; }
+        public Boolean getWhatapMockEnabled() { return whatapMockEnabled; }
+        public void setWhatapMockEnabled(Boolean whatapMockEnabled) { this.whatapMockEnabled = whatapMockEnabled; }
+        public Boolean getJenniferMockEnabled() { return jenniferMockEnabled; }
+        public void setJenniferMockEnabled(Boolean jenniferMockEnabled) { this.jenniferMockEnabled = jenniferMockEnabled; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
         public String getGitBinPath() { return gitBinPath; }
@@ -166,6 +172,7 @@ public class ReposYamlConfig {
         private Integer sid;
         private String filter;
         private String bearerToken;
+        private List<OidEntry> oids;
 
         public String getEnabled() { return enabled; }
         public void setEnabled(String enabled) { this.enabled = enabled; }
@@ -179,5 +186,18 @@ public class ReposYamlConfig {
         public void setFilter(String filter) { this.filter = filter; }
         public String getBearerToken() { return bearerToken; }
         public void setBearerToken(String bearerToken) { this.bearerToken = bearerToken; }
+        public List<OidEntry> getOids() { return oids; }
+        public void setOids(List<OidEntry> oids) { this.oids = oids; }
+    }
+
+    /** 제니퍼 OID (sid 하위 인스턴스 단위) */
+    public static class OidEntry {
+        private Integer oid;
+        private String shortName;
+
+        public Integer getOid() { return oid; }
+        public void setOid(Integer oid) { this.oid = oid; }
+        public String getShortName() { return shortName; }
+        public void setShortName(String shortName) { this.shortName = shortName; }
     }
 }

@@ -2,8 +2,10 @@ package com.baek.viewer.service;
 
 import com.baek.viewer.model.ApmCallData;
 import com.baek.viewer.model.ApiRecord;
+import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.repository.ApmCallDataRepository;
 import com.baek.viewer.repository.ApiRecordRepository;
+import com.baek.viewer.repository.RepoConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,14 +26,22 @@ public class MockApmService {
 
     private final ApmCallDataRepository apmRepo;
     private final ApiRecordRepository apiRecordRepo;
+    private final RepoConfigRepository repoConfigRepo;
+    private final WhatapApmService whatapApmService;
+    private final JenniferApmService jenniferApmService;
 
     /** 자기 자신 프록시 — 내부 @Transactional 메서드 호출 시 새 트랜잭션 생성용 */
     @Autowired @Lazy
     private MockApmService self;
 
-    public MockApmService(ApmCallDataRepository apmRepo, ApiRecordRepository apiRecordRepo) {
+    public MockApmService(ApmCallDataRepository apmRepo, ApiRecordRepository apiRecordRepo,
+                          RepoConfigRepository repoConfigRepo,
+                          WhatapApmService whatapApmService, JenniferApmService jenniferApmService) {
         this.apmRepo = apmRepo;
         this.apiRecordRepo = apiRecordRepo;
+        this.repoConfigRepo = repoConfigRepo;
+        this.whatapApmService = whatapApmService;
+        this.jenniferApmService = jenniferApmService;
     }
 
     /** source 기본값 포함 오버로드 */
@@ -41,7 +51,9 @@ public class MockApmService {
     }
 
     /**
-     * 지정한 날짜 범위로 mock 데이터 생성 (와탭/제니퍼 수동 수집용).
+     * 지정한 날짜 범위로 APM 데이터 수집.
+     * WHATAP/JENNIFER: 각 서비스 내부에서 mockEnabled 여부에 따라 Mock 또는 실제 API 결정.
+     * MOCK: 직접 랜덤 데이터 생성 (source="MOCK" 명시 요청 시).
      * source별 최대 기간: WHATAP=365일, JENNIFER=30일, MOCK=365일.
      */
     @Transactional
@@ -55,6 +67,22 @@ public class MockApmService {
             throw new IllegalArgumentException(src + "는 최대 " + maxDays + "일까지만 조회 가능합니다. (요청: " + spanDays + "일)");
         }
         log.info("[APM 수동수집] repo={}, from={}, to={}, source={}, 기간={}일", repoName, from, to, src, spanDays);
+
+        // 기존 데이터 삭제 (재수집 전 공통 처리)
+        int deletedOld = apmRepo.deleteByRepoSourceAndDateRange(repoName, src, from, to);
+        if (deletedOld > 0) log.info("[APM 수동수집] 기존 {}건 선삭제 후 재수집", deletedOld);
+
+        if ("WHATAP".equals(src)) {
+            RepoConfig repo = repoConfigRepo.findByRepoName(repoName).orElseThrow(
+                    () -> new IllegalArgumentException("레포 설정 없음: " + repoName));
+            return whatapApmService.collect(repo, from, to);
+        } else if ("JENNIFER".equals(src)) {
+            RepoConfig repo = repoConfigRepo.findByRepoName(repoName).orElseThrow(
+                    () -> new IllegalArgumentException("레포 설정 없음: " + repoName));
+            return jenniferApmService.collect(repo, from, to);
+        }
+
+        // source="MOCK" 명시 요청: 랜덤 데이터 직접 생성
         return doGenerate(repoName, from, to, src);
     }
 
@@ -98,10 +126,6 @@ public class MockApmService {
             }
             lowCallDays.put(apiPath, days);
         }
-        // 기존 데이터 일괄 삭제 (재수집 시 중복 방지) — 단일 DELETE 쿼리
-        int deletedOld = apmRepo.deleteByRepoSourceAndDateRange(repoName, src, from, to);
-        if (deletedOld > 0) log.info("[APM 수동수집] 기존 {}건 선삭제 후 재수집", deletedOld);
-
         // 모든 레코드를 메모리에 모아서 saveAll() 일괄 저장
         List<ApmCallData> batch = new ArrayList<>();
         for (ApiRecord rec : records) {

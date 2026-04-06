@@ -33,6 +33,15 @@ public class GlobalConfig {
     @Column(name = "jennifer_profiles", columnDefinition = "TEXT")
     private String jenniferProfiles;
 
+    /** Whatap 실제 API 대신 Whatap 응답 스키마 형태의 Mock 데이터 사용 여부 */
+    @Column(name = "whatap_mock_enabled")
+    private Boolean whatapMockEnabled = false;
+
+    /** Jennifer 실제 API 대신 Jennifer 응답 스키마 형태의 Mock 데이터 사용 여부 */
+    @Column(name = "jennifer_mock_enabled")
+    private Boolean jenniferMockEnabled = false;
+
+
     public Long getId() { return id; }
     public String getStartDate() { return startDate; }
     public void setStartDate(String startDate) { this.startDate = startDate; }
@@ -48,4 +57,8 @@ public class GlobalConfig {
     public void setWhatapProfiles(String whatapProfiles) { this.whatapProfiles = whatapProfiles; }
     public String getJenniferProfiles() { return jenniferProfiles; }
     public void setJenniferProfiles(String jenniferProfiles) { this.jenniferProfiles = jenniferProfiles; }
+    public boolean isWhatapMockEnabled() { return Boolean.TRUE.equals(whatapMockEnabled); }
+    public void setWhatapMockEnabled(Boolean whatapMockEnabled) { this.whatapMockEnabled = whatapMockEnabled; }
+    public boolean isJenniferMockEnabled() { return Boolean.TRUE.equals(jenniferMockEnabled); }
+    public void setJenniferMockEnabled(Boolean jenniferMockEnabled) { this.jenniferMockEnabled = jenniferMockEnabled; }
 }

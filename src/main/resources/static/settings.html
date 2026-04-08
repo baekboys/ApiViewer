@@ -173,7 +173,8 @@ function updateAdminBadge(valid) {
   <div class="settings-layout">
     <!-- 사이드바 탭 네비게이션 -->
     <aside class="settings-sidebar">
-      <button class="settings-tab active" data-tab="config">⚙️ 설정</button>
+      <button class="settings-tab active" data-tab="config">⚙️ 공통설정</button>
+      <button class="settings-tab" data-tab="repos">📦 레포지토리</button>
       <button class="settings-tab" data-tab="batch">⏱️ 배치/관리</button>
       <button class="settings-tab" data-tab="logs">📄 로그</button>
       <button class="settings-tab" data-tab="data">📊 데이터관리</button>
@@ -270,9 +271,10 @@ function updateAdminBadge(valid) {
     </div>
   </div>
 
-  <div style="border-top:2px solid var(--border);margin:20px 0;"></div>
+</section>
 
-  <!-- 레포지토리 설정 -->
+<!-- ═══ 📦 레포지토리 ═══ -->
+<section class="settings-section" data-section="repos">
   <div class="card">
     <div class="card-title" style="margin-bottom:12px;">
       <span class="dot dot-green"></span>레포지토리별 설정

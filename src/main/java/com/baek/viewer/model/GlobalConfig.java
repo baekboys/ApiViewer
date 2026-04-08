@@ -49,9 +49,9 @@ public class GlobalConfig {
     @Column(name = "jennifer_mock_enabled", length = 5)
     private String jenniferMockEnabled = "N";
 
-    /** APM 로그 레벨 (INFO / DEBUG) — DEBUG 시 요청/응답 JSON 전문 기록 */
+    /** 시스템 로그 레벨 (INFO / DEBUG) — DEBUG 시 파싱 과정·APM 요청/응답 전문 기록 */
     @Column(name = "apm_log_level", length = 10)
-    private String apmLogLevel = "INFO";
+    private String apmLogLevel = "INFO";  // 컬럼명은 호환성 유지
 
 
     public Long getId() { return id; }

@@ -53,10 +53,8 @@ public class ConfigController {
                     ? ch.qos.logback.classic.Level.DEBUG : ch.qos.logback.classic.Level.INFO;
             ch.qos.logback.classic.LoggerContext ctx =
                     (ch.qos.logback.classic.LoggerContext) LoggerFactory.getILoggerFactory();
-            ctx.getLogger("com.baek.viewer.service.WhatapApmService").setLevel(lv);
-            ctx.getLogger("com.baek.viewer.service.JenniferApmService").setLevel(lv);
-            ctx.getLogger("com.baek.viewer.service.ApiExtractorService").setLevel(lv);
-            log.info("[로그레벨 변경] APM/분석 서비스 → {}", lv);
+            ctx.getLogger("com.baek.viewer").setLevel(lv);
+            log.info("[로그레벨 변경] com.baek.viewer → {}", lv);
         } catch (Exception e) {
             log.warn("[APM 로그레벨 변경 실패] {}", e.getMessage());
         }

@@ -45,13 +45,9 @@ public class ApiExtractorService {
         this.globalConfigRepository = globalConfigRepository;
     }
 
-    private boolean isDebug() {
-        return globalConfigRepository.findById(1L)
-                .map(com.baek.viewer.model.GlobalConfig::isApmDebug).orElse(false);
-    }
-
     private volatile List<ApiInfo> cachedApis = new ArrayList<>();
     private volatile boolean extracting = false;
+    private volatile boolean debugMode = false; // extract 시작 시 1회 세팅
     private volatile int totalFiles = 0;
     private volatile int processedFiles = 0;
     private volatile String currentFile = "";
@@ -99,6 +95,8 @@ public class ApiExtractorService {
     public List<ApiInfo> extract(ExtractRequest req) {
         if (extracting) throw new IllegalStateException("이미 추출 중입니다.");
         extracting = true;
+        debugMode = globalConfigRepository.findById(1L)
+                .map(com.baek.viewer.model.GlobalConfig::isApmDebug).orElse(false);
         String rootPath = req.getRootPath();
         String domain = req.getDomain() != null ? req.getDomain() : "";
         String apiPathPrefix = req.getApiPathPrefix() != null ? req.getApiPathPrefix() : "";
@@ -230,7 +228,7 @@ public class ApiExtractorService {
                                                  List<String[]> git,
                                                  String apiPathPrefix,
                                                  Map<String, String> pathConstantsMap) throws Exception {
-        boolean debug = isDebug();
+        boolean debug = debugMode;
         List<ApiInfo> apis = new ArrayList<>();
         String source = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
         CompilationUnit cu = StaticJavaParser.parse(source);
@@ -298,7 +296,7 @@ public class ApiExtractorService {
                                             List<String[]> git,
                                             String apiPathPrefix,
                                             Map<String, String> pathConstantsMap) {
-        boolean debug = isDebug();
+        boolean debug = debugMode;
         List<ApiInfo> apis = new ArrayList<>();
         try {
             String raw = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);

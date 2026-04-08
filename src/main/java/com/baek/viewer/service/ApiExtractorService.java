@@ -198,6 +198,19 @@ public class ApiExtractorService {
                 savedCount = -1;
                 addLog("ERROR", "DB 저장 실패: " + e.getMessage());
             }
+
+            // APM 호출건수 자동 집계 (데이터가 있을 때만)
+            try {
+                var result = mockApmService.aggregateToRecords(repoName.trim());
+                int aggUpdated = ((Number) result.get("updated")).intValue();
+                if (aggUpdated > 0) {
+                    addLog("OK", "호출건수 자동 집계 — " + aggUpdated + "개 API 반영");
+                } else {
+                    addLog("INFO", "호출건수 집계 — APM 데이터 없음 (건너뜀)");
+                }
+            } catch (Exception e) {
+                addLog("WARN", "호출건수 집계 실패 (분석 결과에 영향 없음): " + e.getMessage());
+            }
         }
 
         extracting = false;

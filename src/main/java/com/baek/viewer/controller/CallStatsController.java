@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+// Sort는 DB ORDER BY로 대체 (JPQL 내 정렬)
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -133,18 +133,7 @@ public class CallStatsController {
             m.put("totalWeek",  ((Number) row[6]).longValue());
             items.add(m);
         }
-
-        // 현재 페이지 내 정렬 적용
-        Sort.Direction direction = "asc".equalsIgnoreCase(dir) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        items.sort((a, b) -> {
-            int mul = direction == Sort.Direction.ASC ? 1 : -1;
-            if ("apiPath".equals(sort)) {
-                return ((String) a.get("apiPath")).compareTo((String) b.get("apiPath")) * mul;
-            }
-            long av = a.get(sort) instanceof Number ? ((Number) a.get(sort)).longValue() : 0;
-            long bv = b.get(sort) instanceof Number ? ((Number) b.get(sort)).longValue() : 0;
-            return Long.compare(av, bv) * mul;
-        });
+        // DB에서 1년 호출건수 DESC로 정렬 후 페이징 완료 — 추가 정렬 불필요
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("items", items);

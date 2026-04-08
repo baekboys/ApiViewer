@@ -101,7 +101,7 @@ public interface ApmCallDataRepository extends JpaRepository<ApmCallData, Long> 
     /**
      * URL별 집계 (페이징/검색용) — 4가지 기간 집계 동시 반환.
      * 반환: [repositoryName, apiPath, totalAll, totalError, year, month, week]
-     * 명시적 countQuery 제공 (Spring Data JPA의 auto-count가 SELECT CASE WHEN 파라미터와 충돌 방지).
+     * DB 레벨에서 1년 호출건수 DESC 정렬 후 페이징 (전체 기준 TOP N 보장).
      */
     @Query(value = "SELECT a.repositoryName, a.apiPath, " +
            "SUM(a.callCount), SUM(a.errorCount), " +
@@ -111,7 +111,8 @@ public interface ApmCallDataRepository extends JpaRepository<ApmCallData, Long> 
            "FROM ApmCallData a " +
            "WHERE (:repo IS NULL OR a.repositoryName = :repo) " +
            "  AND (:q IS NULL OR LOWER(CAST(a.apiPath AS string)) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))) " +
-           "GROUP BY a.repositoryName, a.apiPath",
+           "GROUP BY a.repositoryName, a.apiPath " +
+           "ORDER BY SUM(CASE WHEN a.callDate >= :yearAgo THEN a.callCount ELSE 0 END) DESC",
            countQuery = "SELECT COUNT(DISTINCT CONCAT(a.repositoryName, '|', CAST(a.apiPath AS string))) " +
            "FROM ApmCallData a " +
            "WHERE (:repo IS NULL OR a.repositoryName = :repo) " +

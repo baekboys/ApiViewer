@@ -320,9 +320,16 @@ public class MockApmService {
         LocalDate weekAgo = today.minusDays(7);
 
         Map<String, long[]> totals = new HashMap<>(); // apiPath → [year, month, week]
-        accumulateMaxPerDate(apmRepo.sumByRepoAndDateRange(repoName, yearAgo, today), totals, 0);  // 1년
-        accumulateMaxPerDate(apmRepo.sumByRepoAndDateRange(repoName, monthAgo, today), totals, 1); // 1달
-        accumulateMaxPerDate(apmRepo.sumByRepoAndDateRange(repoName, weekAgo, today), totals, 2);  // 1주
+        List<Object[]> yearRows  = apmRepo.sumByRepoAndDateRange(repoName, yearAgo, today);
+        List<Object[]> monthRows = apmRepo.sumByRepoAndDateRange(repoName, monthAgo, today);
+        List<Object[]> weekRows  = apmRepo.sumByRepoAndDateRange(repoName, weekAgo, today);
+        accumulateMaxPerDate(yearRows, totals, 0);   // 1년
+        accumulateMaxPerDate(monthRows, totals, 1);  // 1달
+        accumulateMaxPerDate(weekRows, totals, 2);   // 1주
+
+        log.info("[APM 집계] 데이터 건수 — 1년:{}, 1달:{}, 1주:{} (기간: {}~{}/{}~{}/{}~{})",
+                yearRows.size(), monthRows.size(), weekRows.size(),
+                yearAgo, today, monthAgo, today, weekAgo, today);
 
         // ApiRecord 업데이트
         List<ApiRecord> records = apiRecordRepo.findByRepositoryName(repoName);
@@ -336,6 +343,14 @@ public class MockApmService {
                 apiRecordRepo.save(rec);
                 updated++;
             }
+        }
+
+        // 샘플 로그: 첫 3개 API의 집계 결과
+        int sc = 0;
+        for (var e : totals.entrySet()) {
+            if (sc++ >= 3) break;
+            log.info("[APM 집계] 샘플: {} → 1년={}, 1달={}, 1주={}",
+                    e.getKey(), e.getValue()[0], e.getValue()[1], e.getValue()[2]);
         }
 
         log.info("[APM 집계] 완료: repo={}, 업데이트={}건", repoName, updated);

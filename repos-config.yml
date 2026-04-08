@@ -57,6 +57,7 @@ repositories:
   - repoName: spring-petclinic
     domain: https://api.petclinic.com
     rootPath: /Users/baegmyeongseon/Downloads/개발_코드/spring-petclinic
+    gitBranch: ""                 # 빈값=현재 브랜치 유지, 값 있으면 checkout 후 pull (예: PRD, CBO)
     gitPullEnabled: "N"
     analysisBatchEnabled: "Y"   # 분석 배치 수행 여부 (Y/N)
     apmBatchEnabled: "Y"        # APM 수집 배치 수행 여부 (Y/N)

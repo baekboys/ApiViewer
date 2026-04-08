@@ -116,31 +116,47 @@ public class ApiExtractorService {
             Path root = Paths.get(rootPath);
             if (!Files.exists(root)) throw new IllegalArgumentException("경로가 존재하지 않습니다: " + rootPath);
 
-            // Git Pull (설정에서 활성화된 경우만)
+            // Git Checkout + Pull (설정에서 활성화된 경우만)
             String repoName = req.getRepositoryName();
             boolean doPull = true;
+            String gitBranch = null;
             if (repoName != null && !repoName.isBlank()) {
                 var rcOpt = repoConfigRepository.findByRepoName(repoName);
-                if (rcOpt.isPresent() && "N".equals(rcOpt.get().getGitPullEnabled())) {
-                    doPull = false;
-                    addLog("INFO", "Git Pull 건너뜀 (설정에서 비활성화)");
+                if (rcOpt.isPresent()) {
+                    if ("N".equals(rcOpt.get().getGitPullEnabled())) {
+                        doPull = false;
+                        addLog("INFO", "Git Pull 건너뜀 (설정에서 비활성화)");
+                    }
+                    gitBranch = rcOpt.get().getGitBranch();
                 }
             }
             if (doPull) {
-                try {
-                    addLog("INFO", "Git Pull 실행 중...");
-                    ProcessBuilder pb = new ProcessBuilder(gitBin, "pull");
-                    pb.directory(root.toFile());
-                    pb.redirectErrorStream(true);
-                    Process proc = pb.start();
-                    StringBuilder output = new StringBuilder();
-                    try (var br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()))) {
-                        String line; while ((line = br.readLine()) != null) output.append(line).append(" ");
+                boolean checkoutOk = true;
+                // 브랜치 checkout (설정된 경우)
+                if (gitBranch != null && !gitBranch.isBlank()) {
+                    try {
+                        addLog("INFO", "Git fetch origin 실행 중...");
+                        runGitCommand(root.toFile(), gitBin, "fetch", "origin");
+
+                        addLog("INFO", "Git checkout → " + gitBranch);
+                        String coOutput = runGitCommand(root.toFile(), gitBin, "checkout", gitBranch);
+                        addLog("OK", "Git checkout 완료 → " + gitBranch + " " + coOutput);
+                    } catch (Exception coEx) {
+                        checkoutOk = false;
+                        addLog("ERROR", "Git checkout 실패 — '" + gitBranch + "' 전환 불가: " + coEx.getMessage() + ". 현재 브랜치로 분석 진행");
                     }
-                    int exitCode = proc.waitFor();
-                    addLog(exitCode == 0 ? "OK" : "WARN", "Git Pull 완료 (exit=" + exitCode + ") " + output.toString().trim());
-                } catch (Exception gitEx) {
-                    addLog("WARN", "Git Pull 실패 (분석은 계속): " + gitEx.getMessage());
+                }
+                // Pull (checkout 성공 시에만)
+                if (checkoutOk) {
+                    try {
+                        addLog("INFO", "Git Pull 실행 중...");
+                        String pullOutput = runGitCommand(root.toFile(), gitBin, "pull");
+                        addLog("OK", "Git Pull 완료 — " + pullOutput);
+                    } catch (Exception gitEx) {
+                        addLog("WARN", "Git Pull 실패 (분석은 계속): " + gitEx.getMessage());
+                    }
+                } else {
+                    addLog("WARN", "Git Pull 건너뜀 (checkout 실패)");
                 }
             }
 
@@ -679,6 +695,26 @@ public class ApiExtractorService {
             p.waitFor();
         } catch (Exception ignored) {}
         return h;
+    }
+
+    /** Git 명령 실행 헬퍼 — 출력 문자열 반환, 실패 시 예외 */
+    private String runGitCommand(java.io.File dir, String gitBin, String... args) throws Exception {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(gitBin);
+        cmd.addAll(Arrays.asList(args));
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.directory(dir);
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        StringBuilder output = new StringBuilder();
+        try (var br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()))) {
+            String line; while ((line = br.readLine()) != null) output.append(line).append(" ");
+        }
+        int exitCode = proc.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException("exit=" + exitCode + " " + output.toString().trim());
+        }
+        return output.toString().trim();
     }
 
     // ======================================================

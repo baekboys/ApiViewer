@@ -114,6 +114,7 @@ public class ReposYamlConfig {
         private String domain;
         private String rootPath;
         private String gitBinPath;          // null이면 global.gitBinPath 사용
+        private String gitBranch;           // null/빈값이면 현재 브랜치 유지
         private String gitPullEnabled = "Y";
         private String analysisBatchEnabled = "Y";
         private String apmBatchEnabled = "Y";
@@ -134,6 +135,8 @@ public class ReposYamlConfig {
         public void setRootPath(String rootPath) { this.rootPath = rootPath; }
         public String getGitBinPath() { return gitBinPath; }
         public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
+        public String getGitBranch() { return gitBranch; }
+        public void setGitBranch(String gitBranch) { this.gitBranch = gitBranch; }
         public String getGitPullEnabled() { return gitPullEnabled; }
         public void setGitPullEnabled(String gitPullEnabled) { this.gitPullEnabled = gitPullEnabled; }
         public String getAnalysisBatchEnabled() { return analysisBatchEnabled; }

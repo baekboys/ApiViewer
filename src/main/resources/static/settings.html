@@ -400,6 +400,9 @@
       </div>
       <div class="field-row col3">
         <input id="f_gitBinPath" type="hidden">
+        <label class="field">Git 브랜치
+          <input id="f_gitBranch" type="text" placeholder="비워두면 현재 브랜치 유지" style="width:120px;">
+        </label>
         <label class="field">분석 시 Git Pull
           <select id="f_gitPullEnabled">
             <option value="Y">Y (Pull 후 분석)</option>
@@ -810,6 +813,7 @@
      'apmUrl','apmFilter'].forEach(k => {
        const el = document.getElementById('f_'+k); if (el) el.value = '';
      });
+    document.getElementById('f_gitBranch').value = '';
     document.getElementById('f_gitPullEnabled').value = 'Y';
     document.getElementById('f_analysisBatchEnabled').value = 'Y';
     document.getElementById('f_apmBatchEnabled').value = 'Y';
@@ -825,6 +829,7 @@
     document.getElementById('f_domain').value           = r.domain           || '';
     document.getElementById('f_rootPath').value         = r.rootPath         || '';
     document.getElementById('f_gitBinPath').value       = r.gitBinPath       || '';
+    document.getElementById('f_gitBranch').value         = r.gitBranch || '';
     document.getElementById('f_gitPullEnabled').value   = r.gitPullEnabled   || 'Y';
     document.getElementById('f_analysisBatchEnabled').value = r.analysisBatchEnabled || 'Y';
     document.getElementById('f_apmBatchEnabled').value = r.apmBatchEnabled || 'Y';
@@ -873,6 +878,7 @@
       repoName, rootPath,
       domain:           document.getElementById('f_domain').value.trim(),
       gitBinPath:       document.getElementById('f_gitBinPath').value.trim(),
+      gitBranch:        document.getElementById('f_gitBranch').value.trim() || null,
       gitPullEnabled:   document.getElementById('f_gitPullEnabled').value,
       analysisBatchEnabled: document.getElementById('f_analysisBatchEnabled').value,
       apmBatchEnabled: document.getElementById('f_apmBatchEnabled').value,

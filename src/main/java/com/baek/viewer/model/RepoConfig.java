@@ -26,6 +26,10 @@ public class RepoConfig {
     @Column(name = "git_pull_enabled", length = 1)
     private String gitPullEnabled = "Y";
 
+    /** Git 브랜치명 (빈값이면 현재 브랜치 유지, 값 있으면 checkout 후 pull) */
+    @Column(name = "git_branch", length = 100)
+    private String gitBranch;
+
     /** 분석 배치 수행 여부 (Y/N, 기본 Y) */
     @Column(name = "analysis_batch_enabled", length = 1)
     private String analysisBatchEnabled = "Y";
@@ -112,6 +116,8 @@ public class RepoConfig {
     public void setGitBinPath(String gitBinPath) { this.gitBinPath = gitBinPath; }
     public String getGitPullEnabled() { return gitPullEnabled; }
     public void setGitPullEnabled(String gitPullEnabled) { this.gitPullEnabled = gitPullEnabled; }
+    public String getGitBranch() { return gitBranch; }
+    public void setGitBranch(String gitBranch) { this.gitBranch = gitBranch; }
     public String getAnalysisBatchEnabled() { return analysisBatchEnabled != null ? analysisBatchEnabled : "Y"; }
     public void setAnalysisBatchEnabled(String v) { this.analysisBatchEnabled = v; }
     public String getApmBatchEnabled() { return apmBatchEnabled != null ? apmBatchEnabled : "Y"; }

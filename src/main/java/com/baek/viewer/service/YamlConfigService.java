@@ -156,6 +156,7 @@ public class YamlConfigService {
                 // gitBinPath: 레포 개별 지정 > 공통
                 rc.setGitBinPath(entry.getGitBinPath() != null && !entry.getGitBinPath().isBlank()
                         ? entry.getGitBinPath() : globalGitBin);
+                rc.setGitBranch(entry.getGitBranch());
                 rc.setGitPullEnabled(entry.getGitPullEnabled() != null ? entry.getGitPullEnabled() : "Y");
                 rc.setAnalysisBatchEnabled(entry.getAnalysisBatchEnabled() != null ? entry.getAnalysisBatchEnabled() : "Y");
                 rc.setApmBatchEnabled(entry.getApmBatchEnabled() != null ? entry.getApmBatchEnabled() : "Y");

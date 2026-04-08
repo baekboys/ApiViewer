@@ -45,27 +45,38 @@ public class GitPullExtractJob implements Job {
             }
 
             try {
-                // 1. Git Pull
+                // 1. Git Checkout + Pull
                 String gitBin = (repo.getGitBinPath() != null && !repo.getGitBinPath().isBlank())
                         ? repo.getGitBinPath() : "git";
                 String rootPath = repo.getRootPath();
-                // rootPath에서 상위 git 디렉토리 추정 (src/main/java 등을 포함할 수 있으므로)
-                String gitDir = rootPath;
-                log.info("[배치] {} — git pull 실행 (dir={})", repo.getRepoName(), gitDir);
+                java.io.File gitDir = new java.io.File(rootPath);
 
-                ProcessBuilder pb = new ProcessBuilder(gitBin, "pull");
-                pb.directory(new java.io.File(gitDir));
-                pb.redirectErrorStream(true);
-                Process proc = pb.start();
-                StringBuilder output = new StringBuilder();
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-                    String line;
-                    while ((line = br.readLine()) != null) output.append(line).append(" ");
+                // 브랜치 checkout (설정된 경우)
+                String branch = repo.getGitBranch();
+                boolean checkoutOk = true;
+                if (branch != null && !branch.isBlank()) {
+                    log.info("[배치] {} — git fetch + checkout {} 실행", repo.getRepoName(), branch);
+                    try {
+                        runBatchGit(gitDir, gitBin, "fetch", "origin");
+                        runBatchGit(gitDir, gitBin, "checkout", branch);
+                        log.info("[배치] {} — checkout {} 완료", repo.getRepoName(), branch);
+                    } catch (Exception coEx) {
+                        checkoutOk = false;
+                        log.error("[배치] {} — checkout 실패 ({}): {}", repo.getRepoName(), branch, coEx.getMessage());
+                        resultMsg.append(repo.getRepoName()).append(":checkout실패(").append(branch).append(") ");
+                    }
                 }
-                int exitCode = proc.waitFor();
-                log.info("[배치] {} — git pull 완료 (exit={}, output={})", repo.getRepoName(), exitCode, output.toString().trim());
 
-                // 2. 추출
+                // Pull (checkout 성공 시에만)
+                if (checkoutOk) {
+                    log.info("[배치] {} — git pull 실행 (dir={})", repo.getRepoName(), rootPath);
+                    String pullResult = runBatchGit(gitDir, gitBin, "pull");
+                    log.info("[배치] {} — git pull 완료: {}", repo.getRepoName(), pullResult);
+                } else {
+                    log.warn("[배치] {} — git pull 건너뜀 (checkout 실패)", repo.getRepoName());
+                }
+
+                // 2. 추출 (checkout 실패해도 현재 브랜치 기준으로 진행)
                 ExtractRequest req = new ExtractRequest();
                 req.setRootPath(rootPath);
                 req.setRepositoryName(repo.getRepoName());
@@ -90,6 +101,23 @@ public class GitPullExtractJob implements Job {
         if (resultMsg.length() > 0) result += " (" + resultMsg.toString().trim() + ")";
         log.info("[배치] Git Pull & 추출 완료 — {}", result);
         updateResult(result);
+    }
+
+    private String runBatchGit(java.io.File dir, String gitBin, String... args) throws Exception {
+        java.util.List<String> cmd = new java.util.ArrayList<>();
+        cmd.add(gitBin);
+        cmd.addAll(java.util.Arrays.asList(args));
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.directory(dir);
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+            String line; while ((line = br.readLine()) != null) output.append(line).append(" ");
+        }
+        int exitCode = proc.waitFor();
+        if (exitCode != 0) throw new RuntimeException("exit=" + exitCode + " " + output.toString().trim());
+        return output.toString().trim();
     }
 
     private void updateResult(String result) {

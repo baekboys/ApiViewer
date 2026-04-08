@@ -331,9 +331,10 @@ public class MockApmService {
                 yearRows.size(), monthRows.size(), weekRows.size(),
                 yearAgo, today, monthAgo, today, weekAgo, today);
 
-        // ApiRecord 업데이트
+        // ApiRecord 업데이트 — APM 데이터에 없는 API는 0건으로 세팅
+        boolean hasApmData = !totals.isEmpty();
         List<ApiRecord> records = apiRecordRepo.findByRepositoryName(repoName);
-        int updated = 0;
+        int updated = 0, zeroed = 0;
         for (ApiRecord rec : records) {
             long[] counts = totals.get(rec.getApiPath());
             if (counts != null) {
@@ -342,6 +343,13 @@ public class MockApmService {
                 rec.setCallCountWeek(counts[2]);
                 apiRecordRepo.save(rec);
                 updated++;
+            } else if (hasApmData) {
+                // APM 데이터가 존재하는 레포인데 이 API만 없음 → 호출 0건 확정
+                rec.setCallCount(0L);
+                rec.setCallCountMonth(0L);
+                rec.setCallCountWeek(0L);
+                apiRecordRepo.save(rec);
+                zeroed++;
             }
         }
 
@@ -353,8 +361,8 @@ public class MockApmService {
                     e.getKey(), e.getValue()[0], e.getValue()[1], e.getValue()[2]);
         }
 
-        log.info("[APM 집계] 완료: repo={}, 업데이트={}건", repoName, updated);
-        return Map.of("updated", updated, "totalApis", totals.size());
+        log.info("[APM 집계] 완료: repo={}, 업데이트={}건, 0건세팅={}건", repoName, updated, zeroed);
+        return Map.of("updated", updated, "zeroed", zeroed, "totalApis", totals.size());
     }
 
     /** 레포별 APM 일별 데이터 조회 (source 지정 시 해당 source만) */

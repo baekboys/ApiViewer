@@ -12,17 +12,20 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.io.File;
 import java.nio.file.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * DB 파일 사이즈 모니터링 서비스 (크로스 플랫폼).
- * - 현재 DB 파일 사이즈 + 디스크 사용량 조회
- * - 일별 스냅샷 기록
- * - 증가 추이 조회 (최근 N일)
+ * DB 사이즈 모니터링 서비스 (H2 / PostgreSQL 공통).
+ * - H2: 파일 사이즈 기반
+ * - PostgreSQL: pg_database_size() 쿼리 기반
  */
 @Service
 public class DbMonitorService {
@@ -32,41 +35,76 @@ public class DbMonitorService {
     @Value("${spring.datasource.url}")
     private String datasourceUrl;
 
+    private final DataSource dataSource;
     private final DbSizeHistoryRepository historyRepo;
     private final ApiRecordRepository apiRecordRepo;
     private final ApmCallDataRepository apmRepo;
 
-    public DbMonitorService(DbSizeHistoryRepository historyRepo,
-                            ApiRecordRepository apiRecordRepo,
-                            ApmCallDataRepository apmRepo) {
+    public DbMonitorService(DataSource dataSource, DbSizeHistoryRepository historyRepo,
+                            ApiRecordRepository apiRecordRepo, ApmCallDataRepository apmRepo) {
+        this.dataSource = dataSource;
         this.historyRepo = historyRepo;
         this.apiRecordRepo = apiRecordRepo;
         this.apmRepo = apmRepo;
     }
 
-    /** H2 datasource URL에서 실제 파일 경로 추출 — OS 무관 */
-    private Path resolveDbFilePath() {
-        // ex) "jdbc:h2:file:./data/api-viewer-db"
-        String prefix = "jdbc:h2:file:";
-        int idx = datasourceUrl.indexOf(prefix);
-        String raw = idx >= 0 ? datasourceUrl.substring(idx + prefix.length()) : "./data/api-viewer-db";
-        // ; 뒤 파라미터 제거
-        int semi = raw.indexOf(';');
-        if (semi >= 0) raw = raw.substring(0, semi);
-        // H2 실제 파일: {base}.mv.db
-        return Paths.get(raw + ".mv.db").toAbsolutePath().normalize();
+    private boolean isH2() {
+        return datasourceUrl != null && datasourceUrl.contains("jdbc:h2:");
     }
 
-    /** 현재 DB 파일 사이즈 + 시스템 디스크 사용량 */
-    public Map<String, Object> getCurrent() {
-        Path dbFile = resolveDbFilePath();
-        long dbSize = 0;
-        try { if (Files.exists(dbFile)) dbSize = Files.size(dbFile); } catch (Exception e) {}
+    /** DB 사이즈 조회 (바이트) — H2: 파일크기, PostgreSQL: pg_database_size() */
+    private long getDbSizeBytes() {
+        if (isH2()) {
+            return getH2FileSize();
+        }
+        // PostgreSQL
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT pg_database_size(current_database())")) {
+            if (rs.next()) return rs.getLong(1);
+        } catch (Exception e) {
+            log.warn("[DB 모니터] PostgreSQL DB 사이즈 조회 실패: {}", e.getMessage());
+        }
+        return 0;
+    }
 
-        // trace/log 파일도 확인 (H2 여러 파일 중 .mv.db만 체크)
-        // 디스크 공간은 DB 파일이 저장된 디렉토리 기준 (OS 무관 — Java 표준 API)
-        File root = dbFile.getParent() != null ? dbFile.getParent().toFile() : new File(".");
-        if (!root.exists()) root = new File(".");
+    /** H2 파일 DB 사이즈 */
+    private long getH2FileSize() {
+        String prefix = "jdbc:h2:file:";
+        int idx = datasourceUrl.indexOf(prefix);
+        if (idx < 0) return 0;
+        String raw = datasourceUrl.substring(idx + prefix.length());
+        int semi = raw.indexOf(';');
+        if (semi >= 0) raw = raw.substring(0, semi);
+        Path dbFile = Paths.get(raw + ".mv.db").toAbsolutePath().normalize();
+        try { if (Files.exists(dbFile)) return Files.size(dbFile); } catch (Exception e) {}
+        return 0;
+    }
+
+    /** DB 파일 경로 (표시용) */
+    private String getDbFilePath() {
+        if (isH2()) {
+            String prefix = "jdbc:h2:file:";
+            int idx = datasourceUrl.indexOf(prefix);
+            if (idx >= 0) {
+                String raw = datasourceUrl.substring(idx + prefix.length());
+                int semi = raw.indexOf(';');
+                if (semi >= 0) raw = raw.substring(0, semi);
+                return Paths.get(raw + ".mv.db").toAbsolutePath().normalize().toString();
+            }
+        }
+        // PostgreSQL: URL 그대로 표시
+        return datasourceUrl;
+    }
+
+    /** 현재 DB 사이즈 + 시스템 디스크 사용량 */
+    public Map<String, Object> getCurrent() {
+        long dbSize = getDbSizeBytes();
+        String dbFilePath = getDbFilePath();
+
+        // 디스크 공간 (H2는 DB 파일 디렉토리, PostgreSQL은 현재 작업 디렉토리 기준)
+        File root = isH2() ? new File(dbFilePath).getParentFile() : new File(".");
+        if (root == null || !root.exists()) root = new File(".");
         long total = root.getTotalSpace();
         long usable = root.getUsableSpace();
         long used = total - usable;
@@ -85,7 +123,8 @@ public class DbMonitorService {
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("dbFilePath", dbFile.toString());
+        result.put("dbType", isH2() ? "H2" : "PostgreSQL");
+        result.put("dbFilePath", dbFilePath);
         result.put("dbSizeBytes", dbSize);
         result.put("diskTotalBytes", total);
         result.put("diskUsedBytes", used);
@@ -101,12 +140,12 @@ public class DbMonitorService {
         return result;
     }
 
-    /** 서버 기동 직후 오늘 스냅샷 보장 (부팅 시 1회) — 일별 배치는 DB_SNAPSHOT Quartz Job이 담당 */
+    /** 서버 기동 직후 오늘 스냅샷 보장 */
     @EventListener(ApplicationReadyEvent.class)
     public void snapshotOnStartup() {
         try {
             takeSnapshot();
-            log.info("[DB 모니터] 기동 시 스냅샷 완료");
+            log.info("[DB 모니터] 기동 시 스냅샷 완료 ({})", isH2() ? "H2" : "PostgreSQL");
         } catch (Exception e) {
             log.warn("[DB 모니터] 기동 시 스냅샷 실패: {}", e.getMessage());
         }
@@ -116,9 +155,7 @@ public class DbMonitorService {
     @Transactional
     public DbSizeHistory takeSnapshot() {
         LocalDate today = LocalDate.now();
-        Path dbFile = resolveDbFilePath();
-        long dbSize = 0;
-        try { if (Files.exists(dbFile)) dbSize = Files.size(dbFile); } catch (Exception e) {}
+        long dbSize = getDbSizeBytes();
         long apiRecCount = apiRecordRepo.count();
         long apmCount = apmRepo.count();
 

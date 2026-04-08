@@ -145,14 +145,14 @@ public interface ApmCallDataRepository extends JpaRepository<ApmCallData, Long> 
     @Query("DELETE FROM ApmCallData a WHERE a.callDate < :cutoff")
     int deleteByCallDateBefore(@Param("cutoff") LocalDate cutoff);
 
-    /** 월별 집계 (특정 URL) — YYYY-MM 그룹 */
-    @Query(value = "SELECT SUBSTR(CAST(call_date AS VARCHAR), 1, 7) AS ym, " +
-                   "       source, SUM(call_count), SUM(error_count) " +
-                   "FROM apm_call_data " +
-                   "WHERE repository_name = :repo AND api_path = :apiPath " +
-                   "  AND call_date BETWEEN :from AND :to " +
-                   "GROUP BY ym, source ORDER BY ym DESC, source ASC",
-           nativeQuery = true)
+    /** 월별 집계 (특정 URL) — YYYY-MM 그룹. SUBSTRING(CAST) 방식으로 H2/PostgreSQL 공통 호환. */
+    @Query("SELECT SUBSTRING(CAST(a.callDate AS string), 1, 7), a.source, " +
+           "SUM(a.callCount), SUM(a.errorCount) " +
+           "FROM ApmCallData a " +
+           "WHERE a.repositoryName = :repo AND a.apiPath = :apiPath " +
+           "  AND a.callDate BETWEEN :from AND :to " +
+           "GROUP BY SUBSTRING(CAST(a.callDate AS string), 1, 7), a.source " +
+           "ORDER BY SUBSTRING(CAST(a.callDate AS string), 1, 7) DESC, a.source ASC")
     List<Object[]> monthlyByApi(@Param("repo") String repo, @Param("apiPath") String apiPath,
                                  @Param("from") LocalDate from, @Param("to") LocalDate to);
 }

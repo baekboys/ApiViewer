@@ -309,6 +309,16 @@
     <span class="filter-count" id="filterCount"></span>
   </div>
 
+  <!-- 상태 설명 -->
+  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:11px;color:#0c4a6e;line-height:1.7;">
+    <b>상태 구분 안내</b> &nbsp;
+    <span style="background:#dcfce7;padding:1px 6px;border-radius:3px;">사용</span> 정상 사용 중 &nbsp;|&nbsp;
+    <span style="background:#f1f5f9;padding:1px 6px;border-radius:3px;color:#64748b;">차단완료</span> @Deprecated + [URL차단작업] + UnsupportedOperationException 모두 충족 &nbsp;|&nbsp;
+    <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 &nbsp;|&nbsp;
+    <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">검토필요 차단대상</span> 호출 0건+1년 미만 또는 호출 1~N건+1년 경과 &nbsp;|&nbsp;
+    <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">후순위 차단대상</span> 수동 설정 (침해사고 로그, IT담당자 검토건)
+  </div>
+
   <div id="noticeBar" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:12px;color:#92400e;line-height:1.5;position:relative;padding-right:32px;">
     ⚠️ 상태가 <b>차단대상</b> 또는 <b>검토필요</b>인 URL 중 담당자가 판단이 어려운 대상은 상태를 <b>"사용"</b>으로 변경해 주세요. 현업 검토가 필요한 건은 <b>현업 검토</b> 화면에서 의견을 남겨주시기 바랍니다.
     <button onclick="dismissNotice('noticeBar')" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#92400e;cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;" title="닫기">×</button>
@@ -978,10 +988,19 @@
     }).join('');
   }
 
+  const STATUS_TIPS = {
+    '사용': '정상 사용 중인 API',
+    '차단완료': '@Deprecated + [URL차단작업] + UnsupportedOperationException 모두 충족',
+    '최우선 차단대상': '호출 0건 + 소스변경 1년 경과',
+    '후순위 차단대상': '수동 설정 (침해사고 로그, IT담당자 검토건)',
+    '검토필요 차단대상': '호출 0건+1년 미만 또는 호출 1~N건+1년 경과',
+    '삭제': '분석에서 제외된 API (소스 삭제 등)'
+  };
   function statusBadge(status) {
     const cls = { '사용':'st-use', '차단완료':'st-done', '삭제':'st-del', '최우선 차단대상':'bt-top', '후순위 차단대상':'bt-low', '검토필요 차단대상':'bt-rev' };
     const c = cls[status] || 'st-use';
-    return `<span class="status-badge ${c}">${esc(status || '사용')}</span>`;
+    const tip = STATUS_TIPS[status] || '';
+    return `<span class="status-badge ${c}" title="${esc(tip)}">${esc(status || '사용')}</span>`;
   }
 
   function blockTargetBadge(bt) {

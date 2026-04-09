@@ -97,26 +97,23 @@ public class CallStatsController {
     }
 
     /**
-     * URL별 집계 목록 (페이징/정렬/검색) — 4가지 기간 컬럼 반환.
-     * ?repo=&q=&page=&size=&sort=totalYear&dir=desc
-     * 컬럼: totalAll(전체) / totalYear(1년) / totalMonth(1달) / totalWeek(1주) / totalError(전체 에러)
+     * URL별 집계 목록 (페이징/검색) — 지정 기간(from~to) 기준 총건수/에러건수.
+     * ?from=&to=&repo=&q=&page=&size=
      */
     @GetMapping("/apis")
-    public ResponseEntity<?> apis(@RequestParam(required = false) String repo,
+    public ResponseEntity<?> apis(@RequestParam(required = false) String from,
+                                   @RequestParam(required = false) String to,
+                                   @RequestParam(required = false) String repo,
                                    @RequestParam(required = false) String q,
                                    @RequestParam(defaultValue = "0") int page,
-                                   @RequestParam(defaultValue = "50") int size,
-                                   @RequestParam(defaultValue = "totalYear") String sort,
-                                   @RequestParam(defaultValue = "desc") String dir) {
-        LocalDate today = LocalDate.now();
-        LocalDate yearAgo = today.minusDays(364);
-        LocalDate monthAgo = today.minusDays(29);
-        LocalDate weekAgo = today.minusDays(6);
+                                   @RequestParam(defaultValue = "50") int size) {
+        LocalDate toDate = parse(to, LocalDate.now().minusDays(1));
+        LocalDate fromDate = parse(from, toDate.minusDays(364));
 
         org.springframework.data.domain.Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(200, Math.max(1, size)));
 
-        Page<Object[]> pageResult = apmRepo.aggregatePaged(
-                yearAgo, monthAgo, weekAgo,
+        Page<Object[]> pageResult = apmRepo.aggregateByPeriod(
+                fromDate, toDate,
                 (repo != null && !repo.isBlank()) ? repo : null,
                 (q != null && !q.isBlank()) ? q : null,
                 pageable);
@@ -126,16 +123,14 @@ public class CallStatsController {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("repoName", row[0]);
             m.put("apiPath", row[1]);
-            m.put("totalAll",   ((Number) row[2]).longValue());
+            m.put("totalCall",  ((Number) row[2]).longValue());
             m.put("totalError", ((Number) row[3]).longValue());
-            m.put("totalYear",  ((Number) row[4]).longValue());
-            m.put("totalMonth", ((Number) row[5]).longValue());
-            m.put("totalWeek",  ((Number) row[6]).longValue());
             items.add(m);
         }
-        // DB에서 1년 호출건수 DESC로 정렬 후 페이징 완료 — 추가 정렬 불필요
 
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("from", fromDate.toString());
+        result.put("to", toDate.toString());
         result.put("items", items);
         result.put("page", pageResult.getNumber());
         result.put("size", pageResult.getSize());

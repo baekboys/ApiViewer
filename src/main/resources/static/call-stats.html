@@ -185,7 +185,7 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="dot dot-orange"></span>TOP 10 호출 URL (최근 1년)</div>
+      <div class="card-title"><span class="dot dot-orange"></span>TOP 10 호출 URL (조회 기간)</div>
       <div style="max-height:320px;overflow:auto;">
         <table>
           <thead><tr>
@@ -209,16 +209,13 @@
     <table id="apiTable">
       <thead><tr>
         <th style="width:40px;text-align:center;">No.</th>
-        <th class="sortable" onclick="toggleSort('apiPath')">URL <span class="sort-icon" id="sort-apiPath"></span></th>
+        <th>URL</th>
         <th>레포</th>
-        <th class="num sortable" onclick="toggleSort('totalAll')">총 건수<br><span style="font-weight:400;font-size:9px;">(전체)</span> <span class="sort-icon" id="sort-totalAll"></span></th>
-        <th class="num sortable" onclick="toggleSort('totalYear')">1년 <span class="sort-icon" id="sort-totalYear">↓</span></th>
-        <th class="num sortable" onclick="toggleSort('totalMonth')">1달 <span class="sort-icon" id="sort-totalMonth"></span></th>
-        <th class="num sortable" onclick="toggleSort('totalWeek')">1주 <span class="sort-icon" id="sort-totalWeek"></span></th>
-        <th class="num sortable" onclick="toggleSort('totalError')">에러(전체) <span class="sort-icon" id="sort-totalError"></span></th>
+        <th class="num">호출건수</th>
+        <th class="num">에러건수</th>
         <th class="num">상세</th>
       </tr></thead>
-      <tbody id="apiTbody"><tr><td colspan="9" class="empty">조회 결과가 여기 표시됩니다.</td></tr></tbody>
+      <tbody id="apiTbody"><tr><td colspan="6" class="empty">조회 결과가 여기 표시됩니다.</td></tr></tbody>
     </table>
     <div class="pagination" id="pagination"></div>
   </div>
@@ -246,7 +243,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  let currentPage = 0, currentSize = 200, currentSort = 'totalYear', currentDir = 'desc';
+  let currentPage = 0, currentSize = 200;
   let pageNavSize = 10;
   let currentDetail = { repo:'', apiPath:'', tab:'daily' };
 
@@ -376,23 +373,18 @@
       const params = getParams();
       params.set('page', currentPage);
       params.set('size', currentSize);
-      params.set('sort', currentSort);
-      params.set('dir', currentDir);
       const res = await fetch(`/api/call-stats/apis?${params}`);
       const d = await res.json();
       const tbody = document.getElementById('apiTbody');
       if (!d.items || d.items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty">검색 결과가 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">검색 결과가 없습니다.</td></tr>';
       } else {
-        const maxAll   = Math.max(1, ...d.items.map(i => i.totalAll));
-        const maxYear  = Math.max(1, ...d.items.map(i => i.totalYear));
-        const maxMonth = Math.max(1, ...d.items.map(i => i.totalMonth));
-        const maxWeek  = Math.max(1, ...d.items.map(i => i.totalWeek));
+        const maxCall = Math.max(1, ...d.items.map(i => i.totalCall));
         const cell = (val, max, color) => {
           const pct = Math.max(2, Math.round((val / max) * 100));
           return `<td class="num" style="position:relative;">
             <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${color};opacity:.15;pointer-events:none;"></div>
-            <span style="position:relative;">${fmt(val)}</span>
+            <span style="position:relative;font-weight:700;">${fmt(val)}</span>
           </td>`;
         };
         const startNo = d.page * d.size;
@@ -401,10 +393,7 @@
             <td style="text-align:center;color:var(--text-muted);font-size:11px;">${startNo + idx + 1}</td>
             <td><div class="api-path">${esc(a.apiPath)}</div></td>
             <td><span class="repo-badge">${esc(a.repoName)}</span></td>
-            ${cell(a.totalAll, maxAll, '#64748b')}
-            ${cell(a.totalYear, maxYear, '#3b82f6').replace('<span', '<span style="font-weight:700;"')}
-            ${cell(a.totalMonth, maxMonth, '#22c55e')}
-            ${cell(a.totalWeek, maxWeek, '#f59e0b')}
+            ${cell(a.totalCall, maxCall, '#3b82f6')}
             <td class="num" style="color:${a.totalError>0?'#dc2626':'inherit'};">${fmt(a.totalError)}</td>
             <td class="num"><button class="btn btn-ghost" style="font-size:10px;padding:3px 10px;height:auto;" onclick="openDetail('${esc(a.repoName)}','${esc(a.apiPath)}')">상세</button></td>
           </tr>`).join('');

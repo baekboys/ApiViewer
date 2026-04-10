@@ -37,14 +37,19 @@ echo.
 echo ================================================
 echo   API Viewer 시작
 echo ------------------------------------------------
-echo   웹         : http://localhost
-echo   분석현황   : http://localhost/viewer.html
-echo   설정       : http://localhost/settings.html
+echo   [대시보드]      http://localhost/
+echo   [URL분석현황]   http://localhost/viewer.html
+echo   [URL호출현황]   http://localhost/call-stats.html
+echo   [현업검토]     http://localhost/review.html
+echo   [설정]         http://localhost/settings.html
+echo   [URL분석추출]  http://localhost/extract.html
+echo ------------------------------------------------
+echo   [H2 콘솔]      http://localhost/h2-console
+echo     JDBC URL    : jdbc:h2:file:./data/api-viewer-db
+echo     User / Pass : sa / (없음)
 echo ================================================
-echo.
-echo 종료: Ctrl+C
+echo   종료: Ctrl+C
+echo ================================================
 echo.
 
 java -Djava.net.preferIPv4Stack=true -Dfile.encoding=UTF-8 -jar "%JAR%"
-
-pause

@@ -472,7 +472,8 @@
     if(d.valid){sessionStorage.setItem('isAdmin','true');sessionStorage.setItem('adminToken',d.token);applyAdminUI();location.href='/settings.html';}else showToast('비밀번호 불일치','error');}catch(e){showToast('확인 실패','error');}
   }
   applyAdminUI();
-  loadReviewData();
+  // 자동 조회 제거 — 사용자가 조회 버튼 클릭 시에만 데이터 로드
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="99" style="text-align:center;padding:60px;color:var(--text-muted);font-size:13px;">📋 업무명을 선택하고 [조회] 버튼을 클릭하세요</td></tr>';
 
   // ── 호출건수 버튼 + 차트 팝업 ─────────────────────────────
   function callCountCell(a, type) {

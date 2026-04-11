@@ -208,6 +208,24 @@ function updateAdminBadge(valid) {
       </label>
     </div>
 
+    <!-- 현업검토 대상 상태 -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">현업검토 화면 표시 상태</div>
+    <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="gReviewStatus1" value="최우선 차단대상" style="width:14px;height:14px;accent-color:#dc2626;">
+        <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-weight:600;">① 최우선 차단대상</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="gReviewStatus2" value="후순위 차단대상" style="width:14px;height:14px;accent-color:#c2410c;">
+        <span style="background:#ffedd5;color:#c2410c;padding:2px 8px;border-radius:10px;font-weight:600;">② 후순위 차단대상</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="gReviewStatus3" value="추가검토필요 차단대상" style="width:14px;height:14px;accent-color:#d97706;">
+        <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600;">③ 추가검토필요 차단대상</span>
+      </label>
+      <span style="font-size:11px;color:var(--text-muted);align-self:center;">체크된 상태만 현업검토 화면에 표시됩니다</span>
+    </div>
+
     <!-- APM 설정 -->
     <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">APM 설정</div>
     <div class="field-row col3" style="margin-bottom:14px;">
@@ -722,6 +740,11 @@ function updateAdminBadge(valid) {
       const tailVal = g.logTailLines ?? 1000;
       document.getElementById('gLogTailLines').value   = tailVal;
       document.getElementById('logTailLines').value    = tailVal;
+      // 현업검토 대상 상태 체크박스 로드
+      const reviewStatuses = (g.reviewTargetStatuses || '최우선 차단대상,후순위 차단대상,추가검토필요 차단대상').split(',').map(s => s.trim());
+      document.getElementById('gReviewStatus1').checked = reviewStatuses.includes('최우선 차단대상');
+      document.getElementById('gReviewStatus2').checked = reviewStatuses.includes('후순위 차단대상');
+      document.getElementById('gReviewStatus3').checked = reviewStatuses.includes('추가검토필요 차단대상');
       // 팀 목록 로드
       document.getElementById('teamsList').innerHTML = '';
       try {
@@ -783,7 +806,12 @@ function updateAdminBadge(valid) {
       whatapPsize: parseInt(document.getElementById('gWhatapPsize').value) || 10000,
       teams: (() => { const t = collectTeams(); return t.length ? JSON.stringify(t) : null; })(),
       whatapProfiles: wpList.length ? JSON.stringify(wpList) : null,
-      jenniferProfiles: jpList.length ? JSON.stringify(jpList) : null
+      jenniferProfiles: jpList.length ? JSON.stringify(jpList) : null,
+      reviewTargetStatuses: [
+        {id:'gReviewStatus1', val:'최우선 차단대상'},
+        {id:'gReviewStatus2', val:'후순위 차단대상'},
+        {id:'gReviewStatus3', val:'추가검토필요 차단대상'}
+      ].filter(x => document.getElementById(x.id).checked).map(x => x.val).join(',') || '최우선 차단대상,후순위 차단대상,추가검토필요 차단대상'
     };
     try {
       const res = await adminFetch('/api/config/global', {

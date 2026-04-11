@@ -145,9 +145,9 @@
       차단이 부적절한 경우 "차단대상 제외"를 선택하고 사유를 기입해 주세요. 체크박스로 여러 건을 선택하여 일괄 변경할 수도 있습니다.
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #bfdbfe;font-size:11px;line-height:1.8;">
         <b>상태 구분 안내</b><br>
-        <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">(1) 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
-        <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">(2) 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
-        <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">(3) 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
+        <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">① 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
+        <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">② 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
+        <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">③ 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
       </div>
     </div>
   </div>
@@ -185,9 +185,9 @@
 
   <div class="stats-bar" id="statsBar" style="display:none">
     <div class="stat-pill"><span>전체</span><strong id="rTotal">0</strong></div>
-    <div class="stat-pill"><span>최우선</span><strong id="rTop" style="color:#dc2626;">0</strong></div>
-    <div class="stat-pill"><span>후순위</span><strong id="rLow" style="color:#ea580c;">0</strong></div>
-    <div class="stat-pill"><span>검토필요</span><strong id="rReview" style="color:#d97706;">0</strong></div>
+    <div class="stat-pill" id="pillTop"><span>① 최우선 차단대상</span><strong id="rTop" style="color:#dc2626;">0</strong></div>
+    <div class="stat-pill" id="pillLow"><span>② 후순위 차단대상</span><strong id="rLow" style="color:#ea580c;">0</strong></div>
+    <div class="stat-pill" id="pillReview"><span>③ 추가검토필요 차단대상</span><strong id="rReview" style="color:#d97706;">0</strong></div>
     <div class="stat-pill"><span>검토완료</span><strong id="rReviewed" style="color:var(--primary);">0</strong></div>
     <div class="stat-pill"><span>미검토</span><strong id="rPending" style="color:var(--text-muted);">0</strong></div>
   </div>
@@ -197,9 +197,9 @@
     <div class="filter-bar" style="margin-bottom:6px;">
       <select id="btFilter" onchange="filterTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
         <option value="">전체 차단대상</option>
-        <option value="최우선 차단대상">최우선 차단대상</option>
-        <option value="후순위 차단대상">후순위 차단대상</option>
-        <option value="검토필요 차단대상">검토필요 차단대상</option>
+        <option value="최우선 차단대상">① 최우선 차단대상</option>
+        <option value="후순위 차단대상">② 후순위 차단대상</option>
+        <option value="추가검토필요 차단대상">③ 추가검토필요 차단대상</option>
       </select>
       <select id="rvFilter" onchange="filterTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
         <option value="">전체 검토결과</option>
@@ -269,6 +269,7 @@
 <div class="toast" id="toast"></div>
 <script>
   let allApis = [], filteredApis = [], repoConfigMap = {}, selectedIds = new Set();
+  let reviewTargetStatuses = ['최우선 차단대상','후순위 차단대상','추가검토필요 차단대상'];
 
   let bizLoaded = false;
 
@@ -301,6 +302,9 @@
           const dl = document.getElementById('teamsDatalist');
           if (dl && Array.isArray(teamsArr)) dl.innerHTML = teamsArr.map(t => `<option value="${esc(t)}">`).join('');
         }
+        // 현업검토 대상 상태 필터
+        reviewTargetStatuses = (g.reviewTargetStatuses || '최우선 차단대상,후순위 차단대상,추가검토필요 차단대상')
+          .split(',').map(s => s.trim()).filter(Boolean);
       } catch(e) {}
 
       // 업무명 드롭다운 (최초 1회)
@@ -313,6 +317,8 @@
       }
 
       let apis = data.apis || [];
+      // reviewTargetStatuses 필터 적용
+      apis = apis.filter(a => reviewTargetStatuses.includes(a.status));
       // 업무명 필터
       if (biz) {
         const matchRepos = new Set();
@@ -322,6 +328,8 @@
       allApis = apis;
       renderStats(); filterTable();
       document.getElementById('statsBar').style.display = 'flex';
+      // 활성화된 상태만 pill/옵션 표시
+      updateReviewStatusUI();
       document.getElementById('filterBar').style.display = 'flex';
       document.getElementById('excelBtn').style.display = 'inline-block';
       showToast(`${allApis.length}개 차단대상 URL 조회 완료`, 'success');
@@ -333,13 +341,29 @@
 
   function renderStats() {
     let top=0,low=0,rev=0,reviewed=0;
-    allApis.forEach(a => { if(a.status==='최우선 차단대상')top++; if(a.status==='후순위 차단대상')low++; if(a.status==='검토필요 차단대상')rev++; if(a.reviewResult)reviewed++; });
+    allApis.forEach(a => { if(a.status==='최우선 차단대상')top++; if(a.status==='후순위 차단대상')low++; if(a.status==='추가검토필요 차단대상')rev++; if(a.reviewResult)reviewed++; });
     document.getElementById('rTotal').textContent = allApis.length;
     document.getElementById('rTop').textContent = top;
     document.getElementById('rLow').textContent = low;
     document.getElementById('rReview').textContent = rev;
     document.getElementById('rReviewed').textContent = reviewed;
     document.getElementById('rPending').textContent = allApis.length - reviewed;
+  }
+
+  function updateReviewStatusUI() {
+    // 통계 pill 표시/숨김
+    const pillMap = {'최우선 차단대상':'pillTop','후순위 차단대상':'pillLow','추가검토필요 차단대상':'pillReview'};
+    Object.entries(pillMap).forEach(([status, id]) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = reviewTargetStatuses.includes(status) ? '' : 'none';
+    });
+    // btFilter 드롭다운 옵션 표시/숨김
+    const btFilter = document.getElementById('btFilter');
+    if (!btFilter) return;
+    Array.from(btFilter.options).forEach(opt => {
+      if (!opt.value) return; // "전체" 옵션 유지
+      opt.style.display = reviewTargetStatuses.includes(opt.value) ? '' : 'none';
+    });
   }
 
   function filterTable() {
@@ -443,8 +467,13 @@
     }catch(e){showToast(e.message||'변경 실패','error');}
   }
 
-  const STATUS_TIPS={'최우선 차단대상':'(1) 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외)','후순위 차단대상':'(2) IT담당자 검토결과 미사용 또는 업무종료로 인지된 건','추가검토필요 차단대상':'(3) 호출 0건 + 소스변경 1년 미만, 호출 1~N건 + 소스변경 1년 경과','검토필요 차단대상':'(3) 호출 0건 + 소스변경 1년 미만, 호출 1~N건 + 소스변경 1년 경과'};
-  function statusBadge(s){if(!s||s==='사용'||s==='차단완료')return'-';const tip=STATUS_TIPS[s]||'';if(s.includes('최우선'))return`<span class="status-badge bt-top" title="${esc(tip)}">${esc(s)}</span>`;if(s.includes('후순위'))return`<span class="status-badge bt-low" title="${esc(tip)}">${esc(s)}</span>`;if(s.includes('검토필요'))return`<span class="status-badge" style="background:#fef3c7;color:#92400e;" title="${esc(tip)}">${esc(s)}</span>`;return esc(s);}
+  const STATUS_LABEL = {
+    '최우선 차단대상': '① 최우선 차단대상',
+    '후순위 차단대상': '② 후순위 차단대상',
+    '추가검토필요 차단대상': '③ 추가검토필요 차단대상'
+  };
+  const STATUS_TIPS={'최우선 차단대상':'① 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외)','후순위 차단대상':'② IT담당자 검토결과 미사용 또는 업무종료로 인지된 건','추가검토필요 차단대상':'③ 호출 0건 + 소스변경 1년 미만, 호출 1~N건 + 소스변경 1년 경과'};
+  function statusBadge(s){if(!s||s==='사용'||s==='차단완료')return'-';const tip=STATUS_TIPS[s]||'';const label=STATUS_LABEL[s]||s;if(s.includes('최우선'))return`<span class="status-badge bt-top" title="${esc(tip)}">${esc(label)}</span>`;if(s.includes('후순위'))return`<span class="status-badge bt-low" title="${esc(tip)}">${esc(label)}</span>`;if(s.includes('검토필요'))return`<span class="status-badge" style="background:#fef3c7;color:#92400e;" title="${esc(tip)}">${esc(label)}</span>`;return esc(label);}
 
   async function downloadExcel() {
     if(!filteredApis.length){showToast('다운로드할 데이터가 없습니다.','error');return;}

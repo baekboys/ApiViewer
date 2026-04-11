@@ -195,17 +195,17 @@
         <div class="sum-sub" id="sDonePct"></div>
       </div>
       <div class="sum-card c-bt-top">
-        <div class="sum-label">(1) 최우선 차단대상</div>
+        <div class="sum-label">① 최우선 차단대상</div>
         <div class="sum-value" id="sBtTop">0</div>
         <div class="sum-sub" id="sBtTopPct"></div>
       </div>
       <div class="sum-card c-bt-low">
-        <div class="sum-label">(2) 후순위 차단대상</div>
+        <div class="sum-label">② 후순위 차단대상</div>
         <div class="sum-value" id="sBtLow">0</div>
         <div class="sum-sub" id="sBtLowPct"></div>
       </div>
       <div class="sum-card" style="border-left:4px solid #d97706;">
-        <div class="sum-label">(3) 추가검토필요 차단대상</div>
+        <div class="sum-label">③ 추가검토필요 차단대상</div>
         <div class="sum-value" id="sBtRev">0</div>
         <div class="sum-sub" id="sBtRevPct"></div>
       </div>
@@ -221,9 +221,9 @@
       <b>상태 구분 안내</b><br>
       <span style="background:#dcfce7;padding:1px 6px;border-radius:3px;">사용</span> 실제 또는 현업검토 결과 사용중인 URL &nbsp;|&nbsp;
       <span style="background:#f1f5f9;padding:1px 6px;border-radius:3px;color:#64748b;">차단완료</span> @Deprecated + javadoc표기 + UnsupportedOperationException<br>
-      <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">(1) 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
-      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">(2) 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
-      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">(3) 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
+      <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">① 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
+      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">② 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
+      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">③ 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
     </div>
 
     <!-- ── 상태 분포 + HTTP Method ── -->
@@ -234,9 +234,9 @@
         <div class="status-legend">
           <div class="legend-item"><div class="legend-dot seg-use"></div>사용</div>
           <div class="legend-item"><div class="legend-dot seg-done"></div>차단완료</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#dc2626;"></div>(1) 최우선 차단대상</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#ea580c;"></div>(2) 후순위 차단대상</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#d97706;"></div>(3) 추가검토필요 차단대상</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#dc2626;"></div>① 최우선 차단대상</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ea580c;"></div>② 후순위 차단대상</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#d97706;"></div>③ 추가검토필요 차단대상</div>
         </div>
         <div style="margin-top:16px;" id="distDetail"></div>
       </div>
@@ -263,9 +263,9 @@
               <th style="text-align:right;">합계</th>
               <th style="text-align:right;">사용</th>
               <th style="text-align:right;">차단완료</th>
-              <th style="text-align:right;">(1) 최우선</th>
-              <th style="text-align:right;">(2) 후순위</th>
-              <th style="text-align:right;">(3) 추가검토필요</th>
+              <th style="text-align:right;">① 최우선</th>
+              <th style="text-align:right;">② 후순위</th>
+              <th style="text-align:right;">③ 추가검토필요</th>
               <th></th>
             </tr></thead>
             <tbody id="teamTbody"></tbody>
@@ -284,9 +284,9 @@
               <th style="text-align:right;">합계</th>
               <th style="text-align:right;">사용</th>
               <th style="text-align:right;">차단완료</th>
-              <th style="text-align:right;">(1) 최우선</th>
-              <th style="text-align:right;">(2) 후순위</th>
-              <th style="text-align:right;">(3) 추가검토필요</th>
+              <th style="text-align:right;">① 최우선</th>
+              <th style="text-align:right;">② 후순위</th>
+              <th style="text-align:right;">③ 추가검토필요</th>
               <th>마지막 분석일</th>
               <th></th>
             </tr></thead>
@@ -305,9 +305,9 @@
               <th style="text-align:right;">합계</th>
               <th style="text-align:right;">사용</th>
               <th style="text-align:right;">차단완료</th>
-              <th style="text-align:right;">(1) 최우선</th>
-              <th style="text-align:right;">(2) 후순위</th>
-              <th style="text-align:right;">(3) 추가검토필요</th>
+              <th style="text-align:right;">① 최우선</th>
+              <th style="text-align:right;">② 후순위</th>
+              <th style="text-align:right;">③ 추가검토필요</th>
               <th></th>
             </tr></thead>
             <tbody id="managerTbody"></tbody>
@@ -467,9 +467,9 @@
     const distData = [
       ['사용', use, '#22c55e'],
       ['차단완료', done, '#6b7280'],
-      ['(1) 최우선 차단대상', btTop, '#dc2626'],
-      ['(2) 후순위 차단대상', btLow, '#ea580c'],
-      ['(3) 추가검토필요 차단대상', btRev, '#d97706']
+      ['① 최우선 차단대상', btTop, '#dc2626'],
+      ['② 후순위 차단대상', btLow, '#ea580c'],
+      ['③ 추가검토필요 차단대상', btRev, '#d97706']
     ];
     const bar = document.getElementById('distBar');
     bar.innerHTML = distData.filter(([,v]) => v > 0).map(([,v,c]) =>
@@ -525,9 +525,9 @@
       const items = [
         ['사용', use, barColor('사용')],
         ['차단완료', done, '#6b7280'],
-        ['(1) 최우선', btTop, '#dc2626'],
-        ['(2) 후순위', btLow, '#ea580c'],
-        ['(3) 추가검토필요', btRev, '#d97706']
+        ['① 최우선', btTop, '#dc2626'],
+        ['② 후순위', btLow, '#ea580c'],
+        ['③ 추가검토필요', btRev, '#d97706']
       ];
       const bars = items.map(([label, v, color]) =>
         `<div style="display:flex;align-items:center;gap:4px;">
@@ -564,9 +564,9 @@
       const details = [
         use  ? `<span class="st st-use" style="font-size:10px;">사용 ${use}</span>` : '',
         done ? `<span class="st st-done" style="font-size:10px;">차단완료 ${done}</span>` : '',
-        btTop? `<span style="font-size:10px;color:#dc2626;font-weight:600;">(1) 최우선 ${btTop}</span>` : '',
-        btLow? `<span style="font-size:10px;color:#ea580c;font-weight:600;">(2) 후순위 ${btLow}</span>` : '',
-        btRev? `<span style="font-size:10px;color:#d97706;font-weight:600;">(3) 추가검토필요 ${btRev}</span>` : ''
+        btTop? `<span style="font-size:10px;color:#dc2626;font-weight:600;">① 최우선 ${btTop}</span>` : '',
+        btLow? `<span style="font-size:10px;color:#ea580c;font-weight:600;">② 후순위 ${btLow}</span>` : '',
+        btRev? `<span style="font-size:10px;color:#d97706;font-weight:600;">③ 추가검토필요 ${btRev}</span>` : ''
       ].filter(Boolean).join(' ');
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <span style="width:140px;font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(row[labelKey])}">${label}</span>

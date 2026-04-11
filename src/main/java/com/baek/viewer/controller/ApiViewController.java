@@ -30,6 +30,7 @@ import jakarta.persistence.criteria.Predicate;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -179,8 +180,12 @@ public class ApiViewController {
                                      @RequestParam(required = false) String status,
                                      @RequestParam(required = false) Boolean logWorkExcluded,
                                      @RequestParam(required = false) String httpMethod,
+                                     @RequestParam(required = false) String isDeprecated,
                                      @RequestParam(required = false) String q,
                                      @RequestParam(required = false) String alert,
+                                     @RequestParam(required = false) String ids,
+                                     @RequestParam(required = false) String modifiedFrom,
+                                     @RequestParam(required = false) String modifiedTo,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size,
                                      @RequestParam(required = false) String sort) {
@@ -200,9 +205,13 @@ public class ApiViewController {
         boolean hasDynamicFilter = (status != null && !status.isBlank())
                 || (logWorkExcluded != null)
                 || (httpMethod != null && !httpMethod.isBlank())
+                || (isDeprecated != null && !isDeprecated.isBlank())
                 || (q != null && !q.isBlank())
                 || (alert != null && !alert.isBlank())
-                || repoList != null;
+                || repoList != null
+                || (ids != null && !ids.isBlank())
+                || (modifiedFrom != null && !modifiedFrom.isBlank())
+                || (modifiedTo != null && !modifiedTo.isBlank());
 
         if (paged || hasDynamicFilter) {
             int pageIdx  = paged ? Math.max(0, page) : 0;
@@ -211,7 +220,7 @@ public class ApiViewController {
             Pageable pageable = PageRequest.of(pageIdx, pageSize, sortSpec);
 
             Specification<ApiRecord> spec = buildSpec(repository, repoList, blockTargetOnly,
-                    status, logWorkExcluded, httpMethod, q, alert);
+                    status, logWorkExcluded, httpMethod, isDeprecated, q, alert, ids, modifiedFrom, modifiedTo);
 
             Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
             // 엔티티 → 경량 summary Map 변환 (TEXT 필드 강제 제외)
@@ -265,10 +274,50 @@ public class ApiViewController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 업로드 결과 필터용 — ID 배열을 바디로 받아 페이지 조회 (URL 길이 제한 우회)
+     * Body: { "ids": [1,2,...], "page": 0, "size": 100, "sort": "id,desc" }
+     */
+    @PostMapping("/db/apis/by-ids")
+    public ResponseEntity<?> dbApisByIds(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = (List<Number>) body.get("ids");
+        if (rawIds == null || rawIds.isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "ids 필수"));
+
+        List<Long> idList = rawIds.stream().map(Number::longValue).toList();
+        if (idList.size() > 5000)
+            return ResponseEntity.badRequest().body(Map.of("error", "한 번에 조회 가능한 ID는 최대 5,000건입니다."));
+
+        int pageIdx  = body.containsKey("page")  ? ((Number) body.get("page")).intValue()  : 0;
+        int pageSize = body.containsKey("size")  ? ((Number) body.get("size")).intValue()  : 100;
+        pageSize = Math.min(Math.max(pageSize, 1), 1000);
+        String sortStr = body.containsKey("sort") ? (String) body.get("sort") : null;
+        Sort sortSpec = parseSort(sortStr);
+        Pageable pageable = PageRequest.of(pageIdx, pageSize, sortSpec);
+
+        Specification<ApiRecord> spec = (root, query, cb) -> root.get("id").in(idList);
+        Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
+
+        List<Map<String, Object>> summaryList = entityPage.getContent().stream()
+                .map(ApiViewController::toSummaryMap)
+                .collect(Collectors.toList());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("apis",       summaryList);
+        response.put("total",      entityPage.getTotalElements());
+        response.put("page",       pageIdx);
+        response.put("size",       pageSize);
+        response.put("totalPages", entityPage.getTotalPages());
+        response.put("paged",      true);
+        return ResponseEntity.ok(response);
+    }
+
     /** 동적 필터 Specification 빌더 */
     private Specification<ApiRecord> buildSpec(String repository, List<String> repoList, boolean blockTargetOnly,
                                                 String status, Boolean logWorkExcluded,
-                                                String httpMethod, String q, String alert) {
+                                                String httpMethod, String isDeprecated, String q, String alert,
+                                                String ids, String modifiedFrom, String modifiedTo) {
         return (root, query, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             if (repository != null && !repository.isBlank()) {
@@ -296,6 +345,9 @@ public class ApiViewController {
             if (httpMethod != null && !httpMethod.isBlank()) {
                 ps.add(cb.equal(root.get("httpMethod"), httpMethod));
             }
+            if (isDeprecated != null && !isDeprecated.isBlank()) {
+                ps.add(cb.equal(root.get("isDeprecated"), isDeprecated));
+            }
             if (q != null && !q.isBlank()) {
                 String pat = "%" + q.toLowerCase() + "%";
                 ps.add(cb.or(
@@ -316,6 +368,24 @@ public class ApiViewController {
                     case "deleted"  -> ps.add(cb.equal(root.get("status"), "삭제"));
                     default -> {}
                 }
+            }
+            if (ids != null && !ids.isBlank()) {
+                List<Long> idList = Arrays.stream(ids.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty())
+                        .map(Long::parseLong).toList();
+                if (!idList.isEmpty()) ps.add(root.get("id").in(idList));
+            }
+            if (modifiedFrom != null && !modifiedFrom.isBlank()) {
+                try {
+                    LocalDateTime from = LocalDateTime.parse(modifiedFrom.replace(" ", "T"));
+                    ps.add(cb.greaterThanOrEqualTo(root.get("modifiedAt"), from));
+                } catch (Exception ignored) {}
+            }
+            if (modifiedTo != null && !modifiedTo.isBlank()) {
+                try {
+                    LocalDateTime to = LocalDateTime.parse(modifiedTo.replace(" ", "T"));
+                    ps.add(cb.lessThanOrEqualTo(root.get("modifiedAt"), to));
+                } catch (Exception ignored) {}
             }
             // alert!="deleted" 기본: 삭제 제외
             if (alert == null || !"deleted".equals(alert)) {
@@ -414,9 +484,10 @@ public class ApiViewController {
             byMethod.put(row[0] != null ? row[0].toString() : "?", ((Number) row[1]).longValue());
         }
 
-        long newCount      = hasRepo ? recordRepository.countNewForRepo(repository)           : recordRepository.countNew();
-        long changedCount  = hasRepo ? recordRepository.countStatusChangedForRepo(repository) : recordRepository.countStatusChanged();
-        long reviewedCount = hasRepo ? recordRepository.countReviewedForRepo(repository)      : recordRepository.countReviewed();
+        long newCount        = hasRepo ? recordRepository.countNewForRepo(repository)             : recordRepository.countNew();
+        long changedCount    = hasRepo ? recordRepository.countStatusChangedForRepo(repository)   : recordRepository.countStatusChanged();
+        long reviewedCount   = hasRepo ? recordRepository.countReviewedForRepo(repository)        : recordRepository.countReviewed();
+        long deprecatedCount = hasRepo ? recordRepository.countDeprecatedForRepo(repository)      : recordRepository.countDeprecated();
         // 최우선 차단대상 중 "로그작업이력 제외" 집계 (logWorkExcluded=false 만)
         long priorityPureCount = hasRepo
                 ? recordRepository.countByStatusAndLogNotExcludedForRepo("최우선 차단대상", repository)
@@ -428,6 +499,7 @@ public class ApiViewController {
         response.put("newCount",     newCount);
         response.put("changedCount", changedCount);
         response.put("reviewedCount", reviewedCount);
+        response.put("deprecated",   deprecatedCount);
         response.put("byStatus",     byStatus);
         response.put("byMethod",     byMethod);
         response.put("priorityPureCount", priorityPureCount);

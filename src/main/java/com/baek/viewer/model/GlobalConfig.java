@@ -84,6 +84,13 @@ public class GlobalConfig {
     @Column(name = "whatap_psize")
     private Integer whatapPsize = 10000;
 
+    /**
+     * 현업검토 화면에 표시할 상태 목록 (콤마 구분)
+     * 기본값: 3가지 차단대상 모두 표시
+     */
+    @Column(name = "review_target_statuses", columnDefinition = "TEXT")
+    private String reviewTargetStatuses;
+
 
     public Long getId() { return id; }
     public String getStartDate() { return startDate; }
@@ -131,4 +138,9 @@ public class GlobalConfig {
     public void setWhatapPtotal(Integer v) { this.whatapPtotal = v; }
     public Integer getWhatapPsize() { return whatapPsize != null ? whatapPsize : 10000; }
     public void setWhatapPsize(Integer v) { this.whatapPsize = v; }
+    public String getReviewTargetStatuses() {
+        return reviewTargetStatuses != null ? reviewTargetStatuses
+               : "최우선 차단대상,후순위 차단대상,추가검토필요 차단대상";
+    }
+    public void setReviewTargetStatuses(String v) { this.reviewTargetStatuses = v; }
 }

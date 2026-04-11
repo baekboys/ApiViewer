@@ -25,7 +25,7 @@
     .main { max-width: 1700px; margin: 0 auto; padding: 20px 24px; }
 
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
-    .card-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .card-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
     .card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
 
     /* 조회 폼 */
@@ -48,8 +48,8 @@
     .db-meta strong { color: var(--primary); }
 
     /* 통계 */
-    .stats-bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s; }
+    .stats-bar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s, background .15s; }
     .stat-pill:hover { border-color: var(--primary); }
     .stat-pill.active-filter { border-color: var(--primary); background: #eff6ff; }
     .stat-pill strong { font-size: 15px; font-weight: 700; }
@@ -58,6 +58,18 @@
     .stat-pill.s-target  strong { color: #ea580c; }
     .stat-pill.s-done    strong { color: #6b7280; }
     .stat-pill.s-use     strong { color: var(--success); }
+    /* 그룹 색상 */
+    .sg-status { background:#f0fdf4; border-color:#86efac; }           /* 사용/차단완료 */
+    .sg-pri1   { background:#fef2f2; border-color:#fca5a5; }           /* ① 최우선 */
+    .sg-pri2   { background:#fff7ed; border-color:#fdba74; }           /* ② 후순위 */
+    .sg-pri3   { background:#fffbeb; border-color:#fcd34d; }           /* ③ 추가검토필요 */
+    .sg-review { background:#eff6ff; border-color:#93c5fd; }           /* 현업검토완료 */
+    .sg-hist   { background:#f5f3ff; border-color:#c4b5fd; }           /* 신규/상태변경/삭제 */
+    /* 메소드/deprecated — 소형 chip */
+    .stat-chip { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:20px; padding:3px 10px; font-size:11px; display:flex; align-items:center; gap:4px; cursor:pointer; transition:border-color .15s, background .15s; white-space:nowrap; }
+    .stat-chip:hover { border-color:var(--primary); background:#eff6ff; }
+    .stat-chip.active-filter { border-color:var(--primary); background:#dbeafe; }
+    .stat-chip strong { font-size:12px; font-weight:700; }
 
     /* 필터 */
     .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
@@ -103,9 +115,12 @@
     tbody tr.row-selected { background: #eff6ff !important; }
     tbody tr.row-changed { background: #fef2f2 !important; }
     tbody tr.row-changed:hover { background: #fee2e2 !important; }
-    tbody tr.row-locked { background: #f1f5f9 !important; opacity:.7; }
-    tbody tr.row-locked:hover { background: #e2e8f0 !important; }
-    tbody tr.row-locked td.memo-editable { pointer-events:none; border-style:solid; border-color:#e2e8f0; }
+    tbody tr.row-locked { background: #dde3ea !important; }
+    tbody tr.row-locked:hover { background: #cdd4dc !important; }
+    tbody tr.row-locked td { color: #64748b; }
+    tbody tr.row-locked td.sk { background: #dde3ea; }
+    tbody tr.row-locked:hover td.sk { background: #cdd4dc; }
+    tbody tr.row-locked td.memo-editable { pointer-events:none; border-style:solid; border-color:#c8d0d8; }
     tbody tr.row-locked td.memo-cell { pointer-events:none; }
     .lock-btn { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; cursor:pointer; user-select:none; white-space:nowrap; }
     .lock-on  { background:#1e40af; color:#fff; }
@@ -139,7 +154,7 @@
     .copy-btn:hover { background:#f1f5f9; border-color:#94a3b8; }
     .copy-btn:active { background:#e2e8f0; }
     .api-op   { color:var(--text-muted); font-size:12px; }
-    .ctrl-name { font-size:11px; color:var(--text-muted); }
+    .ctrl-name { font-size:11px; color:var(--text-muted); min-width:200px; }
     /* 헤더 색상 그룹 */
     thead th.hg-info  { background:#e0f2fe; }  /* 레포~URL호출+분석일: 파랑 */
     thead th.hg-dev   { background:#fef3c7; }  /* 컨트롤러~프로그램ID: 노랑 */
@@ -159,7 +174,7 @@
     tbody td.sk-last { border-right:2px solid #e2e8f0; box-shadow:2px 0 4px rgba(0,0,0,.06); }
 
     .ref-col { font-size:10px; color:var(--text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .desc-col { font-size:11px; color:var(--text); min-width:400px; max-width:600px; line-height:1.5; word-break:break-all; }
+    .desc-col { font-size:11px; color:var(--text); min-width:300px; max-width:450px; line-height:1.5; word-break:break-all; }
     .git-col { font-size:10px; line-height:1.5; min-width:120px; max-width:180px; vertical-align:top; }
     .git-col-d { font-weight:600; color:var(--text); white-space:nowrap; }
     .git-col-a { color:var(--text-muted); white-space:nowrap; }
@@ -263,6 +278,7 @@
   <div class="card">
     <div class="card-title">
       <span class="dot"></span>조회 조건
+    </div>
     <div class="query-layout">
       <label class="field">레포지토리 | 업무명
         <select id="repoSelect" style="min-width:280px;">
@@ -271,6 +287,8 @@
       </label>
       <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
       <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;">⬇ 엑셀 다운로드</button>
+      <button class="btn" id="excelUploadBtn" onclick="triggerExcelUpload()" style="display:none;background:#7c3aed;color:#fff;border-color:#7c3aed;">⬆ 엑셀 업로드</button>
+      <input type="file" id="excelUploadInput" accept=".xlsx" style="display:none;" onchange="handleExcelUpload(event)">
     </div>
 
     <div class="db-meta" id="dbMeta" style="display:none">
@@ -281,37 +299,59 @@
 
   <!-- 통계 (상태 필터 겸용) -->
   <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stat-pill" id="pill-all"   onclick="setFilter('')">          <span>전체</span>      <strong id="statTotal">0</strong></div>
-    <div class="stat-pill s-use"  id="pill-사용"   onclick="setFilter('사용')">    <span>사용</span>      <strong id="stat-사용">0</strong></div>
-    <div class="stat-pill s-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span>  <strong id="stat-차단완료">0</strong></div>
-    <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
-    <div class="stat-pill s-block" id="pill-최우선" onclick="setFilter('최우선 차단대상')" style="cursor:pointer;"><span>(1) 최우선 차단대상</span><strong id="stat-최우선" style="color:#dc2626;">0</strong></div>
-    <div class="stat-pill s-block" id="pill-후순위" onclick="setFilter('후순위 차단대상')" style="cursor:pointer;"><span>(2) 후순위 차단대상</span><strong id="stat-후순위" style="color:#ea580c;">0</strong></div>
-    <div class="stat-pill s-block" id="pill-추가검토필요" onclick="setFilter('추가검토필요 차단대상')" style="cursor:pointer;"><span>(3) 추가검토필요 차단대상</span><strong id="stat-추가검토필요" style="color:#d97706;">0</strong></div>
-    <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
-    <div class="stat-pill" id="pill-reviewed" onclick="setFilter('reviewed')" style="cursor:pointer;"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
-    <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
-    <div class="stat-pill" id="pill-new" onclick="setFilter('new')" style="cursor:pointer;"><span>신규</span><strong id="stat-new" style="color:#1e40af;">0</strong></div>
-    <div class="stat-pill" id="pill-changed" onclick="setFilter('changed')" style="cursor:pointer;"><span>상태변경</span><strong id="stat-changed" style="color:#dc2626;">0</strong></div>
-    <div class="stat-pill" id="pill-deleted" onclick="setFilter('deleted')" style="cursor:pointer;"><span>삭제</span><strong id="stat-deleted" style="color:#7c2d12;">0</strong></div>
-    <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
-    <div class="stat-pill" style="cursor:default;"><span>GET</span>   <strong id="statGet">0</strong></div>
-    <div class="stat-pill" style="cursor:default;"><span>POST</span>  <strong id="statPost">0</strong></div>
-    <div class="stat-pill" style="cursor:default;"><span>PUT</span>   <strong id="statPut">0</strong></div>
-    <div class="stat-pill" style="cursor:default;"><span>DELETE</span><strong id="statDelete">0</strong></div>
+    <!-- 상태 그룹 -->
+    <div class="stat-pill" id="pill-all" onclick="setFilter('')"><span>전체</span><strong id="statTotal">0</strong></div>
+    <div class="stat-pill s-use sg-status" id="pill-사용"    onclick="setFilter('사용')"   ><span>사용</span><strong id="stat-사용">0</strong></div>
+    <div class="stat-pill s-done sg-status" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span><strong id="stat-차단완료">0</strong></div>
+    <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
+    <!-- 차단대상 그룹 — 행별 개별 색상 -->
+    <div class="stat-pill sg-pri1" id="pill-최우선"      onclick="setFilter('최우선 차단대상')"      ><span>① 최우선 차단대상</span><strong id="stat-최우선"      style="color:#dc2626;">0</strong></div>
+    <div class="stat-pill sg-pri2" id="pill-후순위"      onclick="setFilter('후순위 차단대상')"      ><span>② 후순위 차단대상</span><strong id="stat-후순위"      style="color:#ea580c;">0</strong></div>
+    <div class="stat-pill sg-pri3" id="pill-추가검토필요" onclick="setFilter('추가검토필요 차단대상')"><span>③ 추가검토필요 차단대상</span><strong id="stat-추가검토필요" style="color:#d97706;">0</strong></div>
+    <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
+    <!-- 검토 그룹 -->
+    <div class="stat-pill sg-review" id="pill-reviewed" onclick="setFilter('reviewed')"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
+    <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
+    <!-- 변경이력 그룹 -->
+    <div class="stat-pill sg-hist" id="pill-new"     onclick="setFilter('new')"    ><span>신규</span><strong id="stat-new"     style="color:#6d28d9;">0</strong></div>
+    <div class="stat-pill sg-hist" id="pill-changed" onclick="setFilter('changed')"><span>상태변경</span><strong id="stat-changed" style="color:#6d28d9;">0</strong></div>
+    <div class="stat-pill sg-hist" id="pill-deleted" onclick="setFilter('deleted')"><span>삭제</span><strong id="stat-deleted" style="color:#6d28d9;">0</strong></div>
+    <!-- 메소드/Deprecated — 소형 chip, 별도 줄 -->
+    <div style="width:100%;height:0;"></div>
+    <div class="stat-chip" id="pill-GET"        onclick="setFilter('method:GET')"   ><span>GET</span><strong id="statGet">0</strong></div>
+    <div class="stat-chip" id="pill-POST"       onclick="setFilter('method:POST')"  ><span>POST</span><strong id="statPost">0</strong></div>
+    <div class="stat-chip" id="pill-PUT"        onclick="setFilter('method:PUT')"   ><span>PUT</span><strong id="statPut">0</strong></div>
+    <div class="stat-chip" id="pill-DELETE"     onclick="setFilter('method:DELETE')"><span>DELETE</span><strong id="statDelete">0</strong></div>
+    <div class="stat-chip" id="pill-deprecated" onclick="setFilter('deprecated')"   ><span>@Deprecated</span><strong id="stat-deprecated" style="color:#9333ea;">0</strong></div>
   </div>
 
   <!-- 검색/필터 -->
-  <div class="filter-bar" id="filterBar" style="display:none">
+  <div class="filter-bar" id="filterBar" style="display:none;flex-wrap:wrap;gap:6px;">
     <input type="text" id="searchInput" placeholder="URL, 메소드명, 메뉴명, 비고 검색" oninput="filterTable()" style="width:260px;">
     <input type="text" id="searchTeam" placeholder="팀 검색" oninput="filterTable()" style="width:100px;">
     <input type="text" id="searchManager" placeholder="담당자 검색" oninput="filterTable()" style="width:100px;">
-    <select id="methodFilter" onchange="filterTable()">
-      <option value="">전체 HTTP Method</option>
-      <option>GET</option><option>POST</option><option>PUT</option>
-      <option>DELETE</option><option>PATCH</option><option>REQUEST</option>
-    </select>
     <span class="filter-count" id="filterCount"></span>
+    <!-- 변경일시 범위 필터 -->
+    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">변경일시</span>
+      <input type="datetime-local" id="modifiedFrom" onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
+      <span style="font-size:12px;color:var(--text-muted);">~</span>
+      <input type="datetime-local" id="modifiedTo" onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
+      <button type="button" onclick="setDatePreset(5,'minutes')" style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;">최근 5분</button>
+      <button type="button" onclick="setDatePreset(1,'hours')"   style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;">최근 1시간</button>
+      <button type="button" onclick="setDatePreset(0,'today')"   style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;">오늘</button>
+      <button type="button" onclick="clearDateFilter()"          style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;color:#6b7280;">초기화</button>
+    </div>
+  </div>
+
+  <!-- 엑셀 업로드 필터 칩 (업로드 직후 자동 표시) -->
+  <div id="uploadedChipWrap" style="display:none;margin:4px 0 6px;">
+    <span style="display:inline-flex;align-items:center;gap:6px;background:#dbeafe;border:1px solid #93c5fd;border-radius:20px;padding:4px 12px;font-size:12px;color:#1d4ed8;font-weight:600;">
+      📤 업로드 <span id="uploadedChipCount">0</span>건만 보기
+      <button type="button" onclick="clearUploadedFilter()"
+              title="필터 해제"
+              style="border:none;background:transparent;cursor:pointer;font-size:14px;line-height:1;color:#1d4ed8;padding:0;margin-left:2px;">×</button>
+    </span>
   </div>
 
   <!-- 상태 설명 (접이식) -->
@@ -320,16 +360,16 @@
     <div style="line-height:1.8;padding-top:4px;">
       <span style="background:#dcfce7;padding:1px 6px;border-radius:3px;">사용</span> 실제 또는 현업검토 결과 사용중인 URL &nbsp;|&nbsp;
       <span style="background:#f1f5f9;padding:1px 6px;border-radius:3px;color:#64748b;">차단완료</span> @Deprecated + javadoc표기 + UnsupportedOperationException<br>
-      <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">(1) 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
-      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">(2) 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
-      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">(3) 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
+      <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">① 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
+      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">② 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
+      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">③ 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
     </div>
   </details>
 
   <!-- 알림바 (콤팩트 pill 형태) -->
   <div id="alertStack" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
     <div id="noticeBar" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:20px;padding:5px 12px 5px 12px;font-size:11px;color:#92400e;white-space:nowrap;position:relative;padding-right:26px;">
-      ⚠️ 차단대상 중 판단이 어려운 건은 <b>"사용"</b>으로 변경하거나 <b>현업 검토</b> 화면에서 의견을 남겨주세요.
+      ⚠️ 차단대상 중 판단이 어려운 건은 <b>"사용"</b>으로 변경하고 비고에 의견 남겨주세요.
       <button onclick="dismissNotice('noticeBar')" style="position:absolute;top:50%;right:8px;transform:translateY(-50%);background:none;border:none;color:#92400e;cursor:pointer;font-size:13px;line-height:1;padding:0;" title="닫기">×</button>
     </div>
     <div id="changedNoticeBar" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:20px;padding:5px 12px 5px 12px;font-size:11px;color:#991b1b;white-space:nowrap;position:relative;padding-right:26px;">
@@ -362,9 +402,9 @@
       <option value="__SKIP__">-- 상태 --</option>
       <option value="사용">사용</option>
       <option value="차단완료">차단완료</option>
-      <option value="최우선 차단대상">(1) 최우선 차단대상</option>
-      <option value="후순위 차단대상">(2) 후순위 차단대상</option>
-      <option value="추가검토필요 차단대상">(3) 추가검토필요 차단대상</option>
+      <option value="최우선 차단대상">① 최우선 차단대상</option>
+      <option value="후순위 차단대상">② 후순위 차단대상</option>
+      <option value="추가검토필요 차단대상">③ 추가검토필요 차단대상</option>
       <option value="">자동계산 (초기화)</option>
     </select>
     <select id="bulkBlockCriteria">
@@ -389,39 +429,37 @@
       <thead>
         <tr>
           <th class="no-sort cb-cell hg-info sticky-h" style="left:0;min-width:36px;width:36px;"><input type="checkbox" id="checkAll" onclick="toggleAll(this)"></th>
-          <th class="hg-info no-sort sticky-h" onclick="sortBy('statusOverridden')" style="left:36px;min-width:60px;width:60px;">상태확정 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('repositoryName')" style="left:88px;min-width:110px;">레포지토리 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('businessName')" style="left:198px;min-width:100px;">업무명 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('teamName')" style="left:298px;min-width:80px;">팀 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h" onclick="sortBy('managerName')" style="left:378px;min-width:70px;">담당자 <span class="sort-icon">↕</span></th>
-          <th class="hg-info sticky-h sticky-last" onclick="sortBy('apiPath')" style="left:448px;min-width:200px;">URL 경로 <span class="sort-icon">↕</span></th>
-          <!-- 핵심 업무 컬럼 — 스크롤 없이 즉시 확인 -->
-          <th class="hg-desc" onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
-          <th class="hg-block" onclick="sortBy('blockCriteria')">차단기준 <span class="sort-icon">↕</span></th>
-          <th class="hg-block no-sort">비고(입력가능)</th>
-          <th class="hg-block" onclick="sortBy('reviewResult')">현업검토결과 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('repositoryName')" style="left:36px;min-width:110px;">레포지토리 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('businessName')" style="left:146px;min-width:100px;">업무명 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('teamName')" style="left:246px;min-width:80px;">팀 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h" onclick="sortBy('managerName')" style="left:326px;min-width:70px;">담당자 <span class="sort-icon">↕</span></th>
+          <th class="hg-info sticky-h sticky-last" onclick="sortBy('apiPath')" style="left:396px;min-width:200px;">URL 경로 <span class="sort-icon">↕</span></th>
           <!-- 개발 메타 -->
           <th class="hg-info no-sort">URL호출</th>
-          <th class="hg-info" onclick="sortBy('httpMethod')">Method <span class="sort-icon">↕</span></th>
+          <!-- 상태 / 상태확정 -->
+          <th class="hg-info" onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
+          <th class="hg-info no-sort">상태확정</th>
+          <!-- 개발 메타 -->
           <th class="hg-dev" onclick="sortBy('controllerName')">컨트롤러 <span class="sort-icon">↕</span></th>
-          <th class="hg-dev" onclick="sortBy('methodName')">메소드명 <span class="sort-icon">↕</span></th>
-          <th class="hg-dev" onclick="sortBy('programId')">프로그램ID <span class="sort-icon">↕</span></th>
+          <th class="hg-dev" style="min-width:160px;" onclick="sortBy('methodName')">메소드명 <span class="sort-icon">↕</span></th>
+          <!-- 기타 메타 -->
           <th class="hg-dev no-sort">최근변경</th>
-          <th class="hg-dev" onclick="sortBy('isDeprecated')">Deprecated <span class="sort-icon">↕</span></th>
           <th class="hg-desc" onclick="sortBy('apiOperationValue')">관련 메뉴(또는 기능) <span class="sort-icon">↕</span></th>
           <th class="hg-desc" style="min-width:120px;" onclick="sortBy('callCount')">1년 호출건 <span class="sort-icon">↕</span></th>
           <th class="hg-desc" style="min-width:110px;" onclick="sortBy('callCountMonth')">1달 호출건 <span class="sort-icon">↕</span></th>
           <th class="hg-desc" style="min-width:110px;" onclick="sortBy('callCountWeek')">1주 호출건 <span class="sort-icon">↕</span></th>
-          <!-- 차단 상세 -->
+          <!-- 차단/검토 -->
           <th class="hg-block" onclick="sortBy('blockedDate')">차단일자 <span class="sort-icon">↕</span></th>
           <th class="hg-block no-sort">차단근거</th>
+          <th class="hg-block no-sort">비고(입력가능)</th>
+          <th class="hg-block" onclick="sortBy('reviewResult')">현업검토결과 <span class="sort-icon">↕</span></th>
           <th class="hg-block no-sort">현업검토의견</th>
           <th class="hg-info" onclick="sortBy('lastAnalyzedAt')">분석일시 <span class="sort-icon">↕</span></th>
           <th class="hg-info" onclick="sortBy('modifiedAt')">변경일시 <span class="sort-icon">↕</span></th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="27"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
+        <tr><td colspan="23"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -541,9 +579,9 @@
   const STATUS_LABEL = {
     '사용': '사용',
     '차단완료': '차단완료',
-    '최우선 차단대상': '(1) 최우선 차단대상',
-    '후순위 차단대상': '(2) 후순위 차단대상',
-    '추가검토필요 차단대상': '(3) 추가검토필요 차단대상',
+    '최우선 차단대상': '① 최우선 차단대상',
+    '후순위 차단대상': '② 후순위 차단대상',
+    '추가검토필요 차단대상': '③ 추가검토필요 차단대상',
     '삭제': '삭제'
   };
   let teamsList = [];      // 팀 자동완성 목록
@@ -623,10 +661,12 @@
   async function loadApis() {
     document.getElementById('loadBtn').disabled = true;
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="27"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+      '<tr><td colspan="24"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
     vCurrentPage = 0;
     activeFilter = '';
+    uploadedIdsFilter = null;
+    renderUploadedFilterChip();
 
     const repo = document.getElementById('repoSelect').value;
     try {
@@ -654,7 +694,7 @@
     } catch(e) {
       showToast(e.message || '조회 실패', 'error');
       document.getElementById('tbody').innerHTML =
-        `<tr><td colspan="27"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
+        `<tr><td colspan="24"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
     } finally {
       document.getElementById('loadBtn').disabled = false;
     }
@@ -662,6 +702,149 @@
 
   // ── 전체 재로드 (카운트 + 현재 페이지) ────────────────────
   // 변경 작업(편집/일괄/알림해제 등) 이후 서버 상태와 UI 동기화
+  // ── 엑셀 업로드 ──────────────────────────────────────────────
+  function triggerExcelUpload() {
+    if (!isAdmin()) { showToast('관리자 권한이 필요합니다.', 'error'); return; }
+    document.getElementById('excelUploadInput').click();
+  }
+
+  async function handleExcelUpload(evt) {
+    const file = evt.target.files[0];
+    evt.target.value = '';
+    if (!file) return;
+    if (!isAdmin()) { showToast('관리자 권한이 필요합니다.', 'error'); return; }
+    showToast('엑셀 파싱 중...', 'info');
+    try {
+      const ab = await file.arrayBuffer();
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(ab);
+      const ws = wb.worksheets[0];
+      if (!ws) throw new Error('시트를 찾을 수 없습니다.');
+
+      // 헤더 행으로 컬럼 인덱스 매핑
+      const headerRow = ws.getRow(1);
+      const colMap = {};
+      headerRow.eachCell((cell, colNum) => {
+        const v = xlCellStr(cell);
+        if (v) colMap[v] = colNum;
+      });
+      const C = {
+        repo:           colMap['레포지토리'],
+        apiPath:        colMap['URL 경로'],
+        httpMethod:     colMap['HTTP Method'],
+        status:         colMap['상태'],
+        statusOverridden: colMap['상태확정'],
+        blockCriteria:  colMap['차단기준'],
+        memo:           colMap['비고'],
+        reviewResult:   colMap['현업검토결과'],
+        reviewOpinion:  colMap['현업검토의견'],
+      };
+      if (!C.repo || !C.apiPath || !C.httpMethod)
+        throw new Error('레포지토리 / URL 경로 / HTTP Method 컬럼이 필수입니다.');
+
+      const rows = [];
+      ws.eachRow((row, rowNum) => {
+        if (rowNum === 1) return;
+        const get = (col) => col ? xlCellStr(row.getCell(col)) : '';
+        const apiPath = get(C.apiPath);
+        if (!apiPath) return;
+        const item = {
+          repositoryName: get(C.repo),
+          apiPath,
+          httpMethod: get(C.httpMethod) || 'GET',
+        };
+        if (C.status)           item.status = get(C.status);
+        if (C.statusOverridden) item.statusOverridden = get(C.statusOverridden);
+        if (C.blockCriteria)    item.blockCriteria = get(C.blockCriteria);
+        if (C.memo)             item.memo = get(C.memo);
+        if (C.reviewResult)     item.reviewResult = get(C.reviewResult);
+        if (C.reviewOpinion)    item.reviewOpinion = get(C.reviewOpinion);
+        rows.push(item);
+      });
+      if (!rows.length) throw new Error('유효한 데이터 행이 없습니다.');
+
+      if (!await customConfirm(`${rows.length.toLocaleString()}건을 업로드하겠습니까?\n상태 · 비고 · 현업검토결과 등이 업데이트됩니다.\n(분석일시는 업로드 시각으로 자동 설정)`)) return;
+
+      showToast('업로드 중...', 'info');
+      const res = await fetch('/api/upload/excel-viewer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': sessionStorage.getItem('adminToken') || '' },
+        body: JSON.stringify({ rows })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '업로드 실패');
+
+      const ids = Array.isArray(data.updatedIds) ? data.updatedIds : [];
+      console.log('[업로드] updated=', data.updated, 'updatedIds 수=', ids.length, 'MAX=', UPLOADED_FILTER_MAX);
+      if (ids.length > 0 && ids.length <= UPLOADED_FILTER_MAX) {
+        uploadedIdsFilter = ids;
+        activeFilter = '';
+        vCurrentPage = 0;
+        renderUploadedFilterChip();
+        showToast('재조회 중...', 'info');
+        await refreshAll();
+        showToast(`업로드 ${data.updated}건 완료 — 업로드한 행만 표시합니다`, 'success');
+      } else if (ids.length > UPLOADED_FILTER_MAX) {
+        showToast(`업로드 ${data.updated}건 완료 (대량 업로드: 직접 수동으로 조회해 주세요)`, 'info');
+        await refreshAll();
+      } else {
+        showToast(`업로드 완료 — ${data.updated}건 업데이트 / ${data.skipped}건 미매칭`, 'success');
+        await refreshAll();
+      }
+    } catch(e) {
+      showToast('업로드 오류: ' + e.message, 'error');
+    }
+  }
+
+  function xlCellStr(cell) {
+    if (!cell || cell.value == null) return '';
+    if (typeof cell.value === 'object' && cell.value.richText)
+      return cell.value.richText.map(r => r.text).join('').trim();
+    return String(cell.value).trim();
+  }
+
+  function renderUploadedFilterChip() {
+    const wrap = document.getElementById('uploadedChipWrap');
+    const cnt  = document.getElementById('uploadedChipCount');
+    if (!wrap) return;
+    if (!uploadedIdsFilter) { wrap.style.display = 'none'; return; }
+    cnt.textContent = uploadedIdsFilter.length;
+    wrap.style.display = '';
+  }
+
+  function clearUploadedFilter() {
+    uploadedIdsFilter = null;
+    renderUploadedFilterChip();
+    refreshAll();
+  }
+
+  // ── 변경일시 날짜 필터 헬퍼 ─────────────────────────────────
+  function toDatetimeLocal(d) {
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  function setDatePreset(amount, unit) {
+    const now = new Date();
+    let from;
+    if (unit === 'today') {
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    } else if (unit === 'hours') {
+      from = new Date(now.getTime() - amount * 60 * 60 * 1000);
+    } else { // minutes
+      from = new Date(now.getTime() - amount * 60 * 1000);
+    }
+    document.getElementById('modifiedFrom').value = toDatetimeLocal(from);
+    document.getElementById('modifiedTo').value   = toDatetimeLocal(now);
+    filterTable({immediate: true, page: 0});
+  }
+
+  function clearDateFilter() {
+    document.getElementById('modifiedFrom').value = '';
+    document.getElementById('modifiedTo').value   = '';
+    filterTable({immediate: true, page: 0});
+  }
+
   async function refreshAll() {
     const repo = document.getElementById('repoSelect').value;
     await Promise.all([ loadCounts(repo), loadPage(vCurrentPage) ]);
@@ -673,6 +856,8 @@
 
   // ── 카운트 로드 (배지/알림용) ──────────────────────────────
   async function loadCounts(repo) {
+    // 엑셀 업로드 필터 활성 중엔 배지 재조회 생략 (직전 값 유지)
+    if (uploadedIdsFilter) return true;
     try {
       const url = `/api/db/apis/counts${repo ? '?repository=' + encodeURIComponent(repo) : ''}`;
       const res = await fetch(url);
@@ -717,14 +902,19 @@
     const q = (document.getElementById('searchInput').value || '').trim();
     if (q) params.set('q', q);
 
-    const method = document.getElementById('methodFilter').value;
-    if (method) params.set('httpMethod', method);
+    // 변경일시 범위 필터
+    const modFrom = document.getElementById('modifiedFrom')?.value;
+    const modTo   = document.getElementById('modifiedTo')?.value;
+    if (modFrom) params.set('modifiedFrom', modFrom + ':00');  // datetime-local → HH:MM → HH:MM:SS
+    if (modTo)   params.set('modifiedTo',   modTo   + ':00');
 
-    // activeFilter → status 또는 alert
+    // activeFilter → status 또는 alert 또는 method/deprecated
     if (activeFilter === 'new')           params.set('alert', 'new');
     else if (activeFilter === 'changed')  params.set('alert', 'changed');
     else if (activeFilter === 'reviewed') params.set('alert', 'reviewed');
     else if (activeFilter === 'deleted')  params.set('alert', 'deleted');
+    else if (activeFilter === 'deprecated') params.set('isDeprecated', 'Y');
+    else if (activeFilter.startsWith('method:')) params.set('httpMethod', activeFilter.slice(7));
     else if (['사용','차단완료','최우선 차단대상','후순위 차단대상','추가검토필요 차단대상'].includes(activeFilter)) {
       params.set('status', activeFilter);
     }
@@ -750,18 +940,35 @@
     const timeoutId = setTimeout(() => pageLoadCtrl.abort(), 30000);
     if (!preloadFirst) {
       document.getElementById('tbody').innerHTML =
-        '<tr><td colspan="27"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+        '<tr><td colspan="24"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     }
     try {
-      const params = buildListParams(pageIdx);
-      const res = await fetch('/api/db/apis?' + params.toString(), { signal: pageLoadCtrl.signal });
+      let res;
+      if (uploadedIdsFilter && uploadedIdsFilter.length > 0) {
+        // 엑셀 업로드 필터 — POST로 ID 배열 전달 (URL 길이 제한 없음)
+        const serverSortable = new Set(['id','apiPath','httpMethod','status','callCount','callCountMonth','callCountWeek','lastAnalyzedAt','modifiedAt','blockedDate','repositoryName','teamOverride','managerOverride']);
+        let sk = sortKey;
+        if (sk === 'teamName') sk = 'teamOverride';
+        else if (sk === 'managerName') sk = 'managerOverride';
+        else if (sk === 'businessName') sk = 'repositoryName';
+        const sortVal = serverSortable.has(sk) ? `${sk},${sortAsc?'asc':'desc'}` : 'id,asc';
+        res = await fetch('/api/db/apis/by-ids', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: uploadedIdsFilter, page: pageIdx, size: vPageSize, sort: sortVal }),
+          signal: pageLoadCtrl.signal
+        });
+      } else {
+        const params = buildListParams(pageIdx);
+        res = await fetch('/api/db/apis?' + params.toString(), { signal: pageLoadCtrl.signal });
+      }
       clearTimeout(timeoutId);
       const data = await res.json();
       if (res.status === 413 && data.pagingRequired) {
         const totalFmt = (data.total || 0).toLocaleString();
         showToast(`데이터가 너무 많습니다 (${totalFmt}건). 레포지토리를 선택해 주세요.`, 'error');
         document.getElementById('tbody').innerHTML =
-          `<tr><td colspan="27"><div class="state-box">⚠ 전체 조회 제한<br><small>${totalFmt}건<br>레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>`;
+          `<tr><td colspan="24"><div class="state-box">⚠ 전체 조회 제한<br><small>${totalFmt}건<br>레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>`;
         return false;
       }
       if (!res.ok) throw new Error(data.error || '서버 오류');
@@ -786,7 +993,7 @@
       if (e.name === 'AbortError') return false;
       showToast(e.message || '페이지 조회 실패', 'error');
       document.getElementById('tbody').innerHTML =
-        `<tr><td colspan="27"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
+        `<tr><td colspan="24"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
       return false;
     } finally {
       clearTimeout(timeoutId);
@@ -919,9 +1126,12 @@
     document.getElementById('statPost').textContent       = byMethod['POST']   || 0;
     document.getElementById('statPut').textContent        = byMethod['PUT']    || 0;
     document.getElementById('statDelete').textContent     = byMethod['DELETE'] || 0;
+    document.getElementById('stat-deprecated').textContent = c.deprecated || 0;
   }
 
   let activeFilter = '';
+  let uploadedIdsFilter = null;        // 배열이면 엑셀업로드 필터 활성, null이면 비활성
+  const UPLOADED_FILTER_MAX = 5000;   // 이 이상이면 IN 절 성능 저하 우려 → 필터 미적용
   // ── 담당자 매핑 해석 (managerOverride > programId매핑 > 팀 대표) ──
   function resolveManager(a) {
     if (a.managerOverride) return a.managerOverride;
@@ -966,7 +1176,9 @@
   function setFilter(val) {
     vCurrentPage = 0; // 필터 변경 시 첫 페이지로
     activeFilter = val;
-    document.querySelectorAll('.stat-pill').forEach(p => p.classList.remove('active-filter'));
+    uploadedIdsFilter = null;
+    renderUploadedFilterChip();
+    document.querySelectorAll('.stat-pill, .stat-chip').forEach(p => p.classList.remove('active-filter'));
     if (val === '') { document.getElementById('pill-all').classList.add('active-filter'); }
     else if (val === '사용') { document.getElementById('pill-사용').classList.add('active-filter'); }
     else if (val === '차단완료') { document.getElementById('pill-차단완료').classList.add('active-filter'); }
@@ -977,6 +1189,11 @@
     else if (val === 'new') { document.getElementById('pill-new').classList.add('active-filter'); }
     else if (val === 'changed') { document.getElementById('pill-changed').classList.add('active-filter'); }
     else if (val === 'deleted') { document.getElementById('pill-deleted').classList.add('active-filter'); }
+    else if (val === 'method:GET')    { document.getElementById('pill-GET').classList.add('active-filter'); }
+    else if (val === 'method:POST')   { document.getElementById('pill-POST').classList.add('active-filter'); }
+    else if (val === 'method:PUT')    { document.getElementById('pill-PUT').classList.add('active-filter'); }
+    else if (val === 'method:DELETE') { document.getElementById('pill-DELETE').classList.add('active-filter'); }
+    else if (val === 'deprecated')    { document.getElementById('pill-deprecated').classList.add('active-filter'); }
     // 영구삭제 버튼 토글 (삭제 필터 활성 + 관리자일 때만 노출)
     const purgeBtn = document.getElementById('bulkPurgeBtn');
     if (purgeBtn) purgeBtn.style.display = (val === 'deleted' && isAdmin()) ? 'inline-block' : 'none';
@@ -1051,7 +1268,7 @@
     const off = startOffset || 0;
     const tbody = document.getElementById('tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="27"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="24"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
       return;
     }
     tbody.innerHTML = list.map((a, idx) => {
@@ -1062,39 +1279,37 @@
       const cfg = repoConfigMap[a.repositoryName] || {};
       const git1 = parseGitHistory(a.gitHistory)[0];
       const lockIcon = isBlocked
-        ? `<span class="lock-btn lock-blocked" title="차단완료 - 수정불가">변경불가</span>${isAdmin() ? `<br><button onclick="unblockRecord(${a.id})" style="margin-top:2px;font-size:9px;padding:1px 5px;border:1px solid #94a3b8;border-radius:3px;background:none;cursor:pointer;color:#64748b;" title="차단완료 해제 (관리자)">🔓 해제</button>` : ''}`
+        ? `<span class="lock-btn lock-blocked">변경불가</span>${isAdmin() ? `<br><button onclick="unblockRecord(${a.id})" style="margin-top:2px;font-size:9px;padding:1px 5px;border:1px solid #94a3b8;border-radius:3px;background:none;cursor:pointer;color:#64748b;" title="차단완료 해제 (관리자)">🔓 해제</button>` : ''}`
         : locked
-        ? `<span class="lock-btn lock-on" onclick="toggleLock(${a.id},false)" title="클릭하여 해제">확정</span>`
-        : `<span class="lock-btn lock-off" onclick="toggleLock(${a.id},true)" title="클릭하여 확정">미확정</span>`;
+        ? `<span class="lock-btn lock-on" onclick="toggleLock(${a.id}, false)" title="클릭하여 확정 해제">🔒 확정</span>`
+        : `<span class="lock-btn lock-off" onclick="toggleLock(${a.id}, true)" title="클릭하여 상태 확정">미확정</span>`;
       return `
       <tr class="${rowCls}" id="row-${a.id}">
         <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;text-align:center;font-size:10px;color:var(--text-muted);">${off+idx+1}<br><input type="checkbox" data-id="${a.id}" ${checked} ${isBlocked?'disabled':''} onchange="toggleRow(this)"></td>
-        <td class="sk" style="left:36px;min-width:52px;width:52px;text-align:center;">${lockIcon}</td>
-        <td class="sk" style="left:88px;min-width:110px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b></td>
-        <td class="sk" style="left:198px;min-width:100px;font-size:11px;color:var(--text-muted);">${esc(cfg.businessName || '')}</td>
-        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;teamOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:298px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
-        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;managerOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:378px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(resolveManager(a))}</td>
-        <td class="sk sk-last" style="left:448px;min-width:200px;"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyApiPath(event,${a.id})" title="URL 경로 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><div class="api-path api-path-click" onclick="openDetail(${a.id})" title="클릭: 상세보기">${esc(a.apiPath)}</div></div></td>
-        <!-- 핵심 업무 컬럼 -->
-        <td>${statusBadge(a.status, a.logWorkExcluded)}${a.statusOverridden ? ' <span title="상태확정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
-        <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria || '')}</td>
-        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;memo&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.memo || '')}</td>
-        <td>${reviewResultBadge(a.reviewResult)}</td>
+        <td class="sk" style="left:36px;min-width:110px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b></td>
+        <td class="sk" style="left:146px;min-width:100px;font-size:11px;color:var(--text-muted);">${esc(cfg.businessName || '')}</td>
+        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;teamOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:246px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
+        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;managerOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:326px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(resolveManager(a))}</td>
+        <td class="sk sk-last" style="left:396px;min-width:200px;"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyApiPath(event,${a.id})" title="URL 경로 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><div class="api-path api-path-click" onclick="openDetail(${a.id})" title="클릭: 상세보기">${esc(a.apiPath)}</div></div></td>
         <!-- 개발 메타 -->
         <td>${a.fullUrl ? `<a href="${esc(a.fullUrl)}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;padding:2px 8px;border:1px solid var(--primary);border-radius:4px;white-space:nowrap;">열기 ↗</a>` : '<span style="color:#cbd5e1;font-size:11px;">-</span>'}</td>
-        <td><span class="badge badge-${a.httpMethod||'REQUEST'}">${a.httpMethod||'?'}</span></td>
-        <td class="ctrl-name">${esc(a.controllerName)}</td>
-        <td style="font-size:12px;">${esc(a.methodName)}</td>
-        <td style="font-family:monospace;font-size:11px;">${esc(a.programId)}</td>
+        <!-- 상태 / 상태확정 -->
+        <td>${statusBadge(a.status, a.logWorkExcluded)}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
+        <td style="text-align:center;">${lockIcon}</td>
+        <!-- 개발 메타 -->
+        <td class="ctrl-name"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyText(event,'${esc(a.controllerName)}')" title="컨트롤러명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(a.controllerName)}</div></td>
+        <td style="font-size:12px;min-width:160px;"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyText(event,'${esc(a.methodName)}')" title="메소드명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(a.methodName)}</div></td>
+        <!-- 기타 메타 -->
         <td class="git-col">${git1 ? `<span class="git-col-d">${esc(git1.date)}</span> <span class="git-col-a">${esc(git1.author)}</span><br><span class="git-col-m" title="${esc(git1.message)}">${esc(git1.message)}</span>` : '<span style="color:#cbd5e1;">-</span>'}</td>
-        <td style="text-align:center;font-size:11px;">${a.isDeprecated==='Y' ? '<span style="color:#dc2626;font-weight:700;">Y</span>' : '<span style="color:#cbd5e1;">N</span>'}</td>
         <td class="desc-col" title="${esc(allDesc(a))}">${esc(allDesc(a))}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'total')}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'month')}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'week')}</td>
-        <!-- 차단 상세 -->
+        <!-- 차단/검토 -->
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.blockedDate || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:200px;">${esc((a.blockedReason||'').slice(0,40))}${(a.blockedReason||'').length>40?'…':''}</td>
+        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;memo&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.memo || '')}</td>
+        <td>${reviewResultBadge(a.reviewResult)}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.reviewOpinion || '')}</td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fmtDt(a.lastAnalyzedAt)}${isAdmin()&&a.createdIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.createdIp)}</span>` : ''}</td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fmtDt(a.modifiedAt)}${isAdmin()&&a.modifiedIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.modifiedIp)}</span>` : ''}</td>
@@ -1105,9 +1320,9 @@
   const STATUS_TIPS = {
     '사용': '실제 또는 현업검토 결과 사용중인 URL',
     '차단완료': '@Deprecated + javadoc표기 + UnsupportedOperationException',
-    '최우선 차단대상': '(1) 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외)',
-    '후순위 차단대상': '(2) IT담당자 검토결과 미사용 또는 업무종료로 인지된 건',
-    '추가검토필요 차단대상': '(3) 호출 0건 + 소스변경 1년 미만, 호출 1~N건 + 소스변경 1년 경과',
+    '최우선 차단대상': '① 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외)',
+    '후순위 차단대상': '② IT담당자 검토결과 미사용 또는 업무종료로 인지된 건',
+    '추가검토필요 차단대상': '③ 호출 0건 + 소스변경 1년 미만, 호출 1~N건 + 소스변경 1년 경과',
     '삭제': '분석에서 제외된 API (소스 삭제 등)'
   };
   function statusBadge(status, logWorkExcluded) {
@@ -1282,6 +1497,7 @@
   function editField(td, id, field) {
     if (td.querySelector('input')) return;
     const old = td.textContent.trim();
+    td.dataset.oldVal = old;
     const listAttr = field === 'teamOverride' ? 'list="teamsDatalist"' : '';
     td.innerHTML = `<input type="text" value="${esc(old)}" ${listAttr} style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
       onblur="saveFieldInline(this,${id},'${field}')"
@@ -1289,29 +1505,35 @@
     td.querySelector('input').focus();
   }
   async function saveFieldInline(input, id, field) {
-    if (input.dataset.cancel) { await refreshAll(); return; }
+    const td = input.parentElement;
+    const old = td.dataset.oldVal || '';
+    if (input.dataset.cancel) { td.textContent = old; return; }
     const val = input.value.trim();
     try {
       const body = {}; body[field] = val || null;
       const res = await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '저장 실패');
-      input.parentElement.textContent = val;
-      // 서버 상태로 재동기화 (변경일시/파생 필드 포함)
-      await refreshAll();
+      td.textContent = val;
+      // 인메모리 데이터만 갱신 (전체 리렌더링 없이)
+      const entry = allApis.find(a => a.id === id);
+      if (entry) entry[field] = val || null;
       showToast('저장 완료', 'success');
-    } catch(e) { showToast(e.message || '저장 실패','error'); }
+    } catch(e) {
+      td.textContent = old;
+      showToast(e.message || '저장 실패', 'error');
+    }
   }
 
   // ── 정렬 ──────────────────────────────────────────────────
   // colIndexMap: 1-based 컬럼 인덱스 (헤더 th 순서 기준)
-  // 8:상태, 9:차단기준, 10:비고, 11:현업검토결과, 12:URL호출, 13:Method, 14:컨트롤러, 15:메소드명, 16:프로그램ID, 17:최근변경, 18:Deprecated
-  // 19:관련메뉴, 20:1년, 21:1달, 22:1주, 23:차단일자, 24:차단근거, 25:현업검토의견, 26:분석일시, 27:변경일시
-  const colIndexMap = { statusOverridden:2, repositoryName:3, businessName:4, teamName:5, managerName:6, apiPath:7,
-                        status:8, blockCriteria:9, reviewResult:11,
-                        httpMethod:13, controllerName:14, methodName:15, programId:16,
-                        isDeprecated:18, apiOperationValue:19, callCount:20, callCountMonth:21, callCountWeek:22,
-                        blockedDate:23, lastAnalyzedAt:26, modifiedAt:27 };
+  // 1:cb, 2:레포, 3:업무명, 4:팀, 5:담당자, 6:URL경로, 7:URL호출, 8:상태, 9:상태확정
+  // 10:컨트롤러, 11:메소드명, 12:최근변경, 13:관련메뉴, 14:1년, 15:1달, 16:1주
+  // 17:차단일자, 18:차단근거, 19:비고, 20:현업검토결과, 21:현업검토의견, 22:분석일시, 23:변경일시
+  const colIndexMap = { repositoryName:2, businessName:3, teamName:4, managerName:5, apiPath:6,
+                        status:8, controllerName:10, methodName:11,
+                        apiOperationValue:13, callCount:14, callCountMonth:15, callCountWeek:16,
+                        blockedDate:17, reviewResult:20, lastAnalyzedAt:22, modifiedAt:23 };
   function sortBy(key) {
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
@@ -1479,16 +1701,16 @@
     // 파일경로  컨트롤러  메소드명  프로그램ID  ApiOp~컨트롤러ReqProp
     // 17         18          19        20          21
     // 메뉴      Deprecated  총호출건  1달호출건   1주호출건
-    // 22    23                      24      25      26      27    28        29
-    // 상태  침해사고 로그 제외대상   차단기준 차단일자 차단근거 비고  검토결과  검토의견
-    // 30~44 변경이력1~5(각3열)  45  46
+    // 22    23       24                    25      26      27      28    29        30
+    // 상태  상태확정 침해사고 로그 제외대상  차단기준 차단일자 차단근거 비고  검토결과  검토의견
+    // 31~45 변경이력1~5(각3열)  46  47
     //                       분석 변경
     const headers = [
       '레포지토리','업무명','팀','담당자','URL 경로','Full URL',
       'HTTP Method','컨트롤러파일경로','컨트롤러','메소드명','프로그램ID',
       'ApiOperation','Description주석','메소드주석','컨트롤러주석','RequestProperty','컨트롤러RequestProperty',
       '관련 메뉴(또는 기능)','Deprecated','1년 호출건','1달 호출건','1주 호출건',
-      '상태','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
+      '상태','상태확정','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
       '비고','현업검토결과','현업검토의견',
       ...commitHeaders, '분석일시', '변경일시'
     ];
@@ -1499,15 +1721,22 @@
       blue,                             // 6: Method
       yellow,yellow,yellow,yellow,      // 7~10: 파일경로~프로그램ID
       yellow,yellow,yellow,yellow,yellow,yellow, // 11~16: 참고용 6개
-      purple,purple,purple,purple,purple, // 17~21: 메뉴,Deprecated,총호출,1달,1주
-      purple,purple,                     // 22~23: 상태, 침해사고 로그 제외대상
-      pink,pink,pink,                    // 24~26: 차단기준,차단일자,차단근거
-      pink,pink,pink,                    // 27~29: 비고,검토결과,검토의견
-      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 30~44: 변경이력1~5
-      blue,blue                          // 45~46: 분석/변경일시
+      purple,purple,purple,purple,purple, // 17~21: 메뉴~1주호출건
+      pink,pink,                         // 22~23: 상태,상태확정 ★유효성검증컬럼
+      pink,pink,pink,pink,               // 24~27: 침해사고,차단기준,차단일자,차단근거
+      pink,pink,pink,                    // 28~30: 비고,검토결과,검토의견 ★유효성검증컬럼
+      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 31~45: 변경이력1~5
+      blue,blue                          // 46~47: 분석/변경일시
     ];
-    // 색 변경 경계: Method|파일경로(6), 참고용끝|메뉴(16), 침해사고|차단기준(23), 검토의견|커밋(29), 변경이력간(32,35,38,41), 변경이력5|분석(44)
-    const groupBorders = new Set([6, 16, 23, 29, 32, 35, 38, 41, 44]);
+    // 색 변경 경계: Method|파일경로(6), 참고용끝|메뉴(16), 1주호출건|상태(21), 검토의견|커밋(30), 변경이력간(33,36,39,42), 변경이력5|분석(45)
+    const groupBorders = new Set([6, 16, 21, 30, 33, 36, 39, 42, 45]);
+    // 데이터 유효성 검증: 0-based 컬럼 인덱스 → 허용 값 목록
+    const validations = [
+      { colIdx:18, values:['Y','N'] },                                                                       // Deprecated
+      { colIdx:22, values:['사용','차단완료','최우선 차단대상','후순위 차단대상','추가검토필요 차단대상'] }, // 상태
+      { colIdx:23, values:['확정','미확정'] },                                                               // 상태확정
+      { colIdx:29, values:['차단대상 제외','차단확정','판단불가'] },                                         // 현업검토결과
+    ];
     const rows = details.map(a => {
       const cfg = repoConfigMap[a.repositoryName] || {};
       const commits = parseGitHistory(a.gitHistory);
@@ -1537,6 +1766,7 @@
         a.callCountMonth != null ? a.callCountMonth : '',
         a.callCountWeek != null ? a.callCountWeek : '',
         a.status || '',
+        a.statusOverridden ? '확정' : '미확정',
         (a.status === '최우선 차단대상' && a.logWorkExcluded) ? '대상' : '',
         a.blockCriteria || '',
         a.blockedDate || '',
@@ -1550,7 +1780,7 @@
     });
     const filename = `url-list-${document.getElementById('repoSelect').value || 'all'}`;
     try {
-      await exportXlsx(headers, headerColors, rows, filename, 5, groupBorders);
+      await exportXlsx(headers, headerColors, rows, filename, 5, groupBorders, validations);
       showToast(`${details.length.toLocaleString()}개 URL 다운로드 완료`, 'success');
     } finally { hideBulkProgress(); }
   }
@@ -1560,7 +1790,13 @@
     try { return JSON.parse(json); } catch(e) { return []; }
   }
 
-  async function exportXlsx(headers, headerColors, rows, filename, freezeCol, groupBorders) {
+  function colNumToLetter(n) {
+    let s = '';
+    while (n > 0) { s = String.fromCharCode(64 + ((n - 1) % 26) + 1) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+
+  async function exportXlsx(headers, headerColors, rows, filename, freezeCol, groupBorders, validations) {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Sheet1');
     const thin  = { style:'thin', color:{argb:'FFB0B0B0'} };
@@ -1604,8 +1840,22 @@
     ws.views = [{ state:'frozen', xSplit:freezeCol, ySplit:1 }];
 
     // 헤더 자동필터
-    const lastCol = String.fromCharCode(64 + headers.length);
-    ws.autoFilter = { from: 'A1', to: `${lastCol}1` };
+    ws.autoFilter = { from: 'A1', to: `${colNumToLetter(headers.length)}1` };
+
+    // 데이터 유효성 (드롭다운 선택 강제)
+    if (validations && rows.length > 0) {
+      validations.forEach(({ colIdx, values }) => {
+        const letter = colNumToLetter(colIdx + 1);
+        ws.dataValidations.add(`${letter}2:${letter}${rows.length + 1}`, {
+          type: 'list', allowBlank: true,
+          formulae: [`"${values.join(',')}"`],
+          showErrorMessage: true,
+          errorStyle: 'stop',
+          errorTitle: '입력 오류',
+          error: `허용 값: ${values.join(', ')}`
+        });
+      });
+    }
 
     // 다운로드
     const buf = await wb.xlsx.writeBuffer();
@@ -1890,12 +2140,12 @@
         <div class="detail-section-title">기본 정보</div>
         <div class="detail-grid">
           <div class="detail-label">레포지토리</div><div class="detail-value">${esc(r.repositoryName)} ${cfg.businessName ? '('+esc(cfg.businessName)+')' : ''}</div>
-          <div class="detail-label">URL 경로</div><div class="detail-value"><span class="api-path">${esc(r.apiPath)}</span></div>
+          <div class="detail-label">URL 경로</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;"><span class="api-path">${esc(r.apiPath)}</span><button class="copy-btn" onclick="copyText(event,'${esc(r.apiPath)}')" title="URL 경로 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           <div class="detail-label">Full URL</div><div class="detail-value">${r.fullUrl ? `<a href="${esc(r.fullUrl)}" target="_blank">${esc(r.fullUrl)}</a>` : '-'}</div>
           <div class="detail-label">HTTP Method</div><div class="detail-value"><span class="badge badge-${r.httpMethod||'REQUEST'}">${r.httpMethod||'-'}</span></div>
-          <div class="detail-label">컨트롤러</div><div class="detail-value">${esc(r.controllerName)}</div>
+          <div class="detail-label">컨트롤러</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;">${esc(r.controllerName)}<button class="copy-btn" onclick="copyText(event,'${esc(r.controllerName)}')" title="컨트롤러명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           <div class="detail-label">파일경로</div><div class="detail-value" style="font-family:monospace;font-size:11px;">${esc(r.controllerFilePath || '-')}</div>
-          <div class="detail-label">메소드명</div><div class="detail-value">${esc(r.methodName)}</div>
+          <div class="detail-label">메소드명</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;">${esc(r.methodName)}<button class="copy-btn" onclick="copyText(event,'${esc(r.methodName)}')" title="메소드명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           <div class="detail-label">프로그램ID</div><div class="detail-value" style="font-family:monospace;">${esc(r.programId)}</div>
           <div class="detail-label">팀</div><div class="detail-value">${esc(r.teamOverride || cfg.team)}</div>
           <div class="detail-label">담당자</div><div class="detail-value">${esc(resolveManager(r))}</div>
@@ -1971,7 +2221,11 @@
     ev.stopPropagation();
     const rec = filteredApis.find(a => a.id === id);
     if (!rec) return;
-    const text = rec.apiPath || '';
+    await copyText(ev, rec.apiPath || '');
+  }
+
+  async function copyText(ev, text) {
+    if (ev && ev.stopPropagation) ev.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
       showToast('복사됨: ' + text, 'success');
@@ -2009,6 +2263,7 @@
     document.getElementById('adminBtn').textContent = admin ? '🔓 관리자 해제' : '🔑 관리자';
     const _ub = document.getElementById('bulkUnblockBtn'); if(_ub) _ub.style.display = admin ? 'inline-block' : 'none';
     const _db = document.getElementById('bulkDeleteBtn'); if(_db) _db.style.display = admin ? 'inline-block' : 'none';
+    const _eu = document.getElementById('excelUploadBtn'); if(_eu) _eu.style.display = admin ? 'inline-block' : 'none';
     if (typeof renderRows === 'function' && filteredApis.length) renderRows(filteredApis);
   }
   async function toggleAdmin() {

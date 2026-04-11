@@ -645,38 +645,39 @@
   <div class="card diagram-card">
     <div class="diagram-note">
       소스 추출 시 <b>각 URL 1건</b>이 거치는 상태 판정 전체 흐름입니다.
-      <b>차단완료</b>·<b>상태확정</b>·<b>현업검토결과</b> 순으로 우선 확인한 뒤,
-      해당하지 않는 경우에만 자동 조건 계산이 실행됩니다.
+      <b>차단완료</b>·<b>상태확정(statusOverridden)</b>·<b>현업검토결과(reviewResult)</b> 순으로 우선 확인한 뒤,
+      해당하지 않는 경우에만 자동 조건 계산이 실행됩니다. 테이블명은 영문, 조건 필드는 <code>필드명(한글설명)</code> 형식으로 표기합니다.
     </div>
     <div class="mermaid">
 flowchart TD
-    START(["🔍 소스 추출 시작"]) --> PULL["① Git Pull\n최신 소스 동기화"]
-    PULL --> PARSE["② JavaParser\nController 클래스 파싱"]
-    PARSE --> EACH["③ 각 URL에 대해 반복 처리"]
+    START(["🔍 소스 추출 시작"]) --> PULL["① Git Pull\n최신 소스 동기화\nrepo_config 참조"]
+    PULL --> PARSE["② JavaParser\nController 클래스 파싱\nrepo_config.root_path 기준"]
+    PARSE --> EACH["③ 각 URL에 대해 반복 처리\n→ api_record 대상"]
 
-    EACH --> IS_NEW{"신규 URL?"}
+    EACH --> IS_NEW{"신규 URL?\napi_record 존재 확인"}
     IS_NEW -->|"Yes — 처음 발견"| CREATE["신규 레코드 생성\napi_record INSERT"]
-    IS_NEW -->|"No — 기존 URL"| CHK_BLK{"차단완료 상태?"}
+    IS_NEW -->|"No — 기존 URL"| CHK_BLK{"status(상태)\n= '차단완료'?"}
 
     CHK_BLK -->|"Yes"| SKIP(["⛔ SKIP\n모든 수정 불가"])
-    CHK_BLK -->|"No"| CHK_OVR{"statusOverridden\n= true?"}
+    CHK_BLK -->|"No"| CHK_OVR{"statusOverridden\n(상태확정 여부)\n= true?"}
 
-    CHK_OVR -->|"확정"| HOLD["기존 상태 그대로 유지\n자동 재계산 제외"]
-    CHK_OVR -->|"미확정"| CHK_RVW{"reviewResult\n= 차단대상 제외?"}
+    CHK_OVR -->|"확정"| HOLD["기존 status 유지\n자동 재계산 제외\napi_record 메타만 갱신"]
+    CHK_OVR -->|"미확정"| CHK_RVW{"reviewResult\n(현업검토결과)\n= '차단대상 제외'?"}
 
     CHK_RVW -->|"Yes"| ST_USE0["🟢 사용 확정"]
-    CHK_RVW -->|"No"| CALC["자동 상태 계산"]
+    CHK_RVW -->|"No"| CALC["자동 상태 계산\napi_record 조건 평가"]
     CREATE --> CALC
 
-    CALC --> R1{"① @Deprecated\n② URL차단 주석\n③ UnsupportedOpEx\n─ 3가지 모두?"}
+    CALC --> R1{"isDeprecated(deprecated 여부) = Y\n+ hasUrlBlock(URL차단 주석) = Y\n+ UnsupportedOpEx throw\n─ 3가지 모두 AND?"}
     R1 -->|"AND 충족"| ST_DONE["🔴 차단완료"]
-    R1 -->|"미충족"| R2{"호출 0건\n+ 최근 커밋 1년↑?"}
+    R1 -->|"미충족"| R2{"callCount(총호출건수) = 0\n+ gitHistory(최근커밋일) 1년 경과?"}
     R2 -->|"Yes"| ST_TOP["🟠 최우선 차단대상"]
-    R2 -->|"No"| R3{"호출 1건↑ + 커밋 1년↑\nOR 호출 0건 + 커밋 1년 미만?"}
+    R2 -->|"No"| R3{"callCount ≥ 1 + 최근커밋 1년↑\nOR callCount = 0 + 최근커밋 1년 미만?"}
     R3 -->|"Yes"| ST_REV["🟡 검토필요 차단대상"]
     R3 -->|"No"| ST_USE["🟢 사용"]
 
-    HOLD --> SAVE["DB 저장 / 갱신"]
+    SAVE["api_record\nINSERT / UPDATE"]
+    HOLD --> SAVE
     ST_USE0 --> SAVE
     ST_DONE --> SAVE
     ST_TOP --> SAVE
@@ -702,16 +703,14 @@ flowchart TD
   <div class="section-title">8. 역할별 Use Case</div>
   <div class="card diagram-card">
     <div class="diagram-note">
-      ApiViewer를 사용하는 <b>4가지 역할</b>(관리자·일반 사용자·현업 검토자·배치 시스템)과
+      ApiViewer를 사용하는 <b>4가지 역할</b>(관리자·IT담당자·현업 검토자·배치 시스템)과
       각 역할이 수행할 수 있는 <b>Use Case</b>의 범위를 나타냅니다.
-      현업 검토자는 URL 분석현황 조회를 사용자와 공유합니다.
+      <b>왼쪽</b>: IT담당자·현업 검토자(공개 기능 사용), <b>오른쪽</b>: 관리자·배치 시스템(전용 기능).
     </div>
     <div class="mermaid">
 graph LR
-    ADM(["👤\n관리자"])
-    USR(["👤\n일반 사용자"])
+    IT(["👤\nIT담당자"])
     REV(["👤\n현업 검토자"])
-    BOT(["🤖\n배치 시스템"])
 
     subgraph SYS["◈  ApiViewer 시스템  ◈"]
         direction TB
@@ -733,14 +732,216 @@ graph LR
             UC11(["Git Pull + 파싱"])
             UC12(["APM 호출건수 수집"])
             UC13(["상태 자동 재계산"])
+            UC14(["데이터 자동 백업"])
         end
     end
 
-    ADM --> UC1 & UC2 & UC3 & UC4 & UC5
-    ADM --> UC6 & UC7 & UC8 & UC9
-    USR --> UC6 & UC7 & UC8 & UC9
+    ADM(["👤\n관리자"])
+    BOT(["🤖\n배치 시스템"])
+
+    IT --> UC6 & UC7 & UC8 & UC9
     REV --> UC7 & UC10
-    BOT --> UC11 & UC12 & UC13
+
+    UC1 & UC2 & UC3 & UC4 & UC5 --> ADM
+    UC6 & UC7 & UC8 & UC9 --> ADM
+    UC11 & UC12 & UC13 & UC14 --> BOT
+    </div>
+  </div>
+
+  <!-- 섹션 9: 테이블/컬럼 명세서 -->
+  <div class="section-title">9. 테이블 / 컬럼 명세서</div>
+
+  <!-- api_record -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>api_record — URL 분석 레코드</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px;">UNIQUE: (repository_name, api_path, http_method)</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="background:#f1f5f9;">
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">컬럼명 (영문)</th>
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">한글명</th>
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">타입</th>
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">id</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">식별자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:11px;">PK</span> AUTO_INCREMENT</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">repository_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">레포지토리명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:11px;">UNIQUE+</span> <span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> NOT NULL</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">api_path</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">API 경로</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(2000)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:11px;">UNIQUE+</span> NOT NULL</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">http_method</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">HTTP 메소드</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(20)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:11px;">UNIQUE+</span> GET/POST/PUT/DELETE</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">status</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">상태</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(20)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> 사용/차단완료/차단대상 등</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">status_overridden</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">상태확정 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> true=확정(자동재계산 제외)</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">call_count</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">총 호출건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> APM 수집값 누적</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">call_count_month</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">1개월 호출건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최근 30일</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">call_count_week</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">1주 호출건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최근 7일</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">is_deprecated</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">@Deprecated 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">CHAR(1)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N — 차단완료 판정 조건 ①</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">has_url_block</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">URL차단 주석 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">CHAR(1)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N — 차단완료 판정 조건 ②③</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">block_target</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">차단대상 구분</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(30)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> 수동 설정 전용</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">block_criteria</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">차단기준 사유</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(100)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">수동 설정 전용</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">blocked_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">차단일자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATE</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> fullComment에서 파싱</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">blocked_reason</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">차단근거</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">TEXT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">CSR 번호 등 fullComment 파싱</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">review_result</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">현업검토결과</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(50)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">차단대상 제외 / 차단확정 / 판단불가</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">review_opinion</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">현업검토의견</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(500)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">자유 텍스트</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">review_team</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">현업팀</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(100)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">review_manager</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">현업담당자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(100)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">reviewed_at</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">현업검토일시</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATETIME</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">검토 저장 시 자동 갱신</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">git_history</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최근 Git 커밋 이력</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">TEXT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">JSON 배열 (최근 5개 커밋)</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">team_override</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">팀 오버라이드</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(100)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">조회화면 수동 수정값</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">manager_override</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">담당자 오버라이드</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(100)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">조회화면 수동 수정값</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">is_new</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">신규 추가 플래그</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> 분석 시 처음 발견된 URL</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">status_changed</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">상태변경 감지</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> IT담당자 검토 필요 여부</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">last_analyzed_at</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최종 분석일시</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATETIME</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">추출 시마다 갱신</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">data_source</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">데이터 소스</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(20)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">ANALYSIS / UPLOAD</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">cbo_scheduled_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">CBO 예정일자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATE</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">deploy_scheduled_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">배포 예정일자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATE</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">deploy_csr</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">배포 CSR</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(50)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">log_work_excluded</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">로그작업이력 제외 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최우선 차단대상 subset 구분용</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">created_ip</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최초 생성 IP</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(50)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">modified_at</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">수정일시</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATETIME</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- apm_call_data -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>apm_call_data — APM 호출 이력</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px;">INDEX: (repository_name, api_path, call_date), (call_date)</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="background:#f1f5f9;">
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">컬럼명 (영문)</th>
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">한글명</th>
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">타입</th>
+        <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">id</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">식별자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:11px;">PK</span> AUTO_INCREMENT</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">repository_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">레포지토리명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> NOT NULL</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">api_path</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">API 경로</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(2000)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> NOT NULL</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">call_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">호출 날짜</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATE</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-size:11px;">IDX</span> NOT NULL</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">call_count</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">호출건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">error_count</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">오류건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BIGINT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">error_message</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">오류메시지</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">TEXT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">class_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">클래스명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">TEXT</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">APM 식별자</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">source</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">데이터 소스</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(20)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">WHATAP / JENNIFER / MOCK</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- global_config / repo_config -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>global_config — 전역 설정 (단일 레코드)</div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">컬럼명 (영문)</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">한글명</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">id</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">식별자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:11px;">PK</span> 항상 1</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">password</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">관리자 비밀번호</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">VARCHAR(100)</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">start_date / end_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">APM 조회 기간</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">VARCHAR(20)</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">page_size</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">페이지당 건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">기본 200</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">review_target_statuses</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">현업검토 표시 상태</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT, 콤마 구분</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_profiles</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 프로필 목록</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT (JSON)</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">jennifer_profiles</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">제니퍼 프로필 목록</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT (JSON)</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_mock_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 Mock 사용</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">jennifer_mock_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">제니퍼 Mock 사용</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">apm_log_level</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">APM 로그 레벨</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">INFO / DEBUG</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">last_backup_meta</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최근 백업 메타</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT (JSON)</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">teams</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">팀 목록</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT (JSON), 자동완성용</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">smtp_host / smtp_port</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">SMTP 서버 정보</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">메일 발송용</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">mail_to</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">수신자 목록</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT, 콤마 구분</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_ptotal / whatap_psize</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 조회 파라미터</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">INT</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>repo_config — 레포지토리 설정</div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">컬럼명 (영문)</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">한글명</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">id</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">식별자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:11px;">PK</span> AUTO</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">repo_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">레포지토리명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:11px;">UNIQUE</span> NOT NULL</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">root_path</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">소스 루트 경로</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">로컬 절대경로</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">git_bin_path</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Git 실행 경로</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">portable git 지원</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">git_pull_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Git Pull 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">git_branch</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Git 브랜치</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">빈값=현재브랜치유지</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">analysis_batch_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">분석 배치 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">apm_batch_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">APM 배치 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">team_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">팀명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">manager_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">대표 담당자명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">매핑 없을 때 폴백</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">manager_mappings</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">프로그램별 담당자 매핑</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT (JSON)</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">api_path_prefix</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">API 경로 접두사</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">전체 URL 조합용</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 수집 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_profile_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 프로필명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">global_config 참조</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_url / whatap_pcode</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 API 정보</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">jennifer_enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">제니퍼 수집 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">Y/N</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">jennifer_profile_name</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">제니퍼 프로필명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">global_config 참조</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">jennifer_oids</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">제니퍼 OID 목록</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT (JSON)</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- schedule_config / db_size_history -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>schedule_config — 배치 스케줄 설정</div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">컬럼명 (영문)</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">한글명</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">id</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">식별자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:11px;">PK</span> AUTO</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">job_type</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">작업 유형</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:11px;">UNIQUE</span> GIT_PULL_EXTRACT 등</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">description</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">작업 설명</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">VARCHAR(200)</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">enabled</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">활성화 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">BOOLEAN</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">schedule_type</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">주기 유형</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">DAILY/WEEKLY/HOURLY/CUSTOM</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">run_time</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">실행 시각</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">VARCHAR(10), HH:mm</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">run_day</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">실행 요일</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">WEEKLY 시 MON~SUN</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">interval_hours</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">실행 간격(시간)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">HOURLY 시 사용</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">cron_expression</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">커스텀 크론식</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">CUSTOM 시 직접 입력</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">job_param</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">작업 파라미터</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">APM_COLLECT: 수집 일수</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">last_run_at</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최근 실행일시</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">DATETIME</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">last_run_result</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최근 실행 결과</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">VARCHAR(500)</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>db_size_history — DB 파일 사이즈 이력</div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px;">DB_SNAPSHOT 배치가 매일 00:05에 기록</div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">컬럼명 (영문)</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">한글명</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">id</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">식별자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:11px;">PK</span> AUTO</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">snapshot_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">스냅샷 날짜</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"><span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:11px;">UNIQUE</span> DATE</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">db_size_bytes</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">DB 파일 크기(bytes)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">BIGINT</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">api_record_count</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">분석 레코드 수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">BIGINT</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">apm_call_data_count</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">호출이력 건수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">BIGINT</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">created_at</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">생성일시</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">DATETIME</td></tr>
+        </tbody>
+      </table>
+      </div>
     </div>
   </div>
 

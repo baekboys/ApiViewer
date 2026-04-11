@@ -160,8 +160,9 @@
     thead th.hg-dev   { background:#fef3c7; }  /* 컨트롤러~프로그램ID: 노랑 */
     thead th.hg-ref   { background:#fef3c7; text-transform:none; }  /* 참고용 주석 컬럼: 노랑, 대소문자 유지 */
     thead th.hg-desc  { background:#e0e7ff; }  /* 내용~차단근거: 보라 */
-    thead th.hg-block { background:#ffe4e6; }  /* 차단대상선정~현업검토결과: 분홍 */
-    thead th.hg-git   { background:#d1fae5; }  /* 변경이력1~5: 초록 */
+    thead th.hg-block  { background:#ffe4e6; }  /* 차단대상선정~현업검토의견: 분홍 */
+    thead th.hg-deploy { background:#fde68a; }  /* CBO예정일자~배포CSR: 황색 */
+    thead th.hg-git    { background:#d1fae5; }  /* 변경이력1~5: 초록 */
     /* sticky 헤더+바디 */
     thead th.sticky-h { position:sticky; z-index:4; background:#e0f2fe; border-right:1px solid #bfdbfe; }
     tbody td.sk { position:sticky; z-index:1; background:var(--card); border-right:1px solid var(--border); }
@@ -454,9 +455,9 @@
           <th class="hg-block no-sort">비고(입력가능)</th>
           <th class="hg-block" onclick="sortBy('reviewResult')">현업검토결과 <span class="sort-icon">↕</span></th>
           <th class="hg-block no-sort">현업검토의견</th>
-          <th class="hg-block" onclick="sortBy('cboScheduledDate')">CBO예정일자 <span class="sort-icon">↕</span></th>
-          <th class="hg-block" onclick="sortBy('deployScheduledDate')">배포예정일자 <span class="sort-icon">↕</span></th>
-          <th class="hg-block no-sort">배포CSR</th>
+          <th class="hg-deploy" onclick="sortBy('cboScheduledDate')">CBO예정일자 <span class="sort-icon">↕</span></th>
+          <th class="hg-deploy" onclick="sortBy('deployScheduledDate')">배포예정일자 <span class="sort-icon">↕</span></th>
+          <th class="hg-deploy no-sort">배포CSR</th>
           <th class="hg-info" onclick="sortBy('lastAnalyzedAt')">분석일시 <span class="sort-icon">↕</span></th>
           <th class="hg-info" onclick="sortBy('modifiedAt')">변경일시 <span class="sort-icon">↕</span></th>
         </tr>

@@ -373,10 +373,10 @@
 
   <!-- 인트로 + 범례 -->
   <div class="card">
-    <div class="card-title"><span class="dot dot-blue"></span>ApiViewer 업무 플로우 개요</div>
+    <div class="card-title"><span class="dot dot-blue"></span>URLViewer 업무 플로우 개요</div>
     <div class="intro">
       <div class="intro-text">
-        <strong>ApiViewer</strong>는 Spring Boot Controller 소스에서 URL을 자동 추출하고,
+        <strong>URLViewer</strong>는 Spring Boot Controller 소스에서 URL을 자동 추출하고,
         <strong>APM 호출건수</strong>와 <strong>Git 커밋 이력</strong>을 결합해 차단 대상 여부를 판정하는 내부 도구입니다.
         아래 플로우는 <strong>관리자</strong>가 소스를 추출·설정하고, 시스템 <strong>배치</strong>가 주기적으로 데이터를 수집하며,
         <strong>상태 판정 로직</strong>이 자동 계산한 결과를 <strong>현업 검토자</strong>가 최종 확인하는 흐름을 보여줍니다.
@@ -703,7 +703,7 @@ flowchart TD
   <div class="section-title">8. 역할별 Use Case</div>
   <div class="card diagram-card">
     <div class="diagram-note">
-      ApiViewer를 사용하는 <b>4가지 역할</b>(관리자·IT담당자·현업 검토자·배치 시스템)과
+      URLViewer를 사용하는 <b>4가지 역할</b>(관리자·IT담당자·현업 검토자·배치 시스템)과
       각 역할이 수행할 수 있는 <b>Use Case</b>의 범위를 나타냅니다.
       <b>왼쪽</b>: IT담당자·현업 검토자(공개 기능 사용), <b>오른쪽</b>: 관리자·배치 시스템(전용 기능).
     </div>
@@ -712,7 +712,7 @@ graph LR
     IT(["👤\nIT담당자"])
     REV(["👤\n현업 검토자"])
 
-    subgraph SYS["◈  ApiViewer 시스템  ◈"]
+    subgraph SYS["◈  URLViewer 시스템  ◈"]
         direction TB
         subgraph ADMIN_UC["🔒 관리자 전용"]
             UC1(["URL 소스 추출"])

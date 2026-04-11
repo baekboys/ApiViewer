@@ -36,6 +36,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/db/delete-all",      // 데이터 삭제
                         "/api/db/purge-deleted",   // 삭제건 영구 삭제
                         "/api/db/monitor/**",      // DB 모니터링
+                        "/api/db/seed",            // 성능테스트용 시드 데이터
                         "/api/config/**",          // 설정 변경
                         "/api/logs/**",            // 로그 조회
                         "/api/schedule/**",        // 스케줄 관리

@@ -2,6 +2,7 @@ package com.baek.viewer.controller;
 
 import com.baek.viewer.model.ApiInfo;
 import com.baek.viewer.model.ApiRecord;
+import com.baek.viewer.model.ApiRecordStatsDto;
 import com.baek.viewer.model.ApiRecordSummary;
 import com.baek.viewer.model.ExtractRequest;
 import com.baek.viewer.model.RepoConfig;
@@ -16,8 +17,15 @@ import com.baek.viewer.service.WhatapService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.persistence.criteria.Predicate;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -143,25 +151,307 @@ public class ApiViewController {
         return ResponseEntity.ok(recordRepository.findAllRepositoryNames());
     }
 
-    /** DB에서 API 목록 조회 — 경량 프로젝션 (fullComment, controllerComment, blockedReason 제외) */
+    /** 페이징 미지정 전체 로드 시 최대 행수 — 초과하면 safety cap 적용 */
+    private static final int MAX_UNPAGED_ROWS = 50_000;
+
+    private static final List<String> BLOCK_TARGET_STATUSES =
+            List.of("최우선 차단대상", "후순위 차단대상", "추가검토필요 차단대상");
+
+    /** DB에서 API 목록 조회 — 경량 프로젝션 (fullComment, controllerComment, blockedReason 제외)
+     *
+     * 파라미터:
+     *  - repository:  레포 필터 (단일)
+     *  - repositories: 레포 필터 (복수, 콤마 구분 — 팀/담당자 resolve 용)
+     *  - blockTargetOnly: 차단대상(3종) 만
+     *  - status:     특정 상태 필터 (단일)
+     *  - httpMethod: HTTP 메소드 필터
+     *  - q:          검색어 (apiPath / methodName / memo LIKE)
+     *  - alert:      "new" / "changed" / "reviewed" / "deleted" 필터
+     *  - page, size: 지정 시 서버 페이지네이션 모드 ({apis, total, page, size, totalPages} 반환)
+     *  - sort:       정렬 필드 (예: "id,desc") — 페이지 모드에서만 사용
+     *
+     * 페이지 모드 미지정 + 전체 로드가 MAX_UNPAGED_ROWS 초과 시 413 응답 + pagination 권고.
+     */
     @GetMapping("/db/apis")
     public ResponseEntity<?> dbApis(@RequestParam(required = false) String repository,
-                                     @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly) {
+                                     @RequestParam(required = false) String repositories,
+                                     @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly,
+                                     @RequestParam(required = false) String status,
+                                     @RequestParam(required = false) Boolean logWorkExcluded,
+                                     @RequestParam(required = false) String httpMethod,
+                                     @RequestParam(required = false) String q,
+                                     @RequestParam(required = false) String alert,
+                                     @RequestParam(required = false) Integer page,
+                                     @RequestParam(required = false) Integer size,
+                                     @RequestParam(required = false) String sort) {
         long start = System.currentTimeMillis();
+        boolean paged = (page != null);
+        boolean hasRepo = repository != null && !repository.isBlank();
+
+        // 복수 레포 필터 파싱
+        List<String> repoList = null;
+        if (repositories != null && !repositories.isBlank()) {
+            repoList = Arrays.stream(repositories.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).toList();
+            if (repoList.isEmpty()) repoList = null;
+        }
+
+        // 동적 필터가 하나라도 있으면 Specification 경로 사용
+        boolean hasDynamicFilter = (status != null && !status.isBlank())
+                || (logWorkExcluded != null)
+                || (httpMethod != null && !httpMethod.isBlank())
+                || (q != null && !q.isBlank())
+                || (alert != null && !alert.isBlank())
+                || repoList != null;
+
+        if (paged || hasDynamicFilter) {
+            int pageIdx  = paged ? Math.max(0, page) : 0;
+            int pageSize = (size != null && size > 0) ? Math.min(size, 1000) : 200;
+            Sort sortSpec = parseSort(sort);
+            Pageable pageable = PageRequest.of(pageIdx, pageSize, sortSpec);
+
+            Specification<ApiRecord> spec = buildSpec(repository, repoList, blockTargetOnly,
+                    status, logWorkExcluded, httpMethod, q, alert);
+
+            Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
+            // 엔티티 → 경량 summary Map 변환 (TEXT 필드 강제 제외)
+            List<Map<String, Object>> summaryList = entityPage.getContent().stream()
+                    .map(ApiViewController::toSummaryMap)
+                    .collect(Collectors.toList());
+
+            log.info("[목록 조회·필터] repo={}, status={}, method={}, q={}, alert={}, page={}/{}, size={}, total={}, 소요={}ms",
+                    repository, status, httpMethod, q, alert, pageIdx, entityPage.getTotalPages(), pageSize,
+                    entityPage.getTotalElements(), System.currentTimeMillis() - start);
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("apis",       summaryList);
+            response.put("total",      entityPage.getTotalElements());
+            response.put("page",       pageIdx);
+            response.put("size",       pageSize);
+            response.put("totalPages", entityPage.getTotalPages());
+            response.put("paged",      true);
+            return ResponseEntity.ok(response);
+        }
+
+        // 비페이징(전량) 경로 — 대용량 safety cap
+        if (!blockTargetOnly && !hasRepo) {
+            long totalRows = recordRepository.count();
+            if (totalRows > MAX_UNPAGED_ROWS) {
+                log.warn("[목록 조회·safety cap] 전체={}건이 한계({})를 초과 — 페이지 모드 권고",
+                        totalRows, MAX_UNPAGED_ROWS);
+                Map<String, Object> err = new LinkedHashMap<>();
+                err.put("error", "데이터가 너무 많습니다. 레포 필터 또는 page/size 파라미터를 사용하세요.");
+                err.put("total", totalRows);
+                err.put("limit", MAX_UNPAGED_ROWS);
+                err.put("pagingRequired", true);
+                return ResponseEntity.status(413).body(err);
+            }
+        }
+
         List<ApiRecordSummary> records;
         if (blockTargetOnly) {
-            records = recordRepository.findSummaryByStatusIn(List.of("최우선 차단대상","후순위 차단대상","검토필요 차단대상"));
-        } else if (repository != null && !repository.isBlank()) {
+            records = recordRepository.findSummaryByStatusIn(BLOCK_TARGET_STATUSES);
+        } else if (hasRepo) {
             records = recordRepository.findSummaryByRepositoryName(repository);
         } else {
             records = recordRepository.findAllSummary();
         }
         log.info("[목록 조회] repo={}, blockTargetOnly={}, 건수={}, 소요={}ms",
                 repository, blockTargetOnly, records.size(), System.currentTimeMillis() - start);
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("total", records.size());
-        response.put("apis", records);
+        response.put("apis",  records);
+        response.put("paged", false);
         return ResponseEntity.ok(response);
+    }
+
+    /** 동적 필터 Specification 빌더 */
+    private Specification<ApiRecord> buildSpec(String repository, List<String> repoList, boolean blockTargetOnly,
+                                                String status, Boolean logWorkExcluded,
+                                                String httpMethod, String q, String alert) {
+        return (root, query, cb) -> {
+            List<Predicate> ps = new ArrayList<>();
+            if (repository != null && !repository.isBlank()) {
+                ps.add(cb.equal(root.get("repositoryName"), repository));
+            }
+            if (repoList != null && !repoList.isEmpty()) {
+                ps.add(root.get("repositoryName").in(repoList));
+            }
+            if (blockTargetOnly) {
+                ps.add(root.get("status").in(BLOCK_TARGET_STATUSES));
+            }
+            if (status != null && !status.isBlank()) {
+                ps.add(cb.equal(root.get("status"), status));
+            }
+            if (logWorkExcluded != null) {
+                // logWorkExcluded=false 는 null 또는 false 모두 매칭 (과거 row 의 null 호환)
+                if (logWorkExcluded) {
+                    ps.add(cb.isTrue(root.get("logWorkExcluded")));
+                } else {
+                    ps.add(cb.or(
+                            cb.isNull(root.get("logWorkExcluded")),
+                            cb.isFalse(root.get("logWorkExcluded"))));
+                }
+            }
+            if (httpMethod != null && !httpMethod.isBlank()) {
+                ps.add(cb.equal(root.get("httpMethod"), httpMethod));
+            }
+            if (q != null && !q.isBlank()) {
+                String pat = "%" + q.toLowerCase() + "%";
+                ps.add(cb.or(
+                        cb.like(cb.lower(root.get("apiPath")),            pat),
+                        cb.like(cb.lower(root.get("methodName")),         pat),
+                        cb.like(cb.lower(root.get("apiOperationValue")),  pat),
+                        cb.like(cb.lower(root.get("descriptionTag")),     pat),
+                        cb.like(cb.lower(root.get("memo")),               pat)
+                ));
+            }
+            if (alert != null && !alert.isBlank()) {
+                switch (alert) {
+                    case "new"      -> ps.add(cb.isTrue(root.get("isNew")));
+                    case "changed"  -> ps.add(cb.isTrue(root.get("statusChanged")));
+                    case "reviewed" -> ps.add(cb.and(
+                            cb.isNotNull(root.get("reviewResult")),
+                            cb.notEqual(root.get("reviewResult"), "")));
+                    case "deleted"  -> ps.add(cb.equal(root.get("status"), "삭제"));
+                    default -> {}
+                }
+            }
+            // alert!="deleted" 기본: 삭제 제외
+            if (alert == null || !"deleted".equals(alert)) {
+                ps.add(cb.or(cb.isNull(root.get("status")), cb.notEqual(root.get("status"), "삭제")));
+            }
+            return cb.and(ps.toArray(new Predicate[0]));
+        };
+    }
+
+    /** ApiRecord → 경량 summary Map — TEXT 컬럼(fullComment 등) 응답에서 제외 */
+    private static Map<String, Object> toSummaryMap(ApiRecord r) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id",                 r.getId());
+        m.put("repositoryName",     r.getRepositoryName());
+        m.put("apiPath",            r.getApiPath());
+        m.put("httpMethod",         r.getHttpMethod());
+        m.put("lastAnalyzedAt",     r.getLastAnalyzedAt());
+        m.put("createdIp",          r.getCreatedIp());
+        m.put("modifiedAt",         r.getModifiedAt());
+        m.put("modifiedIp",         r.getModifiedIp());
+        m.put("reviewedIp",         r.getReviewedIp());
+        m.put("status",             r.getStatus());
+        m.put("statusOverridden",   r.isStatusOverridden());
+        m.put("logWorkExcluded",    r.isLogWorkExcluded());
+        m.put("blockTarget",        r.getBlockTarget());
+        m.put("blockCriteria",      r.getBlockCriteria());
+        m.put("callCount",          r.getCallCount());
+        m.put("callCountMonth",     r.getCallCountMonth());
+        m.put("callCountWeek",      r.getCallCountWeek());
+        m.put("methodName",         r.getMethodName());
+        m.put("controllerName",     r.getControllerName());
+        m.put("repoPath",           r.getRepoPath());
+        m.put("isDeprecated",       r.getIsDeprecated());
+        m.put("programId",          r.getProgramId());
+        m.put("apiOperationValue",  r.getApiOperationValue());
+        m.put("descriptionTag",     r.getDescriptionTag());
+        m.put("fullUrl",            r.getFullUrl());
+        m.put("memo",               r.getMemo());
+        m.put("reviewResult",       r.getReviewResult());
+        m.put("reviewOpinion",      r.getReviewOpinion());
+        m.put("reviewTeam",         r.getReviewTeam());
+        m.put("reviewManager",      r.getReviewManager());
+        m.put("reviewedAt",         r.getReviewedAt());
+        m.put("blockedDate",        r.getBlockedDate());
+        m.put("statusChanged",      r.isStatusChanged());
+        m.put("isNew",              r.isNew());
+        m.put("dataSource",         r.getDataSource());
+        m.put("statusChangeLog",    r.getStatusChangeLog());
+        m.put("teamOverride",       r.getTeamOverride());
+        m.put("managerOverride",    r.getManagerOverride());
+        m.put("gitHistory",         r.getGitHistory());
+        // Excel 내보내기 / 상세 표시에 필요한 TEXT 필드 (페이지 단위라 부담 작음)
+        m.put("fullComment",        r.getFullComment());
+        m.put("controllerComment",  r.getControllerComment());
+        m.put("blockedReason",      r.getBlockedReason());
+        m.put("requestPropertyValue",           r.getRequestPropertyValue());
+        m.put("controllerRequestPropertyValue", r.getControllerRequestPropertyValue());
+        m.put("controllerFilePath", r.getControllerFilePath());
+        return m;
+    }
+
+    /** 정렬 파라미터 파싱: "id,desc" / "apiPath,asc" / null → UNSORTED */
+    private Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) return Sort.unsorted();
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        if (field.isEmpty()) return Sort.unsorted();
+        Sort.Direction dir = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()))
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(dir, field);
+    }
+
+    /** viewer 배지용 서버 집계 — 전량 로드 없이 COUNT 쿼리만 사용 */
+    @GetMapping("/db/apis/counts")
+    public ResponseEntity<?> dbApisCounts(@RequestParam(required = false) String repository) {
+        long start = System.currentTimeMillis();
+        boolean hasRepo = repository != null && !repository.isBlank();
+
+        List<Object[]> statusRows = hasRepo
+                ? recordRepository.countGroupByStatusForRepo(repository)
+                : recordRepository.countGroupByStatus();
+        List<Object[]> methodRows = hasRepo
+                ? recordRepository.countGroupByMethodForRepo(repository)
+                : recordRepository.countGroupByMethod();
+
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        long total = 0L, deleted = 0L;
+        for (Object[] row : statusRows) {
+            String s = row[0] != null ? row[0].toString() : "사용";
+            long c = ((Number) row[1]).longValue();
+            byStatus.put(s, c);
+            if ("삭제".equals(s)) deleted = c; else total += c;
+        }
+        Map<String, Long> byMethod = new LinkedHashMap<>();
+        for (Object[] row : methodRows) {
+            byMethod.put(row[0] != null ? row[0].toString() : "?", ((Number) row[1]).longValue());
+        }
+
+        long newCount      = hasRepo ? recordRepository.countNewForRepo(repository)           : recordRepository.countNew();
+        long changedCount  = hasRepo ? recordRepository.countStatusChangedForRepo(repository) : recordRepository.countStatusChanged();
+        long reviewedCount = hasRepo ? recordRepository.countReviewedForRepo(repository)      : recordRepository.countReviewed();
+        // 최우선 차단대상 중 "로그작업이력 제외" 집계 (logWorkExcluded=false 만)
+        long priorityPureCount = hasRepo
+                ? recordRepository.countByStatusAndLogNotExcludedForRepo("최우선 차단대상", repository)
+                : recordRepository.countByStatusAndLogNotExcluded("최우선 차단대상");
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("total",        total);       // 삭제 제외
+        response.put("deletedCount", deleted);
+        response.put("newCount",     newCount);
+        response.put("changedCount", changedCount);
+        response.put("reviewedCount", reviewedCount);
+        response.put("byStatus",     byStatus);
+        response.put("byMethod",     byMethod);
+        response.put("priorityPureCount", priorityPureCount);
+
+        log.info("[목록 카운트] repo={}, total={}, 삭제={}, 소요={}ms", repository, total, deleted, System.currentTimeMillis() - start);
+        return ResponseEntity.ok(response);
+    }
+
+    /** 전체 선택/벌크 작업용 — 현재 필터에 해당하는 ID 목록만 반환 (경량) */
+    @GetMapping("/db/apis/ids")
+    public ResponseEntity<?> dbApisIds(@RequestParam(required = false) String repository,
+                                        @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly) {
+        long start = System.currentTimeMillis();
+        List<Long> ids;
+        if (blockTargetOnly) {
+            ids = recordRepository.findIdsByStatusIn(BLOCK_TARGET_STATUSES);
+        } else if (repository != null && !repository.isBlank()) {
+            ids = recordRepository.findIdsByRepositoryName(repository);
+        } else {
+            ids = recordRepository.findAllIds();
+        }
+        log.info("[ID 목록] repo={}, blockTargetOnly={}, 건수={}, 소요={}ms",
+                repository, blockTargetOnly, ids.size(), System.currentTimeMillis() - start);
+        return ResponseEntity.ok(Map.of("total", ids.size(), "ids", ids));
     }
 
     /** 단건 상세 조회 (전체 필드 포함) */
@@ -174,7 +464,7 @@ public class ApiViewController {
     }
 
     /** 일괄 변경 (상태/차단대상/차단대상기준/현업검토 등)
-     * Body: { "ids": [1,2,3], "status": "차단완료", "blockTarget": "최우선 차단대상", ... }
+     * Body: { "ids": [1,2,3], "status": "차단완료", "blockTarget": "최우선 차단대상", "logWorkExcluded": true, ... }
      * ids 외 필드가 존재하면 해당 필드를 변경합니다. null/빈값은 해제.
      */
     @PatchMapping("/db/status")
@@ -197,7 +487,8 @@ public class ApiViewController {
         }
     }
 
-    /** 알림 플래그 일괄 해제 — isNew + statusChanged 모두 (차단완료건 포함) */
+    /** 알림 플래그 일괄 해제 — isNew + statusChanged 모두 (차단완료건 포함)
+     *  대용량 최적화: findById 루프 제거, @Modifying 벌크 UPDATE 2건으로 처리. */
     @PatchMapping("/db/clear-alerts")
     public ResponseEntity<?> clearAlerts(@RequestBody Map<String, Object> body) {
         try {
@@ -206,22 +497,16 @@ public class ApiViewController {
             if (rawIds == null || rawIds.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "ids가 비어 있습니다."));
             }
-            int cleared = 0;
-            for (Integer rawId : rawIds) {
-                Optional<ApiRecord> opt = recordRepository.findById(rawId.longValue());
-                if (opt.isPresent()) {
-                    ApiRecord r = opt.get();
-                    boolean changed = false;
-                    if (r.isNew()) { r.setNew(false); changed = true; }
-                    if (r.isStatusChanged()) {
-                        r.setStatusChanged(false);
-                        r.setStatusChangeLog(null);
-                        changed = true;
-                    }
-                    if (changed) { recordRepository.save(r); cleared++; }
-                }
+            List<Long> ids = rawIds.stream().map(Integer::longValue).toList();
+            int clearedNew = 0, clearedStatus = 0;
+            // IN 절 파라미터 한계 회피 위해 1000건씩 청크 분할
+            for (int i = 0; i < ids.size(); i += 1000) {
+                List<Long> chunk = ids.subList(i, Math.min(i + 1000, ids.size()));
+                clearedNew    += recordRepository.bulkClearIsNew(chunk);
+                clearedStatus += recordRepository.bulkClearStatusChanged(chunk);
             }
-            log.info("[알림 일괄해제] 대상={}건, 해제={}건", rawIds.size(), cleared);
+            int cleared = Math.max(clearedNew, clearedStatus);
+            log.info("[알림 일괄해제] 대상={}건, isNew해제={}, statusChanged해제={}", ids.size(), clearedNew, clearedStatus);
             return ResponseEntity.ok(Map.of("cleared", cleared));
         } catch (Exception e) {
             log.error("[알림 일괄해제 실패] {}", e.getMessage());
@@ -229,7 +514,8 @@ public class ApiViewController {
         }
     }
 
-    /** 상태변경 플래그 해제 (IT 담당자 확인 후) */
+    /** 상태변경 플래그 해제 (IT 담당자 확인 후)
+     *  대용량 최적화: @Modifying 벌크 UPDATE. */
     @PatchMapping("/db/clear-status-change")
     public ResponseEntity<?> clearStatusChange(@RequestBody Map<String, Object> body) {
         try {
@@ -238,18 +524,13 @@ public class ApiViewController {
             if (rawIds == null || rawIds.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "ids가 비어 있습니다."));
             }
+            List<Long> ids = rawIds.stream().map(Integer::longValue).toList();
             int cleared = 0;
-            for (Integer rawId : rawIds) {
-                Optional<ApiRecord> opt = recordRepository.findById(rawId.longValue());
-                if (opt.isPresent()) {
-                    ApiRecord r = opt.get();
-                    r.setStatusChanged(false);
-                    r.setStatusChangeLog(null);
-                    recordRepository.save(r);
-                    cleared++;
-                }
+            for (int i = 0; i < ids.size(); i += 1000) {
+                List<Long> chunk = ids.subList(i, Math.min(i + 1000, ids.size()));
+                cleared += recordRepository.bulkClearStatusChanged(chunk);
             }
-            log.info("[상태변경 플래그 해제] 대상={}건, 해제={}건", rawIds.size(), cleared);
+            log.info("[상태변경 플래그 해제] 대상={}건, 해제={}건", ids.size(), cleared);
             return ResponseEntity.ok(Map.of("cleared", cleared));
         } catch (Exception e) {
             log.error("[상태변경 플래그 해제 실패] {}", e.getMessage());
@@ -312,6 +593,69 @@ public class ApiViewController {
         }
     }
 
+    /**
+     * 현업검토 엑셀 업로드 — 공개 엔드포인트 (비관리자 접근 가능).
+     * Body: [{ repositoryName, apiPath, httpMethod, reviewResult, reviewOpinion, reviewTeam, reviewManager }]
+     * 응답: { matched, unmatched:[{repositoryName, apiPath, httpMethod}], skipped }
+     */
+    @PatchMapping("/db/review/bulk")
+    public ResponseEntity<?> bulkUploadReview(@RequestBody List<Map<String, String>> items, HttpServletRequest httpReq) {
+        String ip = getClientIp(httpReq);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        int matched = 0, skipped = 0;
+        List<Map<String, String>> unmatched = new ArrayList<>();
+
+        for (Map<String, String> item : items) {
+            String repoName  = item.get("repositoryName");
+            String apiPath   = item.get("apiPath");
+            String httpMethod = item.get("httpMethod");
+            String reviewResult  = item.get("reviewResult");
+            String reviewOpinion = item.get("reviewOpinion");
+            String reviewTeam    = item.get("reviewTeam");
+            String reviewManager = item.get("reviewManager");
+
+            if (repoName == null || apiPath == null || httpMethod == null) {
+                skipped++;
+                continue;
+            }
+
+            Optional<ApiRecord> opt = recordRepository.findByRepositoryNameAndApiPathAndHttpMethod(repoName, apiPath, httpMethod);
+            if (opt.isEmpty()) {
+                Map<String, String> u = new LinkedHashMap<>();
+                u.put("repositoryName", repoName);
+                u.put("apiPath", apiPath);
+                u.put("httpMethod", httpMethod);
+                unmatched.add(u);
+                continue;
+            }
+
+            ApiRecord r = opt.get();
+            boolean changed = false;
+            if (reviewResult  != null) { r.setReviewResult(reviewResult.isBlank()  ? null : reviewResult);  changed = true; }
+            if (reviewOpinion != null) { r.setReviewOpinion(reviewOpinion.isBlank() ? null : reviewOpinion); changed = true; }
+            if (reviewTeam    != null) { r.setReviewTeam(reviewTeam.isBlank()    ? null : reviewTeam);    changed = true; }
+            if (reviewManager != null) { r.setReviewManager(reviewManager.isBlank() ? null : reviewManager); changed = true; }
+
+            if (changed) {
+                r.setReviewedAt(now);
+                r.setReviewedIp(ip);
+                r.setModifiedAt(now);
+                r.setModifiedIp(ip);
+                recordRepository.save(r);
+                matched++;
+            } else {
+                skipped++;
+            }
+        }
+
+        log.info("[현업검토 일괄 업로드] 매칭={}건, 미매칭={}건, 스킵={}건, ip={}", matched, unmatched.size(), skipped, ip);
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("matched",   matched);
+        resp.put("unmatched", unmatched);
+        resp.put("skipped",   skipped);
+        return ResponseEntity.ok(resp);
+    }
+
     /** Whatap 호출건수 DB 반영
      * Body: { "repoName": "my-project", "callCounts": { "/api/foo": 10, "/api/bar": 0 } }
      */
@@ -341,13 +685,15 @@ public class ApiViewController {
         }
     }
 
-    /** DB 전체 통계 (삭제건은 합계에서 제외, 별도 카운트) */
+    /** DB 전체 통계 (삭제건은 합계에서 제외, 별도 카운트)
+     * 대용량 최적화: 경량 DTO 쿼리로 TEXT 컬럼 제외 로드 + countByStatus 로 삭제 건수만 별도 집계. */
     @GetMapping("/db/stats")
     public ResponseEntity<?> dbStats() {
-        log.info("[통계 조회] GET /api/db/stats");
-        List<ApiRecord> raw = recordRepository.findAll();
-        long deletedCount = raw.stream().filter(r -> "삭제".equals(r.getStatus())).count();
-        List<ApiRecord> all = raw.stream().filter(r -> !"삭제".equals(r.getStatus())).collect(Collectors.toList());
+        long start = System.currentTimeMillis();
+
+        // 삭제 제외 전체 — 경량 DTO (status, httpMethod, repoName, team/managerOverride, apiPath, lastAnalyzedAt 만 로드)
+        List<ApiRecordStatsDto> all = recordRepository.findAllForStats();
+        long deletedCount = recordRepository.countByStatus("삭제");
 
         // repoName → RepoConfig 매핑
         Map<String, RepoConfig> repoConfigMap = repoConfigRepository.findAll().stream()
@@ -359,21 +705,26 @@ public class ApiViewController {
                         r -> r.getStatus() != null ? r.getStatus() : "사용",
                         Collectors.counting()));
 
+        // 최우선 차단대상(로그작업이력 제외) 전체 카운트 — UI 에서 (1)최우선 / (1)최우선(로그제외) 2분할 표시용
+        long priorityPureCount = all.stream()
+                .filter(r -> "최우선 차단대상".equals(r.getStatus()) && !r.isLogWorkExcluded())
+                .count();
+
         // HTTP Method별 (전체)
         Map<String, Long> byMethod = all.stream()
                 .collect(Collectors.groupingBy(
                         r -> r.getHttpMethod() != null ? r.getHttpMethod() : "?",
                         Collectors.counting()));
 
-        // 레포지토리별 — (팀, 레포) 조합으로 그룹핑하여 팀이 다르면 별도 행
         // effectiveTeam 함수
-        java.util.function.BiFunction<ApiRecord, Map<String, RepoConfig>, String> effectiveTeam = (r, cfgMap) -> {
+        java.util.function.BiFunction<ApiRecordStatsDto, Map<String, RepoConfig>, String> effectiveTeam = (r, cfgMap) -> {
             if (r.getTeamOverride() != null && !r.getTeamOverride().isBlank()) return r.getTeamOverride();
             RepoConfig c = cfgMap.get(r.getRepositoryName());
             return (c != null && c.getTeamName() != null && !c.getTeamName().isBlank()) ? c.getTeamName() : "(팀 미지정)";
         };
 
-        Map<String, List<ApiRecord>> byTeamRepoGroup = all.stream()
+        // 레포지토리별 — (팀, 레포) 조합으로 그룹핑하여 팀이 다르면 별도 행
+        Map<String, List<ApiRecordStatsDto>> byTeamRepoGroup = all.stream()
                 .collect(Collectors.groupingBy(r -> effectiveTeam.apply(r, repoConfigMap) + "|" + r.getRepositoryName()));
 
         List<Map<String, Object>> byRepo = byTeamRepoGroup.entrySet().stream()
@@ -387,7 +738,7 @@ public class ApiViewController {
                     String[] parts = e.getKey().split("\\|", 2);
                     String teamVal = parts[0];
                     String repoName = parts[1];
-                    List<ApiRecord> records = e.getValue();
+                    List<ApiRecordStatsDto> records = e.getValue();
                     RepoConfig cfg = repoConfigMap.get(repoName);
 
                     Map<String, Long> statusDetail = records.stream()
@@ -398,6 +749,9 @@ public class ApiViewController {
                             .collect(Collectors.groupingBy(
                                     r -> r.getHttpMethod() != null ? r.getHttpMethod() : "?",
                                     Collectors.counting()));
+                    long groupPriorityPure = records.stream()
+                            .filter(r -> "최우선 차단대상".equals(r.getStatus()) && !r.isLogWorkExcluded())
+                            .count();
                     String lastDate = records.stream()
                             .filter(r -> r.getLastAnalyzedAt() != null)
                             .map(r -> r.getLastAnalyzedAt().toString().replace("T"," ").substring(0, Math.min(r.getLastAnalyzedAt().toString().length(), 16)))
@@ -410,6 +764,7 @@ public class ApiViewController {
                     m.put("businessName",  cfg != null && cfg.getBusinessName()  != null ? cfg.getBusinessName()  : "-");
                     m.put("lastAnalyzedDate", lastDate);
                     m.put("statusDetail",  statusDetail);
+                    m.put("priorityPure",  groupPriorityPure);
                     m.put("methodDetail",  methodDetail);
                     return m;
                 }).collect(Collectors.toList());
@@ -417,15 +772,15 @@ public class ApiViewController {
         // 팀별 (teamOverride 우선)
         Map<String, Long> byTeamCount = new LinkedHashMap<>();
         Map<String, Map<String, Long>> byTeamStatus = new LinkedHashMap<>();
+        Map<String, Long> byTeamPriorityPure = new LinkedHashMap<>();
         all.forEach(r -> {
-            RepoConfig cfg = repoConfigMap.get(r.getRepositoryName());
-            String team = (r.getTeamOverride() != null && !r.getTeamOverride().isBlank())
-                    ? r.getTeamOverride()
-                    : (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
-                    ? cfg.getTeamName() : "(팀 미지정)";
+            String team = effectiveTeam.apply(r, repoConfigMap);
             byTeamCount.merge(team, 1L, Long::sum);
             String status = r.getStatus() != null ? r.getStatus() : "사용";
             byTeamStatus.computeIfAbsent(team, k -> new LinkedHashMap<>()).merge(status, 1L, Long::sum);
+            if ("최우선 차단대상".equals(status) && !r.isLogWorkExcluded()) {
+                byTeamPriorityPure.merge(team, 1L, Long::sum);
+            }
         });
         List<Map<String, Object>> byTeam = byTeamCount.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
@@ -434,6 +789,7 @@ public class ApiViewController {
                     m.put("team",         e.getKey());
                     m.put("count",        e.getValue());
                     m.put("statusDetail", byTeamStatus.getOrDefault(e.getKey(), Map.of()));
+                    m.put("priorityPure", byTeamPriorityPure.getOrDefault(e.getKey(), 0L));
                     return m;
                 }).collect(Collectors.toList());
 
@@ -447,18 +803,19 @@ public class ApiViewController {
         Map<String, Long> byManagerCount = new LinkedHashMap<>();
         Map<String, Map<String, Long>> byManagerStatus = new LinkedHashMap<>();
         Map<String, String> managerToTeam = new LinkedHashMap<>();
+        Map<String, Long> byManagerPriorityPure = new LinkedHashMap<>();
         all.forEach(r -> {
             RepoConfig cfg = repoConfigMap.get(r.getRepositoryName());
             List<Map<String, String>> mappings = mappingCache.getOrDefault(r.getRepositoryName(), List.of());
-            String mgr = resolveManager(r, cfg, mappings);
-            String team = (r.getTeamOverride() != null && !r.getTeamOverride().isBlank())
-                    ? r.getTeamOverride()
-                    : (cfg != null && cfg.getTeamName() != null && !cfg.getTeamName().isBlank())
-                    ? cfg.getTeamName() : "(팀 미지정)";
+            String mgr = resolveManager(r.getManagerOverride(), r.getApiPath(), cfg, mappings);
+            String team = effectiveTeam.apply(r, repoConfigMap);
             byManagerCount.merge(mgr, 1L, Long::sum);
             managerToTeam.putIfAbsent(mgr, team);
             String status = r.getStatus() != null ? r.getStatus() : "사용";
             byManagerStatus.computeIfAbsent(mgr, k -> new LinkedHashMap<>()).merge(status, 1L, Long::sum);
+            if ("최우선 차단대상".equals(status) && !r.isLogWorkExcluded()) {
+                byManagerPriorityPure.merge(mgr, 1L, Long::sum);
+            }
         });
         List<Map<String, Object>> byManager = byManagerCount.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
@@ -468,6 +825,7 @@ public class ApiViewController {
                     m.put("team",         managerToTeam.getOrDefault(e.getKey(), "-"));
                     m.put("count",        e.getValue());
                     m.put("statusDetail", byManagerStatus.getOrDefault(e.getKey(), Map.of()));
+                    m.put("priorityPure", byManagerPriorityPure.getOrDefault(e.getKey(), 0L));
                     return m;
                 }).collect(Collectors.toList());
 
@@ -475,10 +833,12 @@ public class ApiViewController {
         result.put("total",         all.size());       // 활성 URL (삭제 제외)
         result.put("deletedCount",  deletedCount);     // 삭제 이력 (별도)
         result.put("byStatus",      byStatus);
+        result.put("priorityPureCount", priorityPureCount);
         result.put("byMethod",      byMethod);
         result.put("byRepo",        byRepo);
         result.put("byTeam",        byTeam);
         result.put("byManager",     byManager);
+        log.info("[통계 조회] 건수={}, 삭제={}, 소요={}ms", all.size(), deletedCount, System.currentTimeMillis() - start);
         return ResponseEntity.ok(result);
     }
 
@@ -639,14 +999,19 @@ public class ApiViewController {
      * 담당자 결정: managerOverride > 프로그램ID별 매핑 > 팀 대표(managerName) > "(미지정)"
      */
     private String resolveManager(ApiRecord r, RepoConfig cfg, List<Map<String, String>> mappings) {
-        if (r.getManagerOverride() != null && !r.getManagerOverride().isBlank()) {
-            return r.getManagerOverride();
+        return resolveManager(r.getManagerOverride(), r.getApiPath(), cfg, mappings);
+    }
+
+    /** DTO/엔티티 공용 — 담당자 결정 로직 */
+    private String resolveManager(String managerOverride, String apiPath, RepoConfig cfg, List<Map<String, String>> mappings) {
+        if (managerOverride != null && !managerOverride.isBlank()) {
+            return managerOverride;
         }
         if (mappings != null && !mappings.isEmpty()) {
-            String apiPath = r.getApiPath() != null ? r.getApiPath().toUpperCase() : "";
+            String pathUpper = apiPath != null ? apiPath.toUpperCase() : "";
             for (Map<String, String> m : mappings) {
                 String pid = m.get("programId");
-                if (pid != null && !pid.isBlank() && apiPath.contains(pid.toUpperCase())) {
+                if (pid != null && !pid.isBlank() && pathUpper.contains(pid.toUpperCase())) {
                     return m.get("managerName");
                 }
             }

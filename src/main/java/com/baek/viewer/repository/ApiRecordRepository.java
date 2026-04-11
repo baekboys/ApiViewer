@@ -1,15 +1,21 @@
 package com.baek.viewer.repository;
 
 import com.baek.viewer.model.ApiRecord;
+import com.baek.viewer.model.ApiRecordStatsDto;
 import com.baek.viewer.model.ApiRecordSummary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long> {
+public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<ApiRecord> {
 
     List<ApiRecord> findByRepositoryName(String repositoryName);
 
@@ -49,4 +55,97 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long> {
 
     @Query("SELECT r FROM ApiRecord r WHERE r.status IN :statuses")
     List<ApiRecordSummary> findSummaryByStatusIn(@Param("statuses") List<String> statuses);
+
+    // ── 서버사이드 페이지네이션 (Page<Summary>) ───────────────────────────
+    @Query(value = "SELECT r FROM ApiRecord r",
+           countQuery = "SELECT COUNT(r) FROM ApiRecord r")
+    Page<ApiRecordSummary> pageAllSummary(Pageable pageable);
+
+    @Query(value = "SELECT r FROM ApiRecord r WHERE r.repositoryName = :repo",
+           countQuery = "SELECT COUNT(r) FROM ApiRecord r WHERE r.repositoryName = :repo")
+    Page<ApiRecordSummary> pageSummaryByRepositoryName(@Param("repo") String repositoryName, Pageable pageable);
+
+    @Query(value = "SELECT r FROM ApiRecord r WHERE r.status IN :statuses",
+           countQuery = "SELECT COUNT(r) FROM ApiRecord r WHERE r.status IN :statuses")
+    Page<ApiRecordSummary> pageSummaryByStatusIn(@Param("statuses") List<String> statuses, Pageable pageable);
+
+    // ── viewer 배지용 서버 집계 (COUNT 쿼리만 사용 — 전량 로드 금지) ───────
+    /** status 별 카운트 — (status, count) 튜플 배열 */
+    @Query("SELECT COALESCE(r.status, '사용'), COUNT(r) FROM ApiRecord r GROUP BY r.status")
+    List<Object[]> countGroupByStatus();
+
+    @Query("SELECT COALESCE(r.status, '사용'), COUNT(r) FROM ApiRecord r WHERE r.repositoryName = :repo GROUP BY r.status")
+    List<Object[]> countGroupByStatusForRepo(@Param("repo") String repo);
+
+    @Query("SELECT COALESCE(r.httpMethod, '?'), COUNT(r) FROM ApiRecord r GROUP BY r.httpMethod")
+    List<Object[]> countGroupByMethod();
+
+    @Query("SELECT COALESCE(r.httpMethod, '?'), COUNT(r) FROM ApiRecord r WHERE r.repositoryName = :repo GROUP BY r.httpMethod")
+    List<Object[]> countGroupByMethodForRepo(@Param("repo") String repo);
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isNew = true")
+    long countNew();
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isNew = true AND r.repositoryName = :repo")
+    long countNewForRepo(@Param("repo") String repo);
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.statusChanged = true")
+    long countStatusChanged();
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.statusChanged = true AND r.repositoryName = :repo")
+    long countStatusChangedForRepo(@Param("repo") String repo);
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.reviewResult IS NOT NULL AND r.reviewResult <> ''")
+    long countReviewed();
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.reviewResult IS NOT NULL AND r.reviewResult <> '' AND r.repositoryName = :repo")
+    long countReviewedForRepo(@Param("repo") String repo);
+
+    // ── 전체 선택/벌크 작업용 ID 목록 조회 (경량) ─────────────────────────
+    @Query("SELECT r.id FROM ApiRecord r")
+    List<Long> findAllIds();
+
+    @Query("SELECT r.id FROM ApiRecord r WHERE r.repositoryName = :repo")
+    List<Long> findIdsByRepositoryName(@Param("repo") String repo);
+
+    @Query("SELECT r.id FROM ApiRecord r WHERE r.status IN :statuses")
+    List<Long> findIdsByStatusIn(@Param("statuses") List<String> statuses);
+
+    // ── 통계 전용 경량 DTO 쿼리 ─────────────────────────────────────────────
+    /**
+     * 통계 집계용 — TEXT 컬럼(fullComment/gitHistory 등) 제외하고 필요한 컬럼만 로드.
+     * 삭제 상태는 제외되며, 삭제 카운트는 {@link #countByStatus(String)} 로 별도 조회.
+     */
+    @Query("SELECT new com.baek.viewer.model.ApiRecordStatsDto("
+            + "r.id, r.repositoryName, r.status, r.httpMethod, r.teamOverride, r.managerOverride, r.apiPath, r.lastAnalyzedAt, r.logWorkExcluded) "
+            + "FROM ApiRecord r WHERE r.status IS NULL OR r.status <> '삭제'")
+    List<ApiRecordStatsDto> findAllForStats();
+
+    long countByStatus(String status);
+
+    /**
+     * 최우선 차단대상(로그작업이력 제외) 전용 카운트 — logWorkExcluded=false 건만 집계.
+     * 과거 row 의 null 호환을 위해 "NULL OR FALSE" 양쪽 매칭.
+     */
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.status = :status "
+            + "AND (r.logWorkExcluded IS NULL OR r.logWorkExcluded = false)")
+    long countByStatusAndLogNotExcluded(@Param("status") String status);
+
+    /** 레포별 동일 집계 */
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.status = :status "
+            + "AND r.repositoryName = :repo "
+            + "AND (r.logWorkExcluded IS NULL OR r.logWorkExcluded = false)")
+    long countByStatusAndLogNotExcludedForRepo(@Param("status") String status, @Param("repo") String repo);
+
+    // ── 벌크 UPDATE (대량 처리 시 N+1 제거) ────────────────────────────────
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE ApiRecord r SET r.isNew = false WHERE r.id IN :ids AND r.isNew = true")
+    int bulkClearIsNew(@Param("ids") Collection<Long> ids);
+
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE ApiRecord r SET r.statusChanged = false, r.statusChangeLog = null "
+            + "WHERE r.id IN :ids AND r.statusChanged = true")
+    int bulkClearStatusChanged(@Param("ids") Collection<Long> ids);
 }

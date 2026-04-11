@@ -405,6 +405,42 @@ function updateAdminBadge(valid) {
     </div>
     <div id="delResult" style="margin-top:8px;font-size:12px;"></div>
   </div>
+
+  <div style="border-top:2px solid var(--border);margin:20px 0;"></div>
+
+  <!-- 성능 테스트용 대량 데이터 생성 -->
+  <div class="card" style="border:1px solid #fde68a;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#f59e0b;"></span>성능 테스트 시드 데이터
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">
+        대량 더미 데이터 생성 — <b>test-repo-*</b> 네임스페이스 격리 (운영 데이터에 영향 없음)
+      </span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <label class="field" style="min-width:140px;">api_record 건수
+        <input id="seedApis" type="number" value="20000" min="1" max="200000"
+               style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      </label>
+      <label class="field" style="min-width:140px;">APM 일수
+        <input id="seedDays" type="number" value="100" min="1" max="1000"
+               style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      </label>
+      <label class="field" style="min-width:180px;">
+        <span style="visibility:hidden;">.</span>
+        <label style="display:flex;align-items:center;gap:6px;height:32px;font-size:12px;">
+          <input id="seedClean" type="checkbox" checked> 실행 전 기존 test-repo-* 삭제
+        </label>
+      </label>
+      <button class="btn" style="background:#f59e0b;color:#fff;height:34px;" onclick="seedTestData()">⚡ 시드 데이터 생성</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="cleanTestData()">🧹 test-repo-* 정리</button>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+      총 APM 건수 = api_record × APM 일수 &nbsp; · &nbsp;
+      기본값(20,000 × 100) = <b>200만 건</b> APM 생성 &nbsp; · &nbsp;
+      생성에 수 분 소요될 수 있음
+    </div>
+    <div id="seedResult" style="margin-top:8px;font-size:12px;"></div>
+  </div>
 </section>
 
 <!-- ═══ 📧 알림 (메일 발송) ═══ -->
@@ -1461,6 +1497,53 @@ function updateAdminBadge(valid) {
     } catch(e) {
       document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
       showToast(e.message || '삭제 실패', 'error');
+    } finally { hideDelProgress(); }
+  }
+
+  // ── 성능 테스트 시드 데이터 ──────────────────────────────
+  async function seedTestData() {
+    const apis = parseInt(document.getElementById('seedApis').value, 10);
+    const days = parseInt(document.getElementById('seedDays').value, 10);
+    const clean = document.getElementById('seedClean').checked;
+    if (!Number.isFinite(apis) || apis < 1 || apis > 200000) { showToast('api_record 건수: 1 ~ 200,000', 'error'); return; }
+    if (!Number.isFinite(days) || days < 1 || days > 1000) { showToast('APM 일수: 1 ~ 1000', 'error'); return; }
+    const total = apis * days;
+    if (!await customConfirm(`성능 테스트 시드 데이터를 생성합니다.\n\napi_record: ${apis.toLocaleString()}건\nAPM 일수: ${days}일\n예상 APM 총 건수: ${total.toLocaleString()}건\n실행 전 삭제: ${clean ? '예' : '아니오'}\n\n수 분 소요될 수 있습니다.`)) return;
+    if (!await verifyPwPrompt()) return;
+    showDelProgress(`시드 데이터 생성 중... (예상 ${total.toLocaleString()}건, 수 분 소요)`);
+    const t0 = Date.now();
+    try {
+      const url = `/api/db/seed?apis=${apis}&days=${days}&clean=${clean}`;
+      const res = await adminFetch(url, { method:'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '시드 실패');
+      const sec = ((Date.now() - t0) / 1000).toFixed(1);
+      document.getElementById('seedResult').innerHTML =
+        `<span style="color:var(--success);">✓ 생성 완료 — api_record ${data.apiRecordInserted.toLocaleString()}건, apm_call_data ${data.apmCallDataInserted.toLocaleString()}건 (${sec}s) · api=${data.apiInsertMs}ms apm=${data.apmInsertMs}ms agg=${data.aggregateMs}ms</span>`;
+      showToast(`시드 생성 완료 (${sec}s)`, 'success');
+      // DB 모니터링 갱신
+      try { loadDbMonitor(); } catch(e) {}
+    } catch(e) {
+      document.getElementById('seedResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
+      showToast(e.message || '시드 실패', 'error');
+    } finally { hideDelProgress(); }
+  }
+
+  async function cleanTestData() {
+    if (!await customConfirm('test-repo-* prefix 로 생성된 모든 시드 데이터를 삭제하시겠습니까?\n(운영 데이터에는 영향 없음)')) return;
+    if (!await verifyPwPrompt()) return;
+    showDelProgress('시드 데이터 정리 중...');
+    try {
+      const res = await adminFetch('/api/db/seed', { method:'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '정리 실패');
+      document.getElementById('seedResult').innerHTML =
+        `<span style="color:var(--success);">✓ 정리 완료 — api_record ${data.apiRecordDeleted.toLocaleString()}건, apm_call_data ${data.apmCallDataDeleted.toLocaleString()}건 삭제</span>`;
+      showToast('시드 데이터 정리 완료', 'success');
+      try { loadDbMonitor(); } catch(e) {}
+    } catch(e) {
+      document.getElementById('seedResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
+      showToast(e.message || '정리 실패', 'error');
     } finally { hideDelProgress(); }
   }
 

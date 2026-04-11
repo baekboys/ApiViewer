@@ -47,51 +47,58 @@ public class ApiStorageService {
      * ① 신규: 전체 필드 세팅
      * ② 기존 + 차단완료: SKIP (건드리지 않음)
      * ③ 기존 + 차단완료 아님: 추출 필드만 업데이트, 수동 설정 필드 보호
+     *
+     * 대용량 최적화:
+     *  - 레포 전체를 한 번만 로드 후 키(apiPath|httpMethod) → ApiRecord Map 구성 (findByRepoAndPathAndMethod N+1 제거)
+     *  - 수집 후 saveAll() 벌크 저장 (JDBC batch_size 500 활용)
      */
     @Transactional
     public int save(String repositoryName, List<ApiInfo> apis, String clientIp) {
         log.info("[DB 저장 시작] repo={}, 건수={}, ip={}", repositoryName, apis.size(), clientIp);
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int reviewThreshold = getReviewThreshold();
-        int saved = 0;
 
         // 프로그램ID별 담당자 매핑 로드
         List<Map<String, String>> managerMappings = loadManagerMappings(repositoryName);
 
+        // ── 레포 전체 1회 로드 + 키 맵 구성 (N+1 제거) ──
+        List<ApiRecord> allInRepo = repository.findByRepositoryName(repositoryName);
+        Map<String, ApiRecord> existingMap = new HashMap<>(allInRepo.size() * 2);
+        for (ApiRecord r : allInRepo) {
+            existingMap.put(r.getApiPath() + "|" + r.getHttpMethod(), r);
+        }
+
+        List<ApiRecord> toInsert = new ArrayList<>();
+        List<ApiRecord> toUpdate = new ArrayList<>();
+
         for (ApiInfo a : apis) {
-            Optional<ApiRecord> existing = repository.findByRepositoryNameAndApiPathAndHttpMethod(
-                    repositoryName, a.getApiPath(), a.getHttpMethod());
+            String key = a.getApiPath() + "|" + a.getHttpMethod();
+            ApiRecord existing = existingMap.get(key);
 
-            if (existing.isPresent()) {
-                ApiRecord r = existing.get();
-
+            if (existing != null) {
                 // ② 차단완료 → SKIP
-                if ("차단완료".equals(r.getStatus())) continue;
+                if ("차단완료".equals(existing.getStatus())) continue;
 
                 // ③ 기존 + 차단완료 아님 → 추출 필드만 업데이트
-                r.setNew(false); // 재분석 시 신규 플래그 해제
-                String oldStatus = r.getStatus();
-                updateExtractedFields(r, a, now);
-                // 프로그램ID 매핑 → managerOverride 자동 설정 (수동 설정 안 된 경우만)
-                applyManagerMapping(r, managerMappings);
+                existing.setNew(false); // 재분석 시 신규 플래그 해제
+                String oldStatus = existing.getStatus();
+                updateExtractedFields(existing, a, now);
+                applyManagerMapping(existing, managerMappings);
 
-                // status 재계산 + 변경 감지
-                if (!r.isStatusOverridden()) {
-                    String newStatus = calculateStatus(r, reviewThreshold);
+                if (!existing.isStatusOverridden()) {
+                    String newStatus = calculateStatus(existing, reviewThreshold);
                     if (!Objects.equals(oldStatus, newStatus)) {
-                        // 변경불가로 바뀐 건은 알림 불필요 (분석에 의한 차단완료는 확정)
                         if (!"차단완료".equals(newStatus)) {
-                            appendChangeLog(r, oldStatus + " → " + newStatus);
+                            appendChangeLog(existing, oldStatus + " → " + newStatus);
                         }
                     }
-                    r.setStatus(newStatus);
+                    existing.setStatus(newStatus);
                 }
-                // 차단완료로 변경되었으면 blockedDate 파싱
-                if ("차단완료".equals(r.getStatus())) {
-                    r.setBlockedDate(parseBlockedDate(r.getFullComment()));
-                    r.setBlockedReason(parseBlockedReason(r.getFullComment()));
+                if ("차단완료".equals(existing.getStatus())) {
+                    existing.setBlockedDate(parseBlockedDate(existing.getFullComment()));
+                    existing.setBlockedReason(parseBlockedReason(existing.getFullComment()));
                 }
-
+                toUpdate.add(existing);
             } else {
                 // ① 신규
                 ApiRecord r = new ApiRecord();
@@ -108,20 +115,14 @@ public class ApiStorageService {
                     r.setBlockedDate(parseBlockedDate(r.getFullComment()));
                     r.setBlockedReason(parseBlockedReason(r.getFullComment()));
                 }
-                repository.save(r);
-                saved++;
-                continue;
+                toInsert.add(r);
             }
-
-            repository.save(existing.get());
-            saved++;
         }
 
         // ④ DB에 있지만 추출 결과에 없는 건 → "삭제" 처리 (차단완료 제외)
-        Set<String> extractedKeys = apis.stream()
-                .map(a -> a.getApiPath() + "|" + a.getHttpMethod())
-                .collect(java.util.stream.Collectors.toSet());
-        List<ApiRecord> allInRepo = repository.findByRepositoryName(repositoryName);
+        Set<String> extractedKeys = new HashSet<>(apis.size() * 2);
+        for (ApiInfo a : apis) extractedKeys.add(a.getApiPath() + "|" + a.getHttpMethod());
+        List<ApiRecord> toMarkDeleted = new ArrayList<>();
         for (ApiRecord r : allInRepo) {
             if ("차단완료".equals(r.getStatus()) || "삭제".equals(r.getStatus())) continue;
             String key = r.getApiPath() + "|" + r.getHttpMethod();
@@ -129,13 +130,20 @@ public class ApiStorageService {
                 String oldStatus = r.getStatus();
                 r.setStatus("삭제");
                 r.setStatusOverridden(true);
-                r.setStatusChanged(true);  // 확인 플래그로 사용자 인지 유도
+                r.setStatusChanged(true);
                 appendChangeLog(r, oldStatus + "→삭제: 재추출 시 소스에서 미발견");
-                repository.save(r);  // 명시적 저장
+                toMarkDeleted.add(r);
             }
         }
 
-        log.info("[DB 저장 완료] repo={}, 저장건수={}/{}", repositoryName, saved, apis.size());
+        // ── 벌크 저장 (batch_size=500 적용) ──
+        if (!toInsert.isEmpty())      repository.saveAll(toInsert);
+        if (!toUpdate.isEmpty())      repository.saveAll(toUpdate);
+        if (!toMarkDeleted.isEmpty()) repository.saveAll(toMarkDeleted);
+
+        int saved = toInsert.size() + toUpdate.size();
+        log.info("[DB 저장 완료] repo={}, 신규={}, 갱신={}, 삭제표시={}", repositoryName,
+                toInsert.size(), toUpdate.size(), toMarkDeleted.size());
         return saved;
     }
 
@@ -277,57 +285,65 @@ public class ApiStorageService {
     public int updateBulk(List<Long> ids, Map<String, Object> fields, String clientIp) {
         log.info("[일괄 변경] 대상={}건, 필드={}, ip={}", ids.size(), fields.keySet(), clientIp);
         int reviewThreshold = getReviewThreshold();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int updated = 0;
-        for (Long id : ids) {
-            Optional<ApiRecord> opt = repository.findById(id);
-            if (opt.isEmpty()) continue;
-            ApiRecord r = opt.get();
 
-            // 변경불가 건은 일체 수정 불가
-            if ("차단완료".equals(r.getStatus())) continue;
+        // 대용량 최적화: ID 청크로 findAllById 로 일괄 로드 후 saveAll 로 일괄 저장
+        // (findById N회 × save N회 = 2N 쿼리 → 2회 쿼리 + 배치 INSERT)
+        final int CHUNK = 500;
+        for (int i = 0; i < ids.size(); i += CHUNK) {
+            List<Long> chunk = ids.subList(i, Math.min(i + CHUNK, ids.size()));
+            List<ApiRecord> records = repository.findAllById(chunk);
+            List<ApiRecord> dirty = new ArrayList<>(records.size());
 
-            if (fields.containsKey("status")) {
-                // 상태확정된 건은 상태 변경 불가 (확정 토글이 아닌 경우)
-                if (r.isStatusOverridden() && !fields.containsKey("statusOverridden")) {
-                    // skip status change
-                } else {
-                    String status = fields.get("status") != null ? fields.get("status").toString() : null;
-                    if (status == null || status.isBlank()) {
-                        r.setStatusOverridden(false);
-                        r.setStatus(calculateStatus(r, reviewThreshold));
+            for (ApiRecord r : records) {
+                // 변경불가 건은 일체 수정 불가
+                if ("차단완료".equals(r.getStatus())) continue;
+
+                if (fields.containsKey("status")) {
+                    // 상태확정된 건은 상태 변경 불가 (확정 토글이 아닌 경우)
+                    if (r.isStatusOverridden() && !fields.containsKey("statusOverridden")) {
+                        // skip status change
                     } else {
-                        r.setStatus(status);
+                        String status = fields.get("status") != null ? fields.get("status").toString() : null;
+                        if (status == null || status.isBlank()) {
+                            r.setStatusOverridden(false);
+                            r.setStatus(calculateStatus(r, reviewThreshold));
+                        } else {
+                            r.setStatus(status);
+                        }
                     }
                 }
+
+                // 상태확정 토글 (statusOverridden 직접 설정)
+                if (fields.containsKey("statusOverridden")) {
+                    Object val = fields.get("statusOverridden");
+                    boolean locked = val instanceof Boolean ? (Boolean) val : "true".equals(String.valueOf(val));
+                    r.setStatusOverridden(locked);
+                }
+
+                if (fields.containsKey("blockTarget"))
+                    r.setBlockTarget(toNullableStr(fields.get("blockTarget")));
+                if (fields.containsKey("blockCriteria"))
+                    r.setBlockCriteria(toNullableStr(fields.get("blockCriteria")));
+                if (fields.containsKey("teamOverride"))
+                    r.setTeamOverride(toNullableStr(fields.get("teamOverride")));
+                if (fields.containsKey("managerOverride"))
+                    r.setManagerOverride(toNullableStr(fields.get("managerOverride")));
+
+                boolean reviewChanged = false;
+                if (fields.containsKey("reviewResult"))  { r.setReviewResult(toNullableStr(fields.get("reviewResult"))); reviewChanged = true; }
+                if (fields.containsKey("reviewOpinion")) { r.setReviewOpinion(toNullableStr(fields.get("reviewOpinion"))); reviewChanged = true; }
+                if (fields.containsKey("reviewTeam"))    { r.setReviewTeam(toNullableStr(fields.get("reviewTeam"))); reviewChanged = true; }
+                if (fields.containsKey("reviewManager")) { r.setReviewManager(toNullableStr(fields.get("reviewManager"))); reviewChanged = true; }
+                if (reviewChanged) r.setReviewedAt(now);
+
+                r.setModifiedAt(now);
+                if (clientIp != null) r.setModifiedIp(clientIp);
+                dirty.add(r);
+                updated++;
             }
-
-            // 상태확정 토글 (statusOverridden 직접 설정)
-            if (fields.containsKey("statusOverridden")) {
-                Object val = fields.get("statusOverridden");
-                boolean locked = val instanceof Boolean ? (Boolean) val : "true".equals(String.valueOf(val));
-                r.setStatusOverridden(locked);
-            }
-
-            if (fields.containsKey("blockTarget"))
-                r.setBlockTarget(toNullableStr(fields.get("blockTarget")));
-            if (fields.containsKey("blockCriteria"))
-                r.setBlockCriteria(toNullableStr(fields.get("blockCriteria")));
-            if (fields.containsKey("teamOverride"))
-                r.setTeamOverride(toNullableStr(fields.get("teamOverride")));
-            if (fields.containsKey("managerOverride"))
-                r.setManagerOverride(toNullableStr(fields.get("managerOverride")));
-
-            boolean reviewChanged = false;
-            if (fields.containsKey("reviewResult"))  { r.setReviewResult(toNullableStr(fields.get("reviewResult"))); reviewChanged = true; }
-            if (fields.containsKey("reviewOpinion")) { r.setReviewOpinion(toNullableStr(fields.get("reviewOpinion"))); reviewChanged = true; }
-            if (fields.containsKey("reviewTeam"))    { r.setReviewTeam(toNullableStr(fields.get("reviewTeam"))); reviewChanged = true; }
-            if (fields.containsKey("reviewManager")) { r.setReviewManager(toNullableStr(fields.get("reviewManager"))); reviewChanged = true; }
-            if (reviewChanged) r.setReviewedAt(java.time.LocalDateTime.now());
-
-            r.setModifiedAt(java.time.LocalDateTime.now());
-            if (clientIp != null) r.setModifiedIp(clientIp);
-            repository.save(r);
-            updated++;
+            if (!dirty.isEmpty()) repository.saveAll(dirty);
         }
         log.info("[일괄 변경 완료] 대상={}건, 변경={}건", ids.size(), updated);
         return updated;
@@ -352,24 +368,37 @@ public class ApiStorageService {
         if ("Y".equals(r.getIsDeprecated())
                 && containsBlockText(r.getFullComment())
                 && "Y".equals(r.getHasUrlBlock())) {
+            r.setLogWorkExcluded(false);
             return "차단완료";
         }
 
         Long call = r.getCallCount();
         boolean callZero = (call == null || call == 0);  // null도 0건으로 간주
         boolean callLow  = (call != null && call >= 1 && call <= reviewThreshold);
-        boolean commitOld = areAllCommitsOlderThanOneYear(r.getGitHistory());
+        boolean fullOld  = areAllCommitsOlderThanOneYear(r.getGitHistory(), false); // 전체 커밋 기준
+        boolean bizOld   = areAllCommitsOlderThanOneYear(r.getGitHistory(), true);  // 침해사고 로그작업 커밋 제외 기준
 
-        // 2. 최우선 차단대상: 호출 0건 + 커밋 1년 경과
-        if (callZero && commitOld) {
+        // 2-a. 최우선 차단대상 (순수 미사용): 호출 0건 + 모든 커밋 1년 경과
+        if (callZero && fullOld) {
+            r.setLogWorkExcluded(false);
             return "최우선 차단대상";
         }
-        // 3. 검토필요 차단대상: 호출 0건 + 커밋 1년 미만 OR 호출 1~N건 + 커밋 1년 경과
-        if (callZero && !commitOld) {
-            return "검토필요 차단대상";
+        // 2-b. 최우선 차단대상 (로그작업이력 제외): 호출 0건 + 로그작업 커밋 제외 시에만 1년 경과
+        //      → 침해사고 로그 패치 때문에 최근 커밋이 있는 건을 최우선으로 승격
+        if (callZero && bizOld) {
+            r.setLogWorkExcluded(true);
+            return "최우선 차단대상";
         }
-        if (callLow && commitOld) {
-            return "검토필요 차단대상";
+
+        // 2-b 이하: 최우선 아님 — 플래그 리셋 (잔여값 제거)
+        r.setLogWorkExcluded(false);
+
+        // 3. 추가검토필요 차단대상: 호출 0건 + 1년 미만 OR 호출 1~N건 + 1년 경과
+        if (callZero && !fullOld) {
+            return "추가검토필요 차단대상";
+        }
+        if (callLow && fullOld) {
+            return "추가검토필요 차단대상";
         }
         // 4. 사용: 그 외
         return "사용";

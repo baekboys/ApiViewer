@@ -7,7 +7,17 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "api_record",
     uniqueConstraints = { @UniqueConstraint(columnNames = {"repository_name", "api_path", "http_method"}) },
-    indexes = { @Index(name = "idx_repo_name", columnList = "repository_name") })
+    indexes = {
+        @Index(name = "idx_repo_name",          columnList = "repository_name"),
+        @Index(name = "idx_status",             columnList = "status"),
+        @Index(name = "idx_status_repo",        columnList = "status, repository_name"),
+        @Index(name = "idx_call_count",         columnList = "call_count"),
+        @Index(name = "idx_blocked_date",       columnList = "blocked_date"),
+        @Index(name = "idx_status_overridden",  columnList = "status_overridden"),
+        @Index(name = "idx_block_target",       columnList = "block_target"),
+        @Index(name = "idx_is_new",             columnList = "is_new"),
+        @Index(name = "idx_status_changed",     columnList = "status_changed")
+    })
 public class ApiRecord {
 
     @Id
@@ -52,6 +62,15 @@ public class ApiRecord {
 
     @Column(name = "status_overridden")
     private boolean statusOverridden = false;
+
+    /**
+     * 최우선 차단대상 중 "로그작업 이력 제외" 판정 건 여부.
+     * true = 전체 커밋 기준으론 1년 미만이지만 로그작업 커밋을 제외하면 1년 경과 (로그작업 때문에 구제된 상태)
+     * false = 전체 커밋이 이미 1년 경과 (순수 미사용) 또는 "최우선 차단대상"이 아닌 레코드
+     * — 화면에서 (1)최우선 / (1)최우선(로그작업이력 제외) 두 지표로 분리 집계할 때 subset 구분용.
+     */
+    @Column(name = "log_work_excluded")
+    private Boolean logWorkExcluded = false;
 
     /** 차단대상: 최우선 차단대상 / 후순위 차단대상 / null(미지정) — 수동 설정 전용 */
     @Column(name = "block_target", length = 30)
@@ -198,6 +217,9 @@ public class ApiRecord {
     public void setStatus(String status) { this.status = status; }
     public boolean isStatusOverridden() { return statusOverridden; }
     public void setStatusOverridden(boolean statusOverridden) { this.statusOverridden = statusOverridden; }
+    public boolean isLogWorkExcluded() { return logWorkExcluded != null && logWorkExcluded; }
+    public Boolean getLogWorkExcluded() { return logWorkExcluded; }
+    public void setLogWorkExcluded(boolean logWorkExcluded) { this.logWorkExcluded = logWorkExcluded; }
     public Long getCallCount() { return callCount; }
     public void setCallCount(Long callCount) { this.callCount = callCount; }
     public Long getCallCountMonth() { return callCountMonth; }

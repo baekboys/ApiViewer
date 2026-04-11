@@ -280,9 +280,9 @@
     <div class="stat-pill s-use"  id="pill-사용"   onclick="setFilter('사용')">    <span>사용</span>      <strong id="stat-사용">0</strong></div>
     <div class="stat-pill s-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span>  <strong id="stat-차단완료">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
-    <div class="stat-pill s-block" id="pill-최우선" onclick="setFilter('최우선 차단대상')" style="cursor:pointer;"><span>최우선</span><strong id="stat-최우선" style="color:#dc2626;">0</strong></div>
-    <div class="stat-pill s-block" id="pill-후순위" onclick="setFilter('후순위 차단대상')" style="cursor:pointer;"><span>후순위</span><strong id="stat-후순위" style="color:#ea580c;">0</strong></div>
-    <div class="stat-pill s-block" id="pill-검토필요" onclick="setFilter('검토필요 차단대상')" style="cursor:pointer;"><span>검토필요</span><strong id="stat-검토필요" style="color:#d97706;">0</strong></div>
+    <div class="stat-pill s-block" id="pill-최우선" onclick="setFilter('최우선 차단대상')" style="cursor:pointer;"><span>(1) 최우선</span><strong id="stat-최우선" style="color:#dc2626;">0</strong></div>
+    <div class="stat-pill s-block" id="pill-후순위" onclick="setFilter('후순위 차단대상')" style="cursor:pointer;"><span>(2) 후순위</span><strong id="stat-후순위" style="color:#ea580c;">0</strong></div>
+    <div class="stat-pill s-block" id="pill-추가검토필요" onclick="setFilter('추가검토필요 차단대상')" style="cursor:pointer;"><span>(3) 추가검토필요</span><strong id="stat-추가검토필요" style="color:#d97706;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
     <div class="stat-pill" id="pill-reviewed" onclick="setFilter('reviewed')" style="cursor:pointer;"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 4px;"></span>
@@ -310,13 +310,13 @@
   </div>
 
   <!-- 상태 설명 -->
-  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:11px;color:#0c4a6e;line-height:1.7;">
-    <b>상태 구분 안내</b> &nbsp;
-    <span style="background:#dcfce7;padding:1px 6px;border-radius:3px;">사용</span> 정상 사용 중 &nbsp;|&nbsp;
-    <span style="background:#f1f5f9;padding:1px 6px;border-radius:3px;color:#64748b;">차단완료</span> @Deprecated + [URL차단작업] + UnsupportedOperationException 모두 충족 &nbsp;|&nbsp;
-    <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 &nbsp;|&nbsp;
-    <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">검토필요 차단대상</span> 호출 0건+1년 미만 또는 호출 1~N건+1년 경과 &nbsp;|&nbsp;
-    <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">후순위 차단대상</span> 수동 설정 (침해사고 로그, IT담당자 검토건)
+  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:11px;color:#0c4a6e;line-height:1.8;">
+    <b>상태 구분 안내</b><br>
+    <span style="background:#dcfce7;padding:1px 6px;border-radius:3px;">사용</span> 실제 또는 현업검토 결과 사용중인 URL &nbsp;|&nbsp;
+    <span style="background:#f1f5f9;padding:1px 6px;border-radius:3px;color:#64748b;">차단완료</span> @Deprecated + javadoc표기 + UnsupportedOperationException<br>
+    <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">(1) 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
+    <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">(2) 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
+    <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">(3) 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
   </div>
 
   <div id="noticeBar" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:12px;color:#92400e;line-height:1.5;position:relative;padding-right:32px;">
@@ -361,9 +361,9 @@
       <option value="__SKIP__">-- 상태 --</option>
       <option value="사용">사용</option>
       <option value="차단완료">차단완료</option>
-      <option value="최우선 차단대상">최우선 차단대상</option>
-      <option value="후순위 차단대상">후순위 차단대상</option>
-      <option value="검토필요 차단대상">검토필요 차단대상</option>
+      <option value="최우선 차단대상">(1) 최우선 차단대상</option>
+      <option value="후순위 차단대상">(2) 후순위 차단대상</option>
+      <option value="추가검토필요 차단대상">(3) 추가검토필요 차단대상</option>
       <option value="">자동계산 (초기화)</option>
     </select>
     <select id="bulkBlockCriteria">
@@ -520,14 +520,19 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // 서버 페이지네이션 모드: allApis = 현재 페이지 데이터 (filteredApis = allApis)
   let allApis = [];
   let filteredApis = [];
+  let serverTotal = 0;           // 필터에 매칭되는 전체 건수
+  let serverCounts = null;        // /api/db/apis/counts 응답 (상태/메소드/배지)
+  let maxAnalyzedAt = '';         // 알림 '새 분석' 판단용 (counts 로드 시 갱신)
   let sortKey = 'apiPath', sortAsc = true;
-  let selectedIds = new Set(); // api id 기준
+  let selectedIds = new Set(); // api id 기준 (페이지 교차 유지)
   let repoConfigMap = {}; // repoName → {team, manager}
   let vPageSize = 200, vPageNavSize = 10, vCurrentPage = 0;
   let reviewThreshold = 3; // default, 서버에서 갱신
   let teamsList = [];      // 팀 자동완성 목록
+  let pageLoadCtrl = null; // 페이지 요청 취소 컨트롤러
 
   // ── 초기화 ────────────────────────────────────────────────
   async function initRepos() {
@@ -541,7 +546,11 @@
       const cfgs  = await cfgRes.json();
       try {
         const g = await globalRes.json();
-        if (g.reviewThreshold) reviewThreshold = g.reviewThreshold;
+        if (g.reviewThreshold) {
+          reviewThreshold = g.reviewThreshold;
+          const el = document.getElementById('guideReviewThreshold');
+          if (el) el.textContent = g.reviewThreshold;
+        }
         if (g.pageSize) vPageSize = g.pageSize;
         if (g.pageNavSize) vPageNavSize = g.pageNavSize;
         // 팀 목록을 datalist에 반영 (자동완성)
@@ -594,42 +603,28 @@
     if (shouldAutoLoad) loadApis();
   }
 
-  // ── API 조회 ──────────────────────────────────────────────
+  // ── API 조회 (서버 페이지네이션) ───────────────────────────
+  // 초기 로드: counts + page 0 병렬 요청. 이후 필터/정렬/페이지 변경 시 loadPage() 만 재호출.
   async function loadApis() {
-    const repo = document.getElementById('repoSelect').value;
-
     document.getElementById('loadBtn').disabled = true;
     document.getElementById('tbody').innerHTML =
       '<tr><td colspan="28"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
+    vCurrentPage = 0;
+    activeFilter = '';
 
-    const abortCtrl = new AbortController();
-    const timeoutId = setTimeout(() => abortCtrl.abort(), 30000);
-    const slowMsgId = setTimeout(() => {
-      const tb = document.getElementById('tbody');
-      if (tb.querySelector('.spinner')) tb.innerHTML = '<tr><td colspan="28"><div class="state-box"><div class="spinner"></div><br>조회 중... (데이터가 많을 경우 시간이 걸릴 수 있습니다)</div></td></tr>';
-    }, 5000);
+    const repo = document.getElementById('repoSelect').value;
     try {
-      const url = repo
-        ? `/api/db/apis?repository=${encodeURIComponent(repo)}`
-        : '/api/db/apis';
-      const res = await fetch(url, { signal: abortCtrl.signal });
-      clearTimeout(timeoutId); clearTimeout(slowMsgId);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '서버 오류');
+      // 카운트 + 첫 페이지 병렬
+      const [countsOk, pageOk] = await Promise.all([
+        loadCounts(repo),
+        loadPage(0, /*preloadFirst*/true)
+      ]);
+      if (!pageOk) return; // 실패 시 내부에서 UI 처리됨
 
-      allApis = data.apis || [];
-      activeFilter = '';
-
-      // 마지막 분석일 (최신)
-      const latestDate = allApis.reduce((max, a) => {
-        if (!a.lastAnalyzedAt) return max;
-        return (!max || a.lastAnalyzedAt > max) ? a.lastAnalyzedAt : max;
-      }, null);
-
+      // 메타 / 배지 / 알림
       renderStats();
-      filterTable();
-      updateChangedNotice(true); // 최초 1회 alert 포함
+      updateChangedNotice(true);
       updateNewNotice(true);
       updateDeletedNotice(true);
       document.getElementById('statsBar').style.display = 'flex';
@@ -637,21 +632,149 @@
       document.getElementById('filterBar').style.display = 'flex';
       document.getElementById('dbMeta').style.display = 'flex';
       document.getElementById('metaRepo').textContent = repo || '전체';
-      document.getElementById('metaDate').textContent = fmtDt(latestDate);
-      document.getElementById('metaTotal').textContent = allApis.length;
+      document.getElementById('metaDate').textContent = fmtDt(maxAnalyzedAt);
+      document.getElementById('metaTotal').textContent = serverCounts ? (serverCounts.total || 0) : serverTotal;
       document.getElementById('excelBtn').style.display = 'inline-block';
-      showToast(`${allApis.length}개 URL 조회 완료`, 'success');
+      showToast(`${serverTotal.toLocaleString()}개 URL 조회 완료`, 'success');
     } catch(e) {
-      clearTimeout(timeoutId); clearTimeout(slowMsgId);
-      if (e.name === 'AbortError') {
-        showToast('조회 시간이 초과되었습니다. 레포지토리를 선택하여 조회해 주세요.', 'error');
-        document.getElementById('tbody').innerHTML = '<tr><td colspan="28"><div class="state-box">⏱ 조회 시간 초과<br><small>데이터가 많아 응답이 지연되고 있습니다.<br>특정 레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>';
-      } else {
-        showToast(e.message, 'error');
-        document.getElementById('tbody').innerHTML = `<tr><td colspan="28"><div class="state-box">조회 오류: ${esc(e.message)}</div></td></tr>`;
-      }
+      showToast(e.message || '조회 실패', 'error');
+      document.getElementById('tbody').innerHTML =
+        `<tr><td colspan="28"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
     } finally {
       document.getElementById('loadBtn').disabled = false;
+    }
+  }
+
+  // ── 전체 재로드 (카운트 + 현재 페이지) ────────────────────
+  // 변경 작업(편집/일괄/알림해제 등) 이후 서버 상태와 UI 동기화
+  async function refreshAll() {
+    const repo = document.getElementById('repoSelect').value;
+    await Promise.all([ loadCounts(repo), loadPage(vCurrentPage) ]);
+    renderStats();
+    updateChangedNotice(false);
+    updateNewNotice(false);
+    updateDeletedNotice(false);
+  }
+
+  // ── 카운트 로드 (배지/알림용) ──────────────────────────────
+  async function loadCounts(repo) {
+    try {
+      const url = `/api/db/apis/counts${repo ? '?repository=' + encodeURIComponent(repo) : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) return false;
+      serverCounts = await res.json();
+      // 최신 분석일 추정: 카운트 페이로드에 없으니 현재 페이지의 최대값으로 fallback
+      // (정확도보다 UX 우선)
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // ── 필터 상태 → 쿼리 파라미터 빌드 ─────────────────────────
+  function buildListParams(pageIdx) {
+    const params = new URLSearchParams();
+    const repo = document.getElementById('repoSelect').value;
+    if (repo) params.set('repository', repo);
+
+    // 팀/담당자 필터 → repoConfigMap 에서 매칭되는 repoNames 로 변환
+    // (teamOverride/managerOverride 개별 레코드는 이 경로로 커버되지 않음 — 제한사항)
+    const teamQ = (document.getElementById('searchTeam').value || '').trim().toLowerCase();
+    const mgrQ  = (document.getElementById('searchManager').value || '').trim().toLowerCase();
+    if ((teamQ || mgrQ) && !repo) {
+      const matched = [];
+      Object.entries(repoConfigMap).forEach(([rn, cfg]) => {
+        let ok = true;
+        if (teamQ && !((cfg.team || '').toLowerCase().includes(teamQ))) ok = false;
+        if (mgrQ) {
+          const hasMgr = ((cfg.manager || '').toLowerCase().includes(mgrQ))
+                      || (cfg.mappings || []).some(m => (m.managerName || '').toLowerCase().includes(mgrQ));
+          if (!hasMgr) ok = false;
+        }
+        if (ok) matched.push(rn);
+      });
+      if (matched.length === 0) {
+        // 매칭 없음 — 서버에서 빈 결과 유도
+        params.set('repositories', '__NONE__');
+      } else if (matched.length <= 500) {
+        params.set('repositories', matched.join(','));
+      }
+    }
+
+    const q = (document.getElementById('searchInput').value || '').trim();
+    if (q) params.set('q', q);
+
+    const method = document.getElementById('methodFilter').value;
+    if (method) params.set('httpMethod', method);
+
+    // activeFilter → status 또는 alert
+    if (activeFilter === 'new')           params.set('alert', 'new');
+    else if (activeFilter === 'changed')  params.set('alert', 'changed');
+    else if (activeFilter === 'reviewed') params.set('alert', 'reviewed');
+    else if (activeFilter === 'deleted')  params.set('alert', 'deleted');
+    else if (['사용','차단완료','최우선 차단대상','후순위 차단대상','추가검토필요 차단대상'].includes(activeFilter)) {
+      params.set('status', activeFilter);
+    }
+
+    // 정렬 — 서버에서 매핑 가능한 필드만 전송 (클라이언트 파생 필드는 스킵)
+    const serverSortable = new Set(['id','apiPath','httpMethod','status','callCount','callCountMonth','callCountWeek','lastAnalyzedAt','modifiedAt','blockedDate','repositoryName','teamOverride','managerOverride']);
+    let sk = sortKey;
+    if (sk === 'teamName')     sk = 'teamOverride';
+    else if (sk === 'managerName') sk = 'managerOverride';
+    else if (sk === 'businessName') sk = 'repositoryName';
+    if (serverSortable.has(sk)) params.set('sort', `${sk},${sortAsc?'asc':'desc'}`);
+
+    params.set('page', String(pageIdx));
+    params.set('size', String(vPageSize));
+    return params;
+  }
+
+  // ── 단일 페이지 로드 ───────────────────────────────────────
+  async function loadPage(pageIdx, preloadFirst) {
+    // 이전 요청 취소
+    if (pageLoadCtrl) { try { pageLoadCtrl.abort(); } catch(e) {} }
+    pageLoadCtrl = new AbortController();
+    const timeoutId = setTimeout(() => pageLoadCtrl.abort(), 30000);
+    if (!preloadFirst) {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="28"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+    }
+    try {
+      const params = buildListParams(pageIdx);
+      const res = await fetch('/api/db/apis?' + params.toString(), { signal: pageLoadCtrl.signal });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+      if (res.status === 413 && data.pagingRequired) {
+        const totalFmt = (data.total || 0).toLocaleString();
+        showToast(`데이터가 너무 많습니다 (${totalFmt}건). 레포지토리를 선택해 주세요.`, 'error');
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="28"><div class="state-box">⚠ 전체 조회 제한<br><small>${totalFmt}건<br>레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>`;
+        return false;
+      }
+      if (!res.ok) throw new Error(data.error || '서버 오류');
+      allApis      = data.apis || [];
+      filteredApis = allApis;
+      serverTotal  = data.total || 0;
+      vCurrentPage = data.page || 0;
+
+      // 현재 페이지의 최대 분석일자로 maxAnalyzedAt 갱신 (첫 페이지만)
+      if (pageIdx === 0) {
+        const pageMax = allApis.reduce((m, a) => (a.lastAnalyzedAt && (!m || a.lastAnalyzedAt > m)) ? a.lastAnalyzedAt : m, '');
+        if (pageMax) maxAnalyzedAt = pageMax;
+      }
+
+      const totalPages = Math.max(1, data.totalPages || Math.ceil(serverTotal / vPageSize));
+      document.getElementById('filterCount').textContent = `${serverTotal.toLocaleString()}건`;
+      renderRows(filteredApis, vCurrentPage * vPageSize);
+      renderViewerPagination(serverTotal, totalPages);
+      syncCheckAll();
+      return true;
+    } catch(e) {
+      if (e.name === 'AbortError') return false;
+      showToast(e.message || '페이지 조회 실패', 'error');
+      document.getElementById('tbody').innerHTML =
+        `<tr><td colspan="28"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -668,7 +791,8 @@
   }
 
   function updateChangedNotice(alertOnce) {
-    const count = allApis.filter(a => a.statusChanged).length;
+    const count = serverCounts ? (serverCounts.changedCount || 0)
+                               : allApis.filter(a => a.statusChanged).length;
     const bar = document.getElementById('changedNoticeBar');
     if (count > 0 && !isNoticeDismissed('changedNoticeBar')) {
       document.getElementById('changedNoticeCount').textContent = count;
@@ -685,8 +809,9 @@
   }
 
   // 알림 표시 판단: "하루 안보기"는 동일 분석건에 대해서만 유효.
-  // 서버에서 새 분석이 실행되면(lastAnalyzedAt 변경) 자동 재표시.
+  // 서버 페이지 모드에서는 첫 페이지 로드 시 갱신된 maxAnalyzedAt 사용.
   function getMaxAnalyzedAt() {
+    if (maxAnalyzedAt) return maxAnalyzedAt;
     return allApis.reduce((max, a) => {
       if (!a.lastAnalyzedAt) return max;
       return (!max || a.lastAnalyzedAt > max) ? a.lastAnalyzedAt : max;
@@ -713,7 +838,8 @@
 
   // ── 삭제건 안내 ────────────────────────────────────────
   function updateDeletedNotice(alertOnce) {
-    const count = allApis.filter(a => a.status === '삭제').length;
+    const count = serverCounts ? (serverCounts.deletedCount || 0)
+                               : allApis.filter(a => a.status === '삭제').length;
     const bar = document.getElementById('deletedNoticeBar');
     if (count > 0 && !isNoticeDismissed('deletedNoticeBar')) {
       document.getElementById('deletedNoticeCount').textContent = count;
@@ -733,7 +859,8 @@
 
   // ── 신규 API 안내 ─────────────────────────────────────
   function updateNewNotice(alertOnce) {
-    const count = allApis.filter(a => a.isNew || a['new']).length;
+    const count = serverCounts ? (serverCounts.newCount || 0)
+                               : allApis.filter(a => a.isNew || a['new']).length;
     const bar = document.getElementById('newNoticeBar');
     if (count > 0 && !isNoticeDismissed('newNoticeBar')) {
       document.getElementById('newNoticeCount').textContent = count;
@@ -756,28 +883,27 @@
     document.getElementById('changedAlertOverlay').style.display = 'none';
   }
 
-  // ── 통계 ──────────────────────────────────────────────────
+  // ── 통계 (서버 카운트 기반) ─────────────────────────────
   function renderStats() {
-    const sCounts = { '사용':0, '차단완료':0, '최우선 차단대상':0, '후순위 차단대상':0, '검토필요 차단대상':0 };
-    allApis.forEach(a => {
-      const s = a.status || '사용';
-      if (sCounts[s] !== undefined) sCounts[s]++;
-    });
+    const c = serverCounts || { total:0, deletedCount:0, newCount:0, changedCount:0, reviewedCount:0, byStatus:{}, byMethod:{} };
+    const byStatus = c.byStatus || {};
+    const byMethod = c.byMethod || {};
+    const get = (k) => byStatus[k] || 0;
 
-    document.getElementById('statTotal').textContent   = allApis.length;
-    document.getElementById('stat-사용').textContent    = sCounts['사용'];
-    document.getElementById('stat-차단완료').textContent = sCounts['차단완료'];
-    document.getElementById('stat-최우선').textContent   = sCounts['최우선 차단대상'];
-    document.getElementById('stat-후순위').textContent   = sCounts['후순위 차단대상'];
-    document.getElementById('stat-검토필요').textContent  = sCounts['검토필요 차단대상'];
-    document.getElementById('stat-reviewed').textContent  = allApis.filter(a => a.reviewResult).length;
-    document.getElementById('stat-new').textContent       = allApis.filter(a => a.isNew || a['new']).length;
-    document.getElementById('stat-changed').textContent  = allApis.filter(a => a.statusChanged).length;
-    document.getElementById('stat-deleted').textContent  = allApis.filter(a => a.status === '삭제').length;
-    document.getElementById('statGet').textContent      = allApis.filter(a => a.httpMethod === 'GET').length;
-    document.getElementById('statPost').textContent     = allApis.filter(a => a.httpMethod === 'POST').length;
-    document.getElementById('statPut').textContent      = allApis.filter(a => a.httpMethod === 'PUT').length;
-    document.getElementById('statDelete').textContent   = allApis.filter(a => a.httpMethod === 'DELETE').length;
+    document.getElementById('statTotal').textContent     = c.total || 0;
+    document.getElementById('stat-사용').textContent      = get('사용');
+    document.getElementById('stat-차단완료').textContent   = get('차단완료');
+    document.getElementById('stat-최우선').textContent    = get('최우선 차단대상');
+    document.getElementById('stat-후순위').textContent    = get('후순위 차단대상');
+    document.getElementById('stat-추가검토필요').textContent = get('추가검토필요 차단대상');
+    document.getElementById('stat-reviewed').textContent  = c.reviewedCount || 0;
+    document.getElementById('stat-new').textContent       = c.newCount || 0;
+    document.getElementById('stat-changed').textContent   = c.changedCount || 0;
+    document.getElementById('stat-deleted').textContent   = c.deletedCount || 0;
+    document.getElementById('statGet').textContent        = byMethod['GET']    || 0;
+    document.getElementById('statPost').textContent       = byMethod['POST']   || 0;
+    document.getElementById('statPut').textContent        = byMethod['PUT']    || 0;
+    document.getElementById('statDelete').textContent     = byMethod['DELETE'] || 0;
   }
 
   let activeFilter = '';
@@ -815,8 +941,8 @@
     el.innerHTML = html;
   }
   function vGotoPage(p) {
-    vCurrentPage = Math.max(0, p);
-    filterTable();
+    const target = Math.max(0, p);
+    filterTable({immediate:true, page:target});
     // 테이블 영역으로 스크롤 (최상단이 아닌 테이블 시작점)
     const table = document.getElementById('tbody');
     if (table) table.closest('.table-wrap')?.scrollIntoView({behavior:'smooth', block:'start'});
@@ -831,7 +957,7 @@
     else if (val === '차단완료') { document.getElementById('pill-차단완료').classList.add('active-filter'); }
     else if (val === '최우선 차단대상') { document.getElementById('pill-최우선').classList.add('active-filter'); }
     else if (val === '후순위 차단대상') { document.getElementById('pill-후순위').classList.add('active-filter'); }
-    else if (val === '검토필요 차단대상') { document.getElementById('pill-검토필요').classList.add('active-filter'); }
+    else if (val === '추가검토필요 차단대상') { document.getElementById('pill-추가검토필요').classList.add('active-filter'); }
     else if (val === 'reviewed') { document.getElementById('pill-reviewed').classList.add('active-filter'); }
     else if (val === 'new') { document.getElementById('pill-new').classList.add('active-filter'); }
     else if (val === 'changed') { document.getElementById('pill-changed').classList.add('active-filter'); }
@@ -839,7 +965,7 @@
     // 영구삭제 버튼 토글 (삭제 필터 활성 + 관리자일 때만 노출)
     const purgeBtn = document.getElementById('bulkPurgeBtn');
     if (purgeBtn) purgeBtn.style.display = (val === 'deleted' && isAdmin()) ? 'inline-block' : 'none';
-    filterTable();
+    filterTable({immediate:true, page:0});
   }
 
   async function bulkPurgeDeleted() {
@@ -863,75 +989,46 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '영구삭제 실패');
-      // 로컬에서도 제거
-      allApis = allApis.filter(a => !ids.includes(a.id));
       clearSelection();
-      renderStats(); filterTable();
+      await refreshAll();
       showToast(`${data.purged}건 영구삭제 완료${data.skipped>0?` (스킵 ${data.skipped}건)`:''}`, 'success');
     } catch(e) {
       showToast('실패: ' + e.message, 'error');
     } finally { hideBulkProgress(); }
   }
 
-  // ── 필터 ──────────────────────────────────────────────────
-  function filterTable() {
-    const q      = document.getElementById('searchInput').value.toLowerCase();
-    const qTeam  = document.getElementById('searchTeam').value.toLowerCase();
-    const qMgr   = document.getElementById('searchManager').value.toLowerCase();
-    const method = document.getElementById('methodFilter').value;
-
-    filteredApis = allApis.filter(a => {
-      const cfg = repoConfigMap[a.repositoryName] || {};
-      const text = [a.apiPath, a.methodName, a.apiOperationValue, a.descriptionTag, a.memo].join(' ').toLowerCase();
-      const team = (a.teamOverride || cfg.team || '').toLowerCase();
-      const mgr  = resolveManager(a).toLowerCase();
-      let filterOk = true;
-      // 기본 조회(필터 없음) 시 삭제건은 숨김 — "삭제" 필터 클릭 시에만 표시
-      if (!activeFilter && a.status === '삭제') filterOk = false;
-      else if (['사용','차단완료','최우선 차단대상','후순위 차단대상','검토필요 차단대상'].includes(activeFilter)) filterOk = a.status === activeFilter;
-      else if (activeFilter === 'new') filterOk = a.isNew || a['new'];
-      else if (activeFilter === 'reviewed') filterOk = !!a.reviewResult;
-      else if (activeFilter === 'changed') filterOk = a.statusChanged === true;
-      else if (activeFilter === 'deleted') filterOk = a.status === '삭제';
-      return (!q || text.includes(q))
-          && (!qTeam || team.includes(qTeam))
-          && (!qMgr || mgr.includes(qMgr))
-          && (!method || a.httpMethod === method)
-          && filterOk;
-    });
-
-    filteredApis.sort((x, y) => {
-      if (['callCount','callCountMonth','callCountWeek'].includes(sortKey)) {
-        const an = x.callCount ?? -1, bn = y.callCount ?? -1;
-        return sortAsc ? an - bn : bn - an;
-      }
-      let av, bv;
-      if (sortKey === 'teamName') {
-        av = x.teamOverride || (repoConfigMap[x.repositoryName] || {}).team || '';
-        bv = y.teamOverride || (repoConfigMap[y.repositoryName] || {}).team || '';
-      } else if (sortKey === 'managerName') {
-        av = x.managerOverride || (repoConfigMap[x.repositoryName] || {}).manager || '';
-        bv = y.managerOverride || (repoConfigMap[y.repositoryName] || {}).manager || '';
-      } else if (sortKey === 'businessName') {
-        av = (repoConfigMap[x.repositoryName] || {}).businessName || '';
-        bv = (repoConfigMap[y.repositoryName] || {}).businessName || '';
-      } else {
-        av = (x[sortKey] ?? '').toString();
-        bv = (y[sortKey] ?? '').toString();
-      }
-      av = av.toLowerCase(); bv = bv.toLowerCase();
-      return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
-    });
-
-    document.getElementById('filterCount').textContent = `${filteredApis.length} / ${allApis.length}건`;
-    // 페이지 범위 내 렌더링
-    const totalPages = Math.max(1, Math.ceil(filteredApis.length / vPageSize));
-    if (vCurrentPage >= totalPages) vCurrentPage = totalPages - 1;
-    const pageStart = vCurrentPage * vPageSize;
-    const pageSlice = filteredApis.slice(pageStart, pageStart + vPageSize);
-    renderRows(pageSlice, pageStart);
-    renderViewerPagination(filteredApis.length, totalPages);
-    syncCheckAll();
+  // ── 필터 (서버 재요청 트리거) ─────────────────────────────
+  // 검색어/팀/담당자/메소드/상태 필터 변경 시 이 함수 호출 → 서버에서 필터된 페이지 재로드.
+  // 클라이언트 파생 필드 정렬(teamName/managerName/businessName)은 현재 페이지 내에서 보정.
+  let filterDebounceId = null;
+  function filterTable(opts) {
+    // 텍스트 입력은 300ms 디바운스, 나머지(setFilter/sortBy/vGotoPage)는 즉시
+    const delay = (opts && opts.immediate) ? 0 : 300;
+    if (filterDebounceId) clearTimeout(filterDebounceId);
+    filterDebounceId = setTimeout(() => {
+      const targetPage = (opts && typeof opts.page === 'number') ? opts.page : 0;
+      loadPage(targetPage).then(() => {
+        // 클라이언트 파생 필드 정렬 보정 (현재 페이지 내만 재정렬)
+        const clientOnly = new Set(['teamName','managerName','businessName']);
+        if (clientOnly.has(sortKey)) {
+          filteredApis.sort((x, y) => {
+            let av, bv;
+            if (sortKey === 'teamName') {
+              av = x.teamOverride || (repoConfigMap[x.repositoryName] || {}).team || '';
+              bv = y.teamOverride || (repoConfigMap[y.repositoryName] || {}).team || '';
+            } else if (sortKey === 'managerName') {
+              av = resolveManager(x); bv = resolveManager(y);
+            } else {
+              av = (repoConfigMap[x.repositoryName] || {}).businessName || '';
+              bv = (repoConfigMap[y.repositoryName] || {}).businessName || '';
+            }
+            av = (av || '').toLowerCase(); bv = (bv || '').toLowerCase();
+            return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+          });
+          renderRows(filteredApis, vCurrentPage * vPageSize);
+        }
+      });
+    }, delay);
   }
 
   // ── 테이블 렌더 ───────────────────────────────────────────
@@ -975,7 +1072,7 @@
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'total')}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'month')}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'week')}</td>
-        <td>${statusBadge(a.status)}${a.statusOverridden ? ' <span title="상태확정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
+        <td>${statusBadge(a.status, a.logWorkExcluded)}${a.statusOverridden ? ' <span title="상태확정" style="font-size:10px;color:#94a3b8;">🔒</span>' : ''}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.blockCriteria || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.blockedDate || '')}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:200px;">${esc((a.blockedReason||'').slice(0,40))}${(a.blockedReason||'').length>40?'…':''}</td>
@@ -989,15 +1086,15 @@
   }
 
   const STATUS_TIPS = {
-    '사용': '정상 사용 중인 API',
-    '차단완료': '@Deprecated + [URL차단작업] + UnsupportedOperationException 모두 충족',
-    '최우선 차단대상': '호출 0건 + 소스변경 1년 경과',
-    '후순위 차단대상': '수동 설정 (침해사고 로그, IT담당자 검토건)',
-    '검토필요 차단대상': '호출 0건+1년 미만 또는 호출 1~N건+1년 경과',
+    '사용': '실제 또는 현업검토 결과 사용중인 URL',
+    '차단완료': '@Deprecated + javadoc표기 + UnsupportedOperationException',
+    '최우선 차단대상': '(1) 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외)',
+    '후순위 차단대상': '(2) IT담당자 검토결과 미사용 또는 업무종료로 인지된 건',
+    '추가검토필요 차단대상': '(3) 호출 0건 + 소스변경 1년 미만, 호출 1~N건 + 소스변경 1년 경과',
     '삭제': '분석에서 제외된 API (소스 삭제 등)'
   };
-  function statusBadge(status) {
-    const cls = { '사용':'st-use', '차단완료':'st-done', '삭제':'st-del', '최우선 차단대상':'bt-top', '후순위 차단대상':'bt-low', '검토필요 차단대상':'bt-rev' };
+  function statusBadge(status, logWorkExcluded) {
+    const cls = { '사용':'st-use', '차단완료':'st-done', '삭제':'st-del', '최우선 차단대상':'bt-top', '후순위 차단대상':'bt-low', '추가검토필요 차단대상':'bt-rev' };
     const c = cls[status] || 'st-use';
     const tip = STATUS_TIPS[status] || '';
     return `<span class="status-badge ${c}" title="${esc(tip)}">${esc(status || '사용')}</span>`;
@@ -1007,7 +1104,7 @@
     if (!bt) return '<span style="color:#cbd5e1;font-size:11px;">-</span>';
     if (bt.includes('최우선')) return `<span class="status-badge bt-top">${esc(bt)}</span>`;
     if (bt.includes('후순위')) return `<span class="status-badge bt-low">${esc(bt)}</span>`;
-    if (bt.includes('검토필요')) return `<span class="status-badge" style="background:#fef3c7;color:#92400e;">${esc(bt)}</span>`;
+    if (bt.includes('추가검토필요') || bt.includes('검토필요')) return `<span class="status-badge" style="background:#fef3c7;color:#92400e;">${esc(bt)}</span>`;
     return `<span class="status-badge" style="background:#f1f5f9;color:#475569;">${esc(bt)}</span>`;
   }
 
@@ -1028,27 +1125,16 @@
 
   async function bulkClearStatusChange() {
     // 선택된 항목 중 알림 플래그가 있는 레코드 (신규/상태변경/삭제)
-    const targetIds = Array.from(selectedIds).filter(id => {
-      const a = allApis.find(x => x.id === id);
-      if (!a) return false;
-      return (a.isNew || a['new']) || a.statusChanged || a.status === '삭제';
-    });
-    if (!targetIds.length) { showToast('알림 대상 항목이 선택되지 않았습니다.','error'); return; }
+    // 서버 페이지 모드에서는 allApis 가 현재 페이지만 포함하므로, 선택된 전체 ID 를 그대로 전송.
+    const targetIds = Array.from(selectedIds);
+    if (!targetIds.length) { showToast('선택된 항목이 없습니다.','error'); return; }
     if (!await customConfirm(`${targetIds.length}개 항목의 알림 플래그(신규/상태변경)를 해제하시겠습니까?`)) return;
     showBulkProgress('알림 플래그 해제 중...', targetIds.length);
     try {
       const res = await fetch('/api/db/clear-alerts', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:targetIds}) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '서버 오류');
-      targetIds.forEach(id => {
-        const a = allApis.find(x=>x.id===id);
-        if (a) {
-          a.isNew = false; a['new'] = false;
-          a.statusChanged = false; a.statusChangeLog = null;
-        }
-      });
-      renderStats(); filterTable();
-      updateChangedNotice(false); updateNewNotice(false); updateDeletedNotice(false);
+      await refreshAll();
       showToast(`${data.cleared}건 알림 해제 완료`,'success');
     } catch(e) { showToast('실패: ' + e.message,'error'); } finally { hideBulkProgress(); }
   }
@@ -1059,9 +1145,7 @@
       const res = await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({isNew:false}) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || '서버 오류');
-      const a = allApis.find(x => x.id === id);
-      if (a) { a.isNew = false; a['new'] = false; }
-      renderStats(); filterTable(); updateNewNotice(false);
+      await refreshAll();
       showToast('신규 확인 완료', 'success');
     } catch(e) { showToast('실패: ' + e.message,'error'); }
   }
@@ -1072,9 +1156,7 @@
     try {
       const res = await fetch('/api/db/clear-status-change', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id]}) });
       if (!res.ok) throw new Error('서버 오류');
-      const a = allApis.find(x => x.id === id);
-      if (a) { a.statusChanged = false; a.statusChangeLog = null; }
-      renderStats(); filterTable(); updateChangedNotice(false);
+      await refreshAll();
       showToast('플래그 해제 완료', 'success');
     } catch(e) { showToast('실패: ' + e.message,'error'); }
   }
@@ -1091,20 +1173,16 @@
   // ── 상태확정 토글 ────────────────────────────────────────
   async function bulkLock(lock) {
     if (selectedIds.size === 0) { showToast('선택된 항목이 없습니다.','error'); return; }
-    // 차단완료 제외
-    const ids = Array.from(selectedIds).filter(id => {
-      const a = allApis.find(x=>x.id===id);
-      return a && a.status !== '차단완료';
-    });
-    if (!ids.length) { showToast('차단완료 항목은 확정/해제할 수 없습니다.','error'); return; }
+    // 서버에서 차단완료 건은 자동으로 건너뜀 — 전체 선택 ID 그대로 전송
+    const ids = Array.from(selectedIds);
     if (!await customConfirm(`${ids.length}개 항목을 ${lock?'상태 확정':'확정 해제'}하시겠습니까?`)) return;
     showBulkProgress(lock ? '일괄 확정 중...' : '일괄 해제 중...', ids.length);
     try {
       await fetch('/api/db/status', { method:'PATCH', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ ids, statusOverridden: lock }) });
-      ids.forEach(id => { const a=allApis.find(x=>x.id===id); if(a) a.statusOverridden=lock; });
-      clearSelection(); filterTable();
-      showToast(`${ids.length}개 ${lock?'확정':'해제'} 완료`,'success');
+      clearSelection();
+      await refreshAll();
+      showToast(`${ids.length}개 ${lock?'확정':'해제'} 처리`,'success');
     } catch(e) { showToast('변경 실패','error'); } finally { hideBulkProgress(); }
   }
 
@@ -1112,9 +1190,7 @@
     try {
       await fetch('/api/db/status', { method:'PATCH', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ ids:[id], statusOverridden: lock }) });
-      const a = allApis.find(x=>x.id===id);
-      if (a) a.statusOverridden = lock;
-      filterTable();
+      await refreshAll();
       showToast(lock ? '상태 확정' : '확정 해제', 'success');
     } catch(e) { showToast('변경 실패','error'); }
   }
@@ -1129,22 +1205,16 @@
     td.querySelector('input').focus();
   }
   async function saveFieldInline(input, id, field) {
-    if (input.dataset.cancel) { filterTable(); return; }
+    if (input.dataset.cancel) { await refreshAll(); return; }
     const val = input.value.trim();
     try {
       const body = {}; body[field] = val || null;
       const res = await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '저장 실패');
-      const a = allApis.find(x=>x.id===id);
-      if (a) {
-        a[field] = val || null;
-        if (data.modifiedAt) a.modifiedAt = data.modifiedAt;
-        if (data.reviewedAt) a.reviewedAt = data.reviewedAt;
-      }
       input.parentElement.textContent = val;
-      // 변경일시 컬럼도 즉시 갱신하도록 재렌더 (기억된 필터/정렬 유지)
-      filterTable();
+      // 서버 상태로 재동기화 (변경일시/파생 필드 포함)
+      await refreshAll();
       showToast('저장 완료', 'success');
     } catch(e) { showToast(e.message || '저장 실패','error'); }
   }
@@ -1155,7 +1225,6 @@
                         isDeprecated:14, apiOperationValue:15, callCount:16, callCountMonth:17, callCountWeek:18,
                         status:19, blockCriteria:20, blockedDate:21, reviewResult:24, lastAnalyzedAt:26, modifiedAt:27 };
   function sortBy(key) {
-    vCurrentPage = 0; // 정렬 변경 시 첫 페이지로
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
     const idx = colIndexMap[key];
@@ -1164,7 +1233,7 @@
       th.classList.add('sorted');
       th.querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
     }
-    filterTable();
+    filterTable({immediate:true, page:0});
   }
 
   // ── 체크박스 ──────────────────────────────────────────────
@@ -1216,9 +1285,9 @@
   // ── 차단대상기준 옵션 동적 생성 ──────────────────────────
   function getCriteriaOptions() {
     return {
-      '최우선 차단대상': ['호출 0건 + 소스변경1년경과', '기타'],
-      '후순위 차단대상': ['호출 0건 + 소스변경1년경과(침해사고 로그조회)', 'IT담당자검토건', '기타'],
-      '검토필요 차단대상': ['호출 0건 + 소스변경1년미만', `호출 1~${reviewThreshold}건 + 소스변경1년경과`, '기타']
+      '최우선 차단대상': ['호출 0건 + 소스변경 1년경과', '호출 0건 + 침해사고 로그작업 제외 1년경과', '기타'],
+      '후순위 차단대상': ['IT담당자 미사용 인지', '기타'],
+      '추가검토필요 차단대상': ['호출 0건 + 소스변경1년미만', `호출 1~${reviewThreshold}건 + 소스변경1년경과`, '기타']
     };
   }
 
@@ -1277,25 +1346,41 @@
 
       showToast(`${data.updated}개 항목 변경 완료`, 'success');
       clearSelection();
-      await loadApis();
+      await refreshAll();
     } catch(e) {
       showToast(e.message, 'error');
     } finally { hideBulkProgress(); }
   }
 
-  // ── 엑셀 다운로드 (전체 상세 데이터) ─────────────────────────
+  // ── 엑셀 다운로드 (현재 필터 전체 — 서버 페이지 순회) ─────────
   async function downloadExcel() {
-    if (!filteredApis.length) { showToast('다운로드할 데이터가 없습니다.', 'error'); return; }
-    showToast('엑셀 데이터 준비 중...', 'info');
+    if (!serverTotal) { showToast('다운로드할 데이터가 없습니다.', 'error'); return; }
+    const total = serverTotal;
+    if (total > 50000) {
+      if (!await customConfirm(`총 ${total.toLocaleString()}건을 내보냅니다. 시간이 오래 걸릴 수 있습니다. 계속하시겠습니까?`)) return;
+    }
+    showToast(`엑셀 데이터 수집 중... (${total.toLocaleString()}건)`, 'info');
+    showBulkProgress('엑셀 수집 중...', total);
 
-    // 전체 상세 데이터를 개별 조회 (경량 목록에 없는 필드 포함)
+    // 현재 필터 유지한 채 페이지 순회 (size 고정 1000)
+    const PAGE = 1000;
+    const totalPages = Math.ceil(total / PAGE);
     const details = [];
-    for (const a of filteredApis) {
-      try {
-        const res = await fetch(`/api/db/record/${a.id}`);
-        if (res.ok) details.push(await res.json());
-        else details.push(a); // fallback
-      } catch(e) { details.push(a); }
+    try {
+      for (let p = 0; p < totalPages; p++) {
+        const params = buildListParams(p);
+        params.set('size', String(PAGE));
+        params.set('page', String(p));
+        const res = await fetch('/api/db/apis?' + params.toString());
+        if (!res.ok) throw new Error('페이지 ' + p + ' 조회 실패');
+        const data = await res.json();
+        (data.apis || []).forEach(r => details.push(r));
+        updateBulkProgress(details.length);
+      }
+    } catch(e) {
+      hideBulkProgress();
+      showToast('수집 실패: ' + e.message, 'error');
+      return;
     }
 
     const commitHeaders = [];
@@ -1306,16 +1391,16 @@
     // 파일경로  컨트롤러  메소드명  프로그램ID  ApiOp~컨트롤러ReqProp
     // 17         18          19        20          21
     // 메뉴      Deprecated  총호출건  1달호출건   1주호출건
-    // 22    23      24      25      26    27        28
-    // 상태  차단기준 차단일자 차단근거 비고  검토결과  검토의견
-    // 29~43 변경이력1~5(각3열)  44  45
+    // 22    23                      24      25      26      27    28        29
+    // 상태  침해사고 로그 제외대상   차단기준 차단일자 차단근거 비고  검토결과  검토의견
+    // 30~44 변경이력1~5(각3열)  45  46
     //                       분석 변경
     const headers = [
       '레포지토리','업무명','팀','담당자','URL 경로','Full URL',
       'HTTP Method','컨트롤러파일경로','컨트롤러','메소드명','프로그램ID',
       'ApiOperation','Description주석','메소드주석','컨트롤러주석','RequestProperty','컨트롤러RequestProperty',
       '관련 메뉴(또는 기능)','Deprecated','1년 호출건','1달 호출건','1주 호출건',
-      '상태','차단기준','차단일자','차단근거',
+      '상태','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
       '비고','현업검토결과','현업검토의견',
       ...commitHeaders, '분석일시', '변경일시'
     ];
@@ -1327,14 +1412,14 @@
       yellow,yellow,yellow,yellow,      // 7~10: 파일경로~프로그램ID
       yellow,yellow,yellow,yellow,yellow,yellow, // 11~16: 참고용 6개
       purple,purple,purple,purple,purple, // 17~21: 메뉴,Deprecated,총호출,1달,1주
-      purple,                            // 22: 상태
-      pink,pink,pink,                    // 23~25: 차단기준,차단일자,차단근거
-      pink,pink,pink,                    // 26~28: 비고,검토결과,검토의견
-      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 29~43: 변경이력1~5
-      blue,blue                          // 44~45: 분석/변경일시
+      purple,purple,                     // 22~23: 상태, 침해사고 로그 제외대상
+      pink,pink,pink,                    // 24~26: 차단기준,차단일자,차단근거
+      pink,pink,pink,                    // 27~29: 비고,검토결과,검토의견
+      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 30~44: 변경이력1~5
+      blue,blue                          // 45~46: 분석/변경일시
     ];
-    // 색 변경 경계: Method|파일경로(6), 참고용끝|메뉴(16), 상태|차단기준(22), 차단근거|비고(25->그대로pink), 검토의견|커밋(28), 변경이력간(31,34,37,40), 변경이력5|분석(43)
-    const groupBorders = new Set([6, 16, 22, 28, 31, 34, 37, 40, 43]);
+    // 색 변경 경계: Method|파일경로(6), 참고용끝|메뉴(16), 침해사고|차단기준(23), 검토의견|커밋(29), 변경이력간(32,35,38,41), 변경이력5|분석(44)
+    const groupBorders = new Set([6, 16, 23, 29, 32, 35, 38, 41, 44]);
     const rows = details.map(a => {
       const cfg = repoConfigMap[a.repositoryName] || {};
       const commits = parseGitHistory(a.gitHistory);
@@ -1364,6 +1449,7 @@
         a.callCountMonth != null ? a.callCountMonth : '',
         a.callCountWeek != null ? a.callCountWeek : '',
         a.status || '',
+        (a.status === '최우선 차단대상' && a.logWorkExcluded) ? '대상' : '',
         a.blockCriteria || '',
         a.blockedDate || '',
         a.blockedReason || '',
@@ -1375,8 +1461,10 @@
       ];
     });
     const filename = `url-list-${document.getElementById('repoSelect').value || 'all'}`;
-    await exportXlsx(headers, headerColors, rows, filename, 5, groupBorders);
-    showToast(`${filteredApis.length}개 URL 다운로드 완료`, 'success');
+    try {
+      await exportXlsx(headers, headerColors, rows, filename, 5, groupBorders);
+      showToast(`${details.length.toLocaleString()}개 URL 다운로드 완료`, 'success');
+    } finally { hideBulkProgress(); }
   }
 
   function parseGitHistory(json) {
@@ -1740,7 +1828,7 @@
       <div class="detail-section">
         <div class="detail-section-title">상태 / 차단</div>
         <div class="detail-grid">
-          <div class="detail-label">상태</div><div class="detail-value">${statusBadge(r.status)}${r.statusOverridden ? ' 🔒 수동설정' : ''}</div>
+          <div class="detail-label">상태</div><div class="detail-value">${statusBadge(r.status)}${(r.status==='최우선 차단대상' && r.logWorkExcluded) ? ' <span style="font-size:11px;color:#9a3412;font-weight:600;">(침해사고 로그 제외)</span>' : ''}${r.statusOverridden ? ' 🔒 수동설정' : ''}</div>
           <div class="detail-label">1년 호출건</div><div class="detail-value">${detailCallCell(r, 'total', r.callCount)}</div>
           <div class="detail-label">최근 1달 호출건</div><div class="detail-value">${detailCallCell(r, 'month', r.callCountMonth)}</div>
           <div class="detail-label">최근 1주 호출건</div><div class="detail-value">${detailCallCell(r, 'week', r.callCountWeek)}</div>
@@ -1782,6 +1870,10 @@
     document.getElementById('bulkOverlayMsg').textContent = msg;
     document.getElementById('bulkOverlaySub').textContent = count ? `${count}건 처리 중...` : '';
     document.getElementById('bulkOverlay').classList.add('show');
+  }
+  function updateBulkProgress(current) {
+    const sub = document.getElementById('bulkOverlaySub');
+    if (sub) sub.textContent = `${current.toLocaleString()}건 처리됨...`;
   }
   function hideBulkProgress() {
     document.getElementById('bulkOverlay').classList.remove('show');

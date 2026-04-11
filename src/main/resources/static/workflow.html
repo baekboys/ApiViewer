@@ -332,6 +332,22 @@
       .steps { flex-direction: column; }
       .arrow { transform: rotate(90deg); width: auto; height: 16px; }
     }
+
+    /* Mermaid 다이어그램 카드 */
+    .diagram-card { padding: 20px 24px; }
+    .diagram-note {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 18px;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-left: 3px solid var(--primary-border);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .diagram-note b { color: var(--text); }
+    .mermaid { display: flex; justify-content: center; overflow-x: auto; }
+    .mermaid svg { max-width: 100%; height: auto; }
   </style>
 </head>
 <body>
@@ -618,13 +634,139 @@
     </div>
   </div>
 
+  <!-- 섹션 7: URL 상태 판정 플로우차트 -->
+  <div class="section-title">7. URL 상태 판정 플로우차트</div>
+  <div class="card diagram-card">
+    <div class="diagram-note">
+      소스 추출 시 <b>각 URL 1건</b>이 거치는 상태 판정 전체 흐름입니다.
+      <b>차단완료</b>·<b>상태확정</b>·<b>현업검토결과</b> 순으로 우선 확인한 뒤,
+      해당하지 않는 경우에만 자동 조건 계산이 실행됩니다.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    START(["🔍 소스 추출 시작"]) --> PULL["① Git Pull\n최신 소스 동기화"]
+    PULL --> PARSE["② JavaParser\nController 클래스 파싱"]
+    PARSE --> EACH["③ 각 URL에 대해 반복 처리"]
+
+    EACH --> IS_NEW{"신규 URL?"}
+    IS_NEW -->|"Yes — 처음 발견"| CREATE["신규 레코드 생성\napi_record INSERT"]
+    IS_NEW -->|"No — 기존 URL"| CHK_BLK{"차단완료 상태?"}
+
+    CHK_BLK -->|"Yes"| SKIP(["⛔ SKIP\n모든 수정 불가"])
+    CHK_BLK -->|"No"| CHK_OVR{"statusOverridden\n= true?"}
+
+    CHK_OVR -->|"확정"| HOLD["기존 상태 그대로 유지\n자동 재계산 제외"]
+    CHK_OVR -->|"미확정"| CHK_RVW{"reviewResult\n= 차단대상 제외?"}
+
+    CHK_RVW -->|"Yes"| ST_USE0["🟢 사용 확정"]
+    CHK_RVW -->|"No"| CALC["자동 상태 계산"]
+    CREATE --> CALC
+
+    CALC --> R1{"① @Deprecated\n② URL차단 주석\n③ UnsupportedOpEx\n─ 3가지 모두?"}
+    R1 -->|"AND 충족"| ST_DONE["🔴 차단완료"]
+    R1 -->|"미충족"| R2{"호출 0건\n+ 최근 커밋 1년↑?"}
+    R2 -->|"Yes"| ST_TOP["🟠 최우선 차단대상"]
+    R2 -->|"No"| R3{"호출 1건↑ + 커밋 1년↑\nOR 호출 0건 + 커밋 1년 미만?"}
+    R3 -->|"Yes"| ST_REV["🟡 검토필요 차단대상"]
+    R3 -->|"No"| ST_USE["🟢 사용"]
+
+    HOLD --> SAVE["DB 저장 / 갱신"]
+    ST_USE0 --> SAVE
+    ST_DONE --> SAVE
+    ST_TOP --> SAVE
+    ST_REV --> SAVE
+    ST_USE --> SAVE
+    SKIP --> EACH
+    SAVE --> EACH
+    EACH -->|"모든 URL 처리 완료"| END(["✅ 추출 완료"])
+
+    style START fill:#dbeafe,stroke:#93c5fd,color:#1e40af
+    style END   fill:#dcfce7,stroke:#86efac,color:#166534
+    style SKIP  fill:#fee2e2,stroke:#fca5a5,color:#991b1b
+    style ST_DONE fill:#fee2e2,stroke:#fca5a5,color:#991b1b
+    style ST_TOP  fill:#ffedd5,stroke:#fdba74,color:#9a3412
+    style ST_REV  fill:#fef9c3,stroke:#fde047,color:#713f12
+    style ST_USE0 fill:#dcfce7,stroke:#86efac,color:#166534
+    style ST_USE  fill:#dcfce7,stroke:#86efac,color:#166534
+    style HOLD    fill:#e0e7ff,stroke:#a5b4fc,color:#3730a3
+    </div>
+  </div>
+
+  <!-- 섹션 8: 역할별 Use Case -->
+  <div class="section-title">8. 역할별 Use Case</div>
+  <div class="card diagram-card">
+    <div class="diagram-note">
+      ApiViewer를 사용하는 <b>4가지 역할</b>(관리자·일반 사용자·현업 검토자·배치 시스템)과
+      각 역할이 수행할 수 있는 <b>Use Case</b>의 범위를 나타냅니다.
+      현업 검토자는 URL 분석현황 조회를 사용자와 공유합니다.
+    </div>
+    <div class="mermaid">
+graph LR
+    ADM(["👤\n관리자"])
+    USR(["👤\n일반 사용자"])
+    REV(["👤\n현업 검토자"])
+    BOT(["🤖\n배치 시스템"])
+
+    subgraph SYS["◈  ApiViewer 시스템  ◈"]
+        direction TB
+        subgraph ADMIN_UC["🔒 관리자 전용"]
+            UC1(["URL 소스 추출"])
+            UC2(["레포지토리 설정"])
+            UC3(["배치 스케줄 관리"])
+            UC4(["상태 확정 · 강제 변경"])
+            UC5(["데이터 백업 · 복구"])
+        end
+        subgraph PUBLIC_UC["🌐 공개 기능"]
+            UC6(["대시보드 조회"])
+            UC7(["URL 분석현황 조회"])
+            UC8(["호출현황 분석"])
+            UC9(["엑셀 다운로드"])
+            UC10(["현업 검토 입력"])
+        end
+        subgraph BATCH_UC["⚙️ 시스템 자동"]
+            UC11(["Git Pull + 파싱"])
+            UC12(["APM 호출건수 수집"])
+            UC13(["상태 자동 재계산"])
+        end
+    end
+
+    ADM --> UC1 & UC2 & UC3 & UC4 & UC5
+    ADM --> UC6 & UC7 & UC8 & UC9
+    USR --> UC6 & UC7 & UC8 & UC9
+    REV --> UC7 & UC10
+    BOT --> UC11 & UC12 & UC13
+    </div>
+  </div>
+
 </div>
 
 <div id="toastStack"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script src="/js/common.js"></script>
 <script src="/js/dialog.js"></script>
 <script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor:       '#dbeafe',
+      primaryTextColor:   '#1e3a5f',
+      primaryBorderColor: '#93c5fd',
+      lineColor:          '#94a3b8',
+      secondaryColor:     '#f1f5f9',
+      tertiaryColor:      '#f8fafc',
+      background:         '#ffffff',
+      nodeBorder:         '#cbd5e1',
+      clusterBkg:         '#f8fafc',
+      clusterBorder:      '#cbd5e1',
+      edgeLabelBackground:'#ffffff',
+      fontFamily:         'system-ui, -apple-system, sans-serif',
+      fontSize:           '13px',
+    },
+    flowchart: { curve: 'basis', htmlLabels: true },
+  });
+
   // 관리자 모드 토글 (다른 페이지와 동일 패턴)
   function isAdmin() { return sessionStorage.getItem('isAdmin') === 'true'; }
   function applyAdminUI() {

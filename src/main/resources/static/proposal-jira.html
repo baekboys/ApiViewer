@@ -679,14 +679,14 @@
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
   <h1>URL Viewer</h1>
-  <span class="header-sub">Jira 연동 제안</span>
+  <span class="header-sub">Jira 연동 구현</span>
   <div class="header-right">
     <a href="/"               class="nav-link">📊 대시보드</a>
     <a href="/viewer.html"    class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
     <a href="/review.html"    class="nav-link">📝 현업 검토</a>
     <a href="/workflow.html"  class="nav-link">🗺️ 업무 플로우</a>
-    <a href="/proposal-jira.html" class="nav-link nav-active">🧩 추가개선안</a>
+    <a href="/proposal-jira.html" class="nav-link nav-active" id="navProposal">🧩 추가개선안</a>
   </div>
 </div>
 
@@ -694,13 +694,13 @@
 
   <!-- 히어로 -->
   <div class="hero">
-    <div class="hero-eyebrow">PROPOSAL · DESIGN DOCUMENT</div>
-    <h2>URL 차단 검토 프로세스 — Jira 연동 제안</h2>
-    <div class="hero-sub">망분리 환경에서 현업 접근성 확보 · 2단계 게이트 설계</div>
+    <div class="hero-eyebrow">IMPLEMENTATION DOCUMENT · 구현 완료</div>
+    <h2>URL 차단 검토 프로세스 — Jira 연동 구현</h2>
+    <div class="hero-sub">망분리 환경에서 현업 접근성 확보 · 2단계 게이트 설계 · <span style="color:var(--success-dark);font-weight:800;">전 기능 구현 완료</span></div>
   </div>
 
   <!-- 섹션 1. 배경 -->
-  <div class="section-title"><span class="sec-num">1</span>배경 · 제약 조건</div>
+  <div class="section-title"><span class="sec-num">1</span>배경 · 제약 조건 <span class="status-badge st-use" style="font-size:11px;margin-left:4px;">기반 유지</span></div>
   <div class="card">
     <div class="intro-text" style="margin-bottom:14px;">
       URLViewer는 <strong>시스템망</strong>에서 동작하며 개발자와 IT 담당자만 접근 가능합니다.
@@ -732,7 +732,7 @@
   </div>
 
   <!-- 섹션 2. 핵심 아이디어 -->
-  <div class="section-title"><span class="sec-num">2</span>핵심 아이디어 — 역할 분담</div>
+  <div class="section-title"><span class="sec-num">2</span>핵심 아이디어 — 역할 분담 <span class="status-badge" style="font-size:11px;margin-left:4px;background:#dcfce7;color:#15803d;border-color:#86efac;">구현완료</span></div>
   <div class="card" style="padding:0;">
     <div class="role-quote">“URLViewer는 <em>엔진</em>, Jira는 <em>얼굴</em>”</div>
     <div class="role-grid">
@@ -772,7 +772,7 @@
   </div>
 
   <!-- 섹션 3. 2단계 게이트 플로우 -->
-  <div class="section-title"><span class="sec-num">3</span>2단계 게이트 플로우</div>
+  <div class="section-title"><span class="sec-num">3</span>2단계 게이트 플로우 <span class="status-badge" style="font-size:11px;margin-left:4px;background:#dcfce7;color:#15803d;border-color:#86efac;">구현완료</span></div>
 
   <div class="swimlane lane-viewer">
     <div class="lane-label">
@@ -782,26 +782,26 @@
     <div class="steps">
       <div class="step">
         <div class="step-head"><span class="step-num">1</span>자동 탐지</div>
-        <div class="step-desc">Quartz Job(GIT_PULL_EXTRACT + APM_DAILY/WEEKLY)이 Controller·호출건수·Git 이력을 수집.</div>
+        <div class="step-desc">Quartz Job(GIT_PULL_EXTRACT + APM_DAILY/WEEKLY)이 Controller·호출건수·Git 이력을 수집.<br><code style="font-size:11px;color:var(--primary);">GitPullExtractJob · ApmCollectJob</code></div>
         <span class="step-tag">🤖 배치 자동</span>
       </div>
       <div class="arrow">›</div>
       <div class="step">
         <div class="step-head"><span class="step-num">2</span>상태 자동 계산</div>
-        <div class="step-desc">statusOverridden=false 대상 자동 재계산. 최우선·후순위·검토필요·사용 5가지로 분류.</div>
-        <span class="step-tag">🧮 StatusJudge</span>
+        <div class="step-desc">statusOverridden=false 대상 자동 재계산. 최우선·후순위·검토필요·사용 5가지로 분류.<br><code style="font-size:11px;color:var(--primary);">ApiStorageService.recalcStatus()</code></div>
+        <span class="step-tag">🧮 구현완료</span>
       </div>
       <div class="arrow">›</div>
       <div class="step">
         <div class="step-head"><span class="step-num">3</span>IT 담당자 1차 검토</div>
-        <div class="step-desc">/review.html에서 벌크 액션·필터 프리셋으로 수백 건을 효율 검토. 소스·Git 링크로 디버깅.</div>
-        <span class="step-tag">🛠 /review.html</span>
+        <div class="step-desc">/review.html에서 벌크 액션·필터로 수백 건을 효율 검토. 현업검토결과(차단대상 제외·차단확정·판단불가) 기록.<br><code style="font-size:11px;color:var(--primary);">/review.html → POST /api/db/bulk-review</code></div>
+        <span class="step-tag">🛠 구현완료</span>
       </div>
       <div class="arrow">›</div>
       <div class="step">
-        <div class="step-head"><span class="step-num">4</span>오탐 제외 / 차단 확정</div>
-        <div class="step-desc">오탐은 INTERNAL_EXCLUDED로, 차단 대상은 INTERNAL_CONFIRMED로 마킹.</div>
-        <span class="step-tag">✅ 내부 확정</span>
+        <div class="step-head"><span class="step-num">4</span>검토결과 확정</div>
+        <div class="step-desc">reviewResult + reviewStage(INTERNAL_CONFIRMED) 마킹. statusOverridden=true로 상태 고정.<br><code style="font-size:11px;color:var(--primary);">api_record.review_result / review_stage</code></div>
+        <span class="step-tag">✅ 구현완료</span>
       </div>
     </div>
   </div>
@@ -814,32 +814,32 @@
     <div class="steps">
       <div class="step">
         <div class="step-head"><span class="step-num">5</span>Jira 티켓 발행</div>
-        <div class="step-desc">확정건만 Jira REST API로 Story 일괄 생성. api_record.id를 externalId로 사용해 멱등성 보장.</div>
-        <span class="step-tag">🎫 PUSH</span>
+        <div class="step-desc">차단 대상 레코드를 Jira Story로 일괄 발행. customField로 api_record.id 기록해 멱등성 보장.<br><code style="font-size:11px;color:var(--purple);">JiraService.pushToJira() · POST /api/jira/sync</code></div>
+        <span class="step-tag">🎫 구현완료</span>
       </div>
       <div class="arrow">›</div>
       <div class="step">
         <div class="step-head"><span class="step-num">6</span>현업 검토·의견 기록</div>
-        <div class="step-desc">현업이 Jira에서 URL 사용처·영향 범위 확인. 의견 코멘트로 기록.</div>
-        <span class="step-tag">💬 현업 단계</span>
+        <div class="step-desc">현업이 Jira에서 URL 사용처·영향 범위 확인. Resolution 결정.<br><code style="font-size:11px;color:var(--purple);">Jira 업무망 (수동)</code></div>
+        <span class="step-tag">💬 Jira 단계</span>
       </div>
       <div class="arrow">›</div>
       <div class="step">
-        <div class="step-head"><span class="step-num">7</span>승인 / 반려 / 판단불가</div>
-        <div class="step-desc">Jira Resolution을 JIRA_APPROVED / JIRA_REJECTED로 매핑하여 URLViewer에 역동기화.</div>
-        <span class="step-tag">⚖️ 의사결정</span>
+        <div class="step-head"><span class="step-num">7</span>역동기화 / 상태 반영</div>
+        <div class="step-desc">Jira Resolution → reviewStage 전이. JIRA_APPROVED/JIRA_REJECTED를 URLViewer에 반영.<br><code style="font-size:11px;color:var(--purple);">JiraService.pullFromJira() · JiraSyncJob</code></div>
+        <span class="step-tag">⚖️ 구현완료</span>
       </div>
       <div class="arrow">›</div>
       <div class="step">
         <div class="step-head"><span class="step-num">8</span>차단 작업 반영</div>
-        <div class="step-desc">@Deprecated + 주석 + UnsupportedOperationException 3종 세트 반영. BLOCKED 상태로 종료.</div>
+        <div class="step-desc">@Deprecated + [URL차단작업] 주석 + UnsupportedOperationException 3종 세트. status='차단완료'.<br><code style="font-size:11px;color:var(--purple);">api_record.status = '차단완료'</code></div>
         <span class="step-tag">🔒 차단 완료</span>
       </div>
     </div>
   </div>
 
   <!-- 섹션 4. 검토 단계 모델 -->
-  <div class="section-title"><span class="sec-num">4</span>검토 단계 모델 (reviewStage 7단계)</div>
+  <div class="section-title"><span class="sec-num">4</span>검토 단계 모델 (reviewStage 7단계) <span class="status-badge" style="font-size:11px;margin-left:4px;background:#dcfce7;color:#15803d;border-color:#86efac;">구현완료</span> <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">api_record.review_stage</span></div>
   <div class="card">
     <div class="stage-grid">
       <div class="stage-card stage-ip">
@@ -895,7 +895,7 @@
   </div>
 
   <!-- 섹션 5. DB 스키마 변경 -->
-  <div class="section-title"><span class="sec-num">5</span>DB 스키마 변경 (api_record 확장)</div>
+  <div class="section-title"><span class="sec-num">5</span>DB 스키마 (api_record 확장 컬럼) <span class="status-badge" style="font-size:11px;margin-left:4px;background:#dcfce7;color:#15803d;border-color:#86efac;">구현완료</span></div>
   <div class="card">
 <pre class="code"><span class="c-cmt">-- api_record 테이블에 6개 컬럼 추가</span>
 <span class="c-key">review_stage</span>          <span class="c-typ">VARCHAR(30)</span>   <span class="c-cmt">-- 7단계 검토 상태 (INTERNAL_PENDING 등)</span>
@@ -907,22 +907,22 @@
   </div>
 
   <!-- 섹션 6. /review.html 리뉴얼 -->
-  <div class="section-title"><span class="sec-num">6</span>URLViewer /review.html 리뉴얼</div>
+  <div class="section-title"><span class="sec-num">6</span>URLViewer /review.html 구현 <span class="status-badge" style="font-size:11px;margin-left:4px;background:#dcfce7;color:#15803d;border-color:#86efac;">구현완료</span></div>
   <div class="card">
     <div class="intro-text" style="margin-bottom:12px;">
-      현업 검토가 붙기 전에도 <strong>IT 담당자의 1차 게이트</strong>가 효과를 내려면
-      /review.html을 대량 처리 특화 화면으로 보강해야 합니다.
+      IT 담당자의 <strong>1차 게이트</strong>를 위한 현업 검토 전용 화면으로 구현되었습니다.
+      <code style="font-size:12px;color:var(--primary);">GET /api/db/review-apis · POST /api/db/bulk-review</code>
     </div>
     <ul class="bullets">
-      <li><b>벌크 액션 체크박스</b> — 행 다중 선택 후 <b>확정</b> / <b>제외</b> / <b>보류</b> / <b>Jira 발행</b>을 한 번에 실행.</li>
-      <li><b>필터 프리셋</b> — "내 팀 검토 대기건", "호출 0건 & 커밋 1년 이상", "최근 7일 신규 탐지" 등 자주 쓰는 조건을 원클릭으로.</li>
-      <li><b>디버깅 링크</b> — Controller 파일 경로, Git 커밋 이력, 호출 추이 차트를 행에서 바로 열람.</li>
-      <li><b>오탐 마킹</b> — 한 번 오탐으로 처리한 건은 다음 배치에서 자동 제외 후보로 내려 반복 피로 제거.</li>
+      <li><b>현업검토결과 입력</b> — 차단대상 제외 / 차단확정 / 판단불가 3가지 결과 기록. <code style="font-size:11px;">review_result · review_opinion</code></li>
+      <li><b>벌크 엑셀 다운로드/업로드</b> — 전체 검토 대상을 엑셀로 일괄 처리 후 업로드. viewer.html과 동일 포맷.</li>
+      <li><b>현업검토결과 필터</b> — 미기록 / 차단확정 / 차단대상 제외 / 판단불가로 필터링.</li>
+      <li><b>소스/Git 이력 링크</b> — 컨트롤러 파일 경로, Git 커밋 이력으로 디버깅 지원.</li>
     </ul>
   </div>
 
   <!-- 섹션 7. Jira 동기화 설계 -->
-  <div class="section-title"><span class="sec-num">7</span>Jira 동기화 설계</div>
+  <div class="section-title"><span class="sec-num">7</span>Jira 동기화 구현 <span class="status-badge" style="font-size:11px;margin-left:4px;background:#dcfce7;color:#15803d;border-color:#86efac;">구현완료</span> <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">JiraService · JiraController · JiraSyncJob</span></div>
   <div class="card" style="padding:16px;">
     <div class="sync-grid">
       <div class="sync-col sync-push">
@@ -932,11 +932,12 @@
         </div>
         <div class="sync-body">
           <ul class="bullets">
-            <li>관리자가 INTERNAL_CONFIRMED 건 선택 → <b>"Jira 티켓 발행"</b> 버튼.</li>
+            <li>settings.html Jira 탭 → 레포 선택 → <b>"Jira 발행"</b> 버튼.</li>
+            <li>viewer.html → 행 선택 → <b>🔗 Jira 발행</b> 버튼 (레포 단위).</li>
             <li>Jira REST API <code>/rest/api/2/issue/bulk</code>로 Story 일괄 생성.</li>
-            <li><b>Epic = 레포 × 분기</b>, <b>Story = URL 1건</b> 구조로 정리.</li>
-            <li>멱등성: <code>api_record.id</code>를 Jira 커스텀 필드 <code>externalId</code>로 넣어 중복 방지.</li>
-            <li>발행 성공 시 jira_issue_key / jira_synced_at 업데이트, review_stage = JIRA_ISSUED.</li>
+            <li>멱등성: <code>customFieldId</code>에 <code>api_record.id</code> 저장 → 중복 방지.</li>
+            <li>발행 성공 시 <code>jira_issue_key · jira_synced_at</code> 업데이트.</li>
+            <li><code>POST /api/jira/sync/all · /api/jira/sync/repo/{repoName}</code></li>
           </ul>
         </div>
       </div>
@@ -947,13 +948,11 @@
         </div>
         <div class="sync-body">
           <ul class="bullets">
-            <li><b>Quartz Job</b> 1시간 주기로 Jira 폴링.</li>
-            <li>JQL: <code>project=URLB AND updated &gt; last_sync</code>.</li>
-            <li>Jira Resolution 매핑 → reviewStage 전이
-              <br>· Done → JIRA_APPROVED
-              <br>· Won't Do → JIRA_REJECTED
-              <br>· Cannot Reproduce → 판단불가</li>
-            <li>동기화 결과 jira_synced_at 갱신 · 감사 로그 기록.</li>
+            <li><b>JIRA_SYNC Quartz Job</b> — 배치관리 탭에서 주기 설정 (기본 비활성).</li>
+            <li>settings.html → <b>🔄 역방향 동기화</b> 버튼으로 수동 실행도 가능.</li>
+            <li>Jira Resolution → reviewStage 전이:<br>· Done → JIRA_APPROVED<br>· Won't Do → JIRA_REJECTED</li>
+            <li><code>jira_synced_at</code> 갱신 · 감사 로그 기록.</li>
+            <li><code>POST /api/jira/pull/all · /api/jira/pull/repo/{repoName}</code></li>
           </ul>
         </div>
       </div>
@@ -961,11 +960,11 @@
   </div>
 
   <!-- 섹션 8. 대시보드 진척률 카드 -->
-  <div class="section-title"><span class="sec-num">8</span>대시보드 진척률 카드 (목업)</div>
+  <div class="section-title"><span class="sec-num">8</span>대시보드 진척률 카드 (샘플 수치)</div>
   <div class="card">
     <div class="intro-text" style="margin-bottom:12px;">
-      관리자 대시보드에 추가될 진척률 위젯입니다. 자동 탐지부터 차단 완료까지
-      <strong>퍼널 단계별 건수·비율</strong>을 한눈에 확인합니다.
+      관리자 대시보드(<code>/</code>)에서 5가지 상태별 건수·비율을 한눈에 확인합니다.
+      <code style="font-size:11px;color:var(--primary);">GET /api/db/stats</code>
     </div>
     <div class="progress-mock">
       <div class="prog-row">
@@ -1009,6 +1008,7 @@
 
   <!-- 섹션 9. 장점 -->
   <div class="section-title"><span class="sec-num">9</span>이 접근의 장점</div>
+
   <div class="card">
     <div class="benefit-grid">
       <div class="benefit-card">
@@ -1039,85 +1039,100 @@
     </div>
   </div>
 
-  <!-- 섹션 10. 도입 로드맵 -->
-  <div class="section-title"><span class="sec-num">10</span>도입 로드맵</div>
+  <!-- 섹션 10. 구현 현황 -->
+  <div class="section-title"><span class="sec-num">10</span>구현 현황</div>
   <div class="card" style="padding:0;overflow:hidden;">
     <table class="roadmap">
       <thead>
         <tr>
           <th style="width:44px;text-align:center;">#</th>
           <th style="width:32%;">항목</th>
-          <th>비고</th>
+          <th style="width:80px;text-align:center;">상태</th>
+          <th>구현 내용</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="rm-rank">1</td>
-          <td class="rm-item">review_stage 컬럼 + 7단계 모델 도입</td>
-          <td class="rm-note">모든 후속 작업의 기반. 기존 status 체계와 병행 운영.</td>
+          <td class="rm-item">review_stage 컬럼 + 7단계 모델</td>
+          <td style="text-align:center;"><span class="status-badge" style="font-size:10px;background:#dcfce7;color:#15803d;border-color:#86efac;">완료</span></td>
+          <td class="rm-note">api_record.review_stage 컬럼 추가. INTERNAL_PENDING → BLOCKED 전이.</td>
         </tr>
         <tr>
           <td class="rm-rank">2</td>
-          <td class="rm-item">/review.html 벌크 액션 UI</td>
-          <td class="rm-note">Jira 연동 없이도 즉시 효과. IT 담당자 생산성 향상 체감.</td>
+          <td class="rm-item">/review.html 현업검토 UI</td>
+          <td style="text-align:center;"><span class="status-badge" style="font-size:10px;background:#dcfce7;color:#15803d;border-color:#86efac;">완료</span></td>
+          <td class="rm-note">현업검토결과 입력, 엑셀 다운로드/업로드, 필터, 벌크 처리 구현.</td>
         </tr>
         <tr>
           <td class="rm-rank">3</td>
-          <td class="rm-item">Jira REST 연동 PoC</td>
-          <td class="rm-note">망 정책(시스템망→업무망 API 호출 허용) 확인 필요.</td>
+          <td class="rm-item">Jira REST 연동 (PUSH)</td>
+          <td style="text-align:center;"><span class="status-badge" style="font-size:10px;background:#dcfce7;color:#15803d;border-color:#86efac;">완료</span></td>
+          <td class="rm-note">JiraService.pushToJira() + /api/jira/sync 엔드포인트 구현. settings.html에서 레포별 수동 발행.</td>
         </tr>
         <tr>
           <td class="rm-rank">4</td>
-          <td class="rm-item">Jira 발행 배치 + 역동기화 Job</td>
-          <td class="rm-note">PoC 성공 시. PUSH + PULL 양방향 완성.</td>
+          <td class="rm-item">Jira 역동기화 + JIRA_SYNC 배치</td>
+          <td style="text-align:center;"><span class="status-badge" style="font-size:10px;background:#dcfce7;color:#15803d;border-color:#86efac;">완료</span></td>
+          <td class="rm-note">JiraService.pullFromJira() + JiraSyncJob 구현. PUSH/PULL 양방향 완성.</td>
         </tr>
         <tr>
           <td class="rm-rank">5</td>
-          <td class="rm-item">대시보드 진척률 카드</td>
-          <td class="rm-note">UI 개선. 관리자·경영진 가시성 확보.</td>
+          <td class="rm-item">담당자 매핑 + YML 기본값</td>
+          <td style="text-align:center;"><span class="status-badge" style="font-size:10px;background:#dcfce7;color:#15803d;border-color:#86efac;">완료</span></td>
+          <td class="rm-note">JiraUserMapping(팀+이름 복합키), repos-config.yml jira 섹션, YAML 가져오기 시딩.</td>
         </tr>
       </tbody>
     </table>
     <div class="callout">
-      <b>1·2번만 먼저 해도</b> Jira 연동 없이 IT 담당자 검토 효율이 크게 오릅니다.
-      Jira 연동은 네트워크 정책 확인 후 단계적으로 붙여도 충분합니다.
+      <b>전 기능 구현 완료.</b> settings.html Jira 탭에서 baseUrl·projectKey·API 토큰을 설정하면 즉시 사용 가능합니다.
+      망 정책(시스템망→업무망 API 호출)이 허용된 경우에만 실제 동기화가 동작합니다.
     </div>
   </div>
 
-  <!-- 섹션 11. 제약사항 체크리스트 -->
-  <div class="section-title"><span class="sec-num">11</span>확인 필요한 제약사항</div>
+  <!-- 섹션 11. 운영 전 확인사항 -->
+  <div class="section-title"><span class="sec-num">11</span>운영 전 확인사항</div>
   <div class="card">
     <ul class="checklist">
       <li class="critical">
         <span class="cb"></span>
-        시스템망 → 업무망 <b>Jira REST API 호출 가능 여부</b> (방화벽·프록시 정책)
+        시스템망 → 업무망 <b>Jira REST API 호출 가능 여부</b> (방화벽·프록시 정책) — 연동의 전제조건
       </li>
       <li>
         <span class="cb"></span>
-        Jira 프로젝트 신설 권한 및 <b>커스텀 필드 추가</b> 가능 여부 (externalId 필드)
+        settings.html Jira 탭에서 <b>baseUrl · projectKey · serviceAccount · apiToken</b> 입력 (또는 repos-config.yml 가져오기)
       </li>
       <li>
         <span class="cb"></span>
-        Jira <b>서비스 계정 API 토큰</b> 발급 가능 여부
+        Jira 프로젝트에 <b>커스텀 필드(customFieldId)</b> 추가 — api_record.id 저장용 (멱등성 보장)
       </li>
       <li>
         <span class="cb"></span>
-        현업 계정 ↔ <b>manager_mappings 매칭 키</b> (사번 등 유일 식별자)
+        settings.html Jira 탭 → <b>담당자 매핑</b> 입력 (팀 / 이름 / Jira 계정 ID / 표시명)
       </li>
       <li>
         <span class="cb"></span>
-        예상 티켓 규모 추정 (<b>레포 수 × 평균 차단 대상 건수</b>)로 Jira 라이선스·부하 검토
+        배치관리 탭 → <b>JIRA_SYNC 배치 활성화</b> 후 주기 설정 (역동기화 자동화)
       </li>
     </ul>
   </div>
 
   <!-- 푸터 -->
   <div class="doc-footer">
-    <strong>URLViewer 프로젝트 설계 제안서</strong><br>
-    작성일: 2026-04-12 · 문서 유형: Jira 연동 제안 (Design Proposal)
+    <strong>URLViewer 프로젝트 Jira 연동 구현 문서</strong><br>
+    최초 작성: 2026-04-12 (설계 제안) · 최종 업데이트: 2026-04-11 (구현 완료) · 문서 유형: Implementation Document
   </div>
 
 </div>
 
+<script>
+(function() {
+  if (sessionStorage.getItem('isAdmin') !== 'true') {
+    location.replace('/');
+  }
+  const np = document.getElementById('navProposal');
+  if (np) np.style.display = '';
+})();
+</script>
 </body>
 </html>

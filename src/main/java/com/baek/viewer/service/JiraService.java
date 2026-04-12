@@ -464,6 +464,7 @@ public class JiraService {
 
     /**
      * 담당자 매핑: managerOverride → managerMappings → managerName → JiraUserMapping 변환
+     * 팀+이름으로 우선 매핑, 없으면 이름만으로 폴백
      */
     private String resolveAssignee(ApiRecord record, RepoConfig repoCfg) {
         String manager = record.getManagerOverride();
@@ -472,7 +473,21 @@ public class JiraService {
         }
         if (manager == null) return null;
 
-        return userMappingRepo.findByUrlviewerName(manager)
+        // 팀+이름 복합 매칭 우선
+        String team = record.getTeamOverride();
+        if (team == null && repoCfg != null) {
+            team = repoCfg.getTeamName();
+        }
+        if (team != null) {
+            Optional<JiraUserMapping> byTeam =
+                    userMappingRepo.findByTeamNameAndUrlviewerName(team, manager);
+            if (byTeam.isPresent()) {
+                return byTeam.get().getJiraAccountId();
+            }
+        }
+
+        // 이름만으로 폴백
+        return userMappingRepo.findFirstByUrlviewerName(manager)
                 .map(JiraUserMapping::getJiraAccountId)
                 .orElse(null);
     }

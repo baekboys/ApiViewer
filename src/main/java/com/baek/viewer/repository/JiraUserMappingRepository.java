@@ -8,7 +8,11 @@ import java.util.Optional;
 
 public interface JiraUserMappingRepository extends JpaRepository<JiraUserMapping, Long> {
 
-    Optional<JiraUserMapping> findByUrlviewerName(String urlviewerName);
+    /** 팀명 + URLViewer명으로 매핑 조회 (복합키 기준) */
+    Optional<JiraUserMapping> findByTeamNameAndUrlviewerName(String teamName, String urlviewerName);
+
+    /** URLViewer명만으로 조회 (팀 정보 없을 때 폴백) */
+    Optional<JiraUserMapping> findFirstByUrlviewerName(String urlviewerName);
 
     List<JiraUserMapping> findAll();
 }

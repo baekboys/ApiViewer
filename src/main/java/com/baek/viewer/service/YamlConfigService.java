@@ -1,9 +1,13 @@
 package com.baek.viewer.service;
 
 import com.baek.viewer.model.GlobalConfig;
+import com.baek.viewer.model.JiraConfig;
+import com.baek.viewer.model.JiraUserMapping;
 import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.model.ReposYamlConfig;
 import com.baek.viewer.repository.GlobalConfigRepository;
+import com.baek.viewer.repository.JiraConfigRepository;
+import com.baek.viewer.repository.JiraUserMappingRepository;
 import com.baek.viewer.repository.RepoConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,13 +33,18 @@ public class YamlConfigService {
 
     private final RepoConfigRepository repoRepo;
     private final GlobalConfigRepository globalRepo;
+    private final JiraConfigRepository jiraConfigRepo;
+    private final JiraUserMappingRepository jiraUserMappingRepo;
 
     @Value("${api.viewer.repos-config-path:./repos-config.yml}")
     private String defaultConfigPath;
 
-    public YamlConfigService(RepoConfigRepository repoRepo, GlobalConfigRepository globalRepo) {
+    public YamlConfigService(RepoConfigRepository repoRepo, GlobalConfigRepository globalRepo,
+                             JiraConfigRepository jiraConfigRepo, JiraUserMappingRepository jiraUserMappingRepo) {
         this.repoRepo = repoRepo;
         this.globalRepo = globalRepo;
+        this.jiraConfigRepo = jiraConfigRepo;
+        this.jiraUserMappingRepo = jiraUserMappingRepo;
     }
 
     public String getDefaultConfigPath() {
@@ -255,10 +264,65 @@ public class YamlConfigService {
 
         log.info("[YAML 임포트 완료] 레포 {}개 발견, 추가={}, 업데이트={}", importedNames.size(), added, updated);
 
+        // Jira 기본 설정 시딩 (DB에 없거나 빈 값인 경우만 채움)
+        int jiraMappingsAdded = 0;
+        if (config.getJira() != null) {
+            ReposYamlConfig.JiraSection jiraYml = config.getJira();
+
+            // jira_config 시딩: 기존 레코드 없으면 생성, 있으면 빈 값만 채움
+            JiraConfig jiraCfg = jiraConfigRepo.findFirst().orElse(new JiraConfig());
+            boolean jiraCfgChanged = false;
+            if (isBlank(jiraCfg.getJiraBaseUrl()) && !isBlank(jiraYml.getBaseUrl())) {
+                jiraCfg.setJiraBaseUrl(jiraYml.getBaseUrl()); jiraCfgChanged = true;
+            }
+            if (isBlank(jiraCfg.getProjectKey()) && !isBlank(jiraYml.getProjectKey())) {
+                jiraCfg.setProjectKey(jiraYml.getProjectKey()); jiraCfgChanged = true;
+            }
+            if (isBlank(jiraCfg.getServiceAccount()) && !isBlank(jiraYml.getServiceAccount())) {
+                jiraCfg.setServiceAccount(jiraYml.getServiceAccount()); jiraCfgChanged = true;
+            }
+            if (isBlank(jiraCfg.getApiToken()) && !isBlank(jiraYml.getApiToken())) {
+                jiraCfg.setApiToken(jiraYml.getApiToken()); jiraCfgChanged = true;
+            }
+            if (isBlank(jiraCfg.getCustomFieldId()) && !isBlank(jiraYml.getCustomFieldId())) {
+                jiraCfg.setCustomFieldId(jiraYml.getCustomFieldId()); jiraCfgChanged = true;
+            }
+            if (jiraCfgChanged || jiraCfg.getId() == null) {
+                jiraConfigRepo.save(jiraCfg);
+                log.info("[YAML 임포트] Jira 기본 설정 시딩 완료");
+            }
+
+            // jira_user_mapping 시딩: (team, name) 복합키 기준 미존재 시만 생성
+            if (jiraYml.getUserMappings() != null) {
+                for (ReposYamlConfig.UserMappingEntry entry : jiraYml.getUserMappings()) {
+                    if (isBlank(entry.getName())) continue;
+                    String team = entry.getTeam() != null ? entry.getTeam() : "";
+                    boolean exists = jiraUserMappingRepo
+                            .findByTeamNameAndUrlviewerName(team, entry.getName())
+                            .isPresent();
+                    if (!exists) {
+                        JiraUserMapping m = new JiraUserMapping();
+                        m.setTeamName(team);
+                        m.setUrlviewerName(entry.getName());
+                        m.setJiraAccountId(entry.getJiraAccountId() != null ? entry.getJiraAccountId() : "");
+                        m.setJiraDisplayName(entry.getJiraDisplayName() != null ? entry.getJiraDisplayName() : "");
+                        jiraUserMappingRepo.save(m);
+                        jiraMappingsAdded++;
+                    }
+                }
+                log.info("[YAML 임포트] Jira 담당자 매핑 {}건 추가", jiraMappingsAdded);
+            }
+        }
+
         Map<String, Object> result = new HashMap<>();
         result.put("added", added);
         result.put("updated", updated);
         result.put("repos", importedNames);
+        result.put("jiraMappingsAdded", jiraMappingsAdded);
         return result;
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 }

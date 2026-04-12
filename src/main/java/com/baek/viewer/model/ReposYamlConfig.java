@@ -7,11 +7,14 @@ public class ReposYamlConfig {
 
     private GlobalSection global;
     private List<RepoEntry> repositories;
+    private JiraSection jira;
 
     public GlobalSection getGlobal() { return global; }
     public void setGlobal(GlobalSection global) { this.global = global; }
     public List<RepoEntry> getRepositories() { return repositories; }
     public void setRepositories(List<RepoEntry> repositories) { this.repositories = repositories; }
+    public JiraSection getJira() { return jira; }
+    public void setJira(JiraSection jira) { this.jira = jira; }
 
     // ── 공통 설정 ──────────────────────────────────────────
     public static class GlobalSection {
@@ -110,6 +113,45 @@ public class ReposYamlConfig {
         public void setUrl(String url) { this.url = url; }
         public String getBearerToken() { return bearerToken; }
         public void setBearerToken(String bearerToken) { this.bearerToken = bearerToken; }
+    }
+
+    // ── Jira 연동 설정 ──────────────────────────────────────
+    public static class JiraSection {
+        private String baseUrl;
+        private String projectKey;
+        private String serviceAccount;
+        private String apiToken;
+        private String customFieldId;
+        private List<UserMappingEntry> userMappings;
+
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public String getProjectKey() { return projectKey; }
+        public void setProjectKey(String projectKey) { this.projectKey = projectKey; }
+        public String getServiceAccount() { return serviceAccount; }
+        public void setServiceAccount(String serviceAccount) { this.serviceAccount = serviceAccount; }
+        public String getApiToken() { return apiToken; }
+        public void setApiToken(String apiToken) { this.apiToken = apiToken; }
+        public String getCustomFieldId() { return customFieldId; }
+        public void setCustomFieldId(String customFieldId) { this.customFieldId = customFieldId; }
+        public List<UserMappingEntry> getUserMappings() { return userMappings; }
+        public void setUserMappings(List<UserMappingEntry> userMappings) { this.userMappings = userMappings; }
+    }
+
+    public static class UserMappingEntry {
+        private String team;
+        private String name;
+        private String jiraAccountId;
+        private String jiraDisplayName;
+
+        public String getTeam() { return team; }
+        public void setTeam(String team) { this.team = team; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getJiraAccountId() { return jiraAccountId; }
+        public void setJiraAccountId(String jiraAccountId) { this.jiraAccountId = jiraAccountId; }
+        public String getJiraDisplayName() { return jiraDisplayName; }
+        public void setJiraDisplayName(String jiraDisplayName) { this.jiraDisplayName = jiraDisplayName; }
     }
 
     /** 프로그램ID별 담당자 매핑 */

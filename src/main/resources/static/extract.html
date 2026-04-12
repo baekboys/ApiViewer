@@ -227,30 +227,6 @@
     </div>
   </div>
 
-  <!-- ─── 엑셀 업로드 ─── -->
-  <div class="card">
-    <div class="card-title">
-      <span class="dot" style="background:#8b5cf6;"></span>엑셀 업로드 (파싱 불가 업무용)
-      <span style="font-size:10px;font-weight:400;color:var(--text-muted);">소스 분석이 어려운 경우 엑셀로 URL 목록을 직접 등록합니다.</span>
-    </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-      <label class="field">레포지토리명 *
-        <input id="uploadRepoName" type="text" placeholder="my-project" style="min-width:160px;">
-      </label>
-      <label class="field">엑셀 파일 (.xlsx)
-        <input id="uploadFile" type="file" accept=".xlsx,.xls,.csv" style="font-size:12px;">
-      </label>
-      <button class="btn" style="background:#8b5cf6;color:#fff;height:34px;" onclick="uploadExcel()">업로드</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="downloadTemplate()">빈 템플릿</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="downloadSample()">샘플 다운로드</button>
-    </div>
-    <div id="uploadResult" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
-      필수 컬럼: <b>apiPath</b>, <b>httpMethod</b> &nbsp;|&nbsp;
-      선택 컬럼: controllerName, methodName, programId, fullUrl, apiOperationValue, memo, teamOverride, managerOverride
-    </div>
-  </div>
-
   <!-- ─── APM 호출건수 수집 ─── -->
   <div class="card">
     <div class="card-title">
@@ -1082,105 +1058,6 @@
   }
 
   // ── UI 헬퍼 ──────────────────────────────────────────────
-  // ── 엑셀 업로드 ─────────────────────────────────────────
-  async function uploadExcel() {
-    const repoName = document.getElementById('uploadRepoName').value.trim();
-    const fileInput = document.getElementById('uploadFile');
-    if (!repoName) { showToast('레포지토리명을 입력하세요.','error'); return; }
-    if (!fileInput.files[0]) { showToast('엑셀 파일을 선택하세요.','error'); return; }
-    const resultEl = document.getElementById('uploadResult');
-    resultEl.textContent = '업로드 중...';
-    try {
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(await fileInput.files[0].arrayBuffer());
-      const ws = wb.worksheets[0];
-      if (!ws) throw new Error('시트가 없습니다.');
-      const headers = [];
-      ws.getRow(1).eachCell((cell, col) => { headers[col] = cell.value?.toString().trim(); });
-      const rows = [];
-      ws.eachRow((row, rowNum) => {
-        if (rowNum === 1) return;
-        const obj = {};
-        row.eachCell((cell, col) => {
-          const h = headers[col];
-          if (h) obj[h] = cell.value?.toString().trim() || '';
-        });
-        if (obj.apiPath) rows.push(obj);
-      });
-      if (!rows.length) throw new Error('유효한 데이터가 없습니다. apiPath 컬럼을 확인하세요.');
-      const res = await fetch('/api/upload/excel', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
-        body:JSON.stringify({ repoName, rows })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      resultEl.innerHTML = `<span style="color:var(--success);">업로드 완료: 추가 ${data.added}건, 업데이트 ${data.updated}건</span>`;
-      showToast(`엑셀 업로드 완료: ${data.added}건 추가`,'success');
-    } catch(e) {
-      resultEl.innerHTML = `<span style="color:var(--danger);">${e.message}</span>`;
-      showToast(e.message,'error');
-    }
-    fileInput.value = '';
-  }
-
-  function downloadTemplate() {
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Template');
-    const headers = ['apiPath','httpMethod','controllerName','methodName','programId','fullUrl','apiOperationValue','memo','teamOverride','managerOverride'];
-    const hRow = ws.addRow(headers);
-    hRow.eachCell(cell => { cell.font={bold:true}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
-    ws.columns = headers.map(h => ({width: Math.max(h.length*2, 12)}));
-    ws.autoFilter = {from:'A1', to:`${String.fromCharCode(64+headers.length)}1`};
-    wb.xlsx.writeBuffer().then(buf => {
-      const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-      a.download='url-upload-template.xlsx'; a.click(); URL.revokeObjectURL(a.href);
-    });
-  }
-
-  // 실제 업무 형식(/app/LPXXXAA_V100.lc)의 샘플 엑셀 다운로드
-  function downloadSample() {
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Sample');
-    const headers = ['apiPath','httpMethod','controllerName','methodName','programId','fullUrl','apiOperationValue','memo','teamOverride','managerOverride'];
-    const hRow = ws.addRow(headers);
-    hRow.eachCell(cell => { cell.font={bold:true}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0F2FE'}}; });
-
-    // 실제 업무 형식 — /app/LPXXXAA_V100.lc 구조
-    const rows = [
-      ['/app/LPCDMA01_V100.lc','REQUEST','LPCDMA01_V100','execute','LPCDMA01','https://internal.example.com/app/LPCDMA01_V100.lc','카드회원 기본정보 조회','고객정보 서비스','IT카드개발팀','김철수'],
-      ['/app/LPCDMA02_V100.lc','REQUEST','LPCDMA02_V100','execute','LPCDMA02','https://internal.example.com/app/LPCDMA02_V100.lc','카드회원 상세정보 조회','','IT카드개발팀','김철수'],
-      ['/app/LPCDMA03_V100.lc','REQUEST','LPCDMA03_V100','execute','LPCDMA03','https://internal.example.com/app/LPCDMA03_V100.lc','카드회원 등록','회원가입 화면에서 호출','IT카드개발팀','이영희'],
-      ['/app/LPCDMA04_V100.lc','REQUEST','LPCDMA04_V100','execute','LPCDMA04','https://internal.example.com/app/LPCDMA04_V100.lc','카드회원 수정','','IT카드개발팀','이영희'],
-      ['/app/LPCDMA05_V100.lc','REQUEST','LPCDMA05_V100','execute','LPCDMA05','https://internal.example.com/app/LPCDMA05_V100.lc','카드회원 탈퇴','탈퇴 프로세스','IT카드개발팀','이영희'],
-      ['/app/LPCDPY01_V100.lc','REQUEST','LPCDPY01_V100','execute','LPCDPY01','https://internal.example.com/app/LPCDPY01_V100.lc','결제내역 조회','1달 이내 결제이력','IT카드개발팀','박지민'],
-      ['/app/LPCDPY02_V100.lc','REQUEST','LPCDPY02_V100','execute','LPCDPY02','https://internal.example.com/app/LPCDPY02_V100.lc','결제 승인요청','PG연동','IT카드개발팀','박지민'],
-      ['/app/LPCDPY03_V100.lc','REQUEST','LPCDPY03_V100','execute','LPCDPY03','https://internal.example.com/app/LPCDPY03_V100.lc','결제 취소','','IT카드개발팀','박지민'],
-      ['/app/LPCDLN01_V100.lc','REQUEST','LPCDLN01_V100','execute','LPCDLN01','https://internal.example.com/app/LPCDLN01_V100.lc','대출상품 목록','신용대출','IT카드개발팀','최수연'],
-      ['/app/LPCDLN02_V100.lc','REQUEST','LPCDLN02_V100','execute','LPCDLN02','https://internal.example.com/app/LPCDLN02_V100.lc','대출 신청','','IT카드개발팀','최수연'],
-      ['/app/LPCDLN03_V100.lc','REQUEST','LPCDLN03_V100','execute','LPCDLN03','https://internal.example.com/app/LPCDLN03_V100.lc','대출한도 조회','신용평가 연동','IT카드개발팀','최수연'],
-      ['/app/LPCDBN01_V100.lc','REQUEST','LPCDBN01_V100','execute','LPCDBN01','https://internal.example.com/app/LPCDBN01_V100.lc','혜택 목록 조회','마케팅 연계','IT카드개발팀','정하늘'],
-      ['/app/LPCDBN02_V100.lc','REQUEST','LPCDBN02_V100','execute','LPCDBN02','https://internal.example.com/app/LPCDBN02_V100.lc','쿠폰 발급','','IT카드개발팀','정하늘'],
-      ['/app/LPCDST01_V100.lc','REQUEST','LPCDST01_V100','execute','LPCDST01','https://internal.example.com/app/LPCDST01_V100.lc','통계 집계','일배치 실행용','IT카드개발팀','백명선'],
-      ['/app/LPCDST02_V100.lc','REQUEST','LPCDST02_V100','execute','LPCDST02','https://internal.example.com/app/LPCDST02_V100.lc','[폐기예정] 구 통계 API','차단대상 후보','IT카드개발팀','백명선']
-    ];
-    rows.forEach(r => ws.addRow(r));
-
-    ws.columns = headers.map(h => ({width: Math.max(h.length*2, 14)}));
-    // apiPath, fullUrl 컬럼 폭 넓게
-    ws.getColumn(1).width = 30;
-    ws.getColumn(6).width = 52;
-    ws.getColumn(7).width = 22;
-    ws.autoFilter = {from:'A1', to:`${String.fromCharCode(64+headers.length)}1`};
-
-    wb.xlsx.writeBuffer().then(buf => {
-      const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-      a.download='url-upload-sample.xlsx'; a.click(); URL.revokeObjectURL(a.href);
-    });
-  }
-
   function setExtracting(v) {
     const b1 = document.getElementById('extractBtn');
     const b2 = document.getElementById('extractAllBtn');

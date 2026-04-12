@@ -172,14 +172,15 @@ public class JiraController {
     @PostMapping("/mappings")
     public ResponseEntity<?> saveMapping(@RequestBody JiraUserMapping mapping) {
         try {
-            // 동일 urlviewerName이 있으면 업데이트
+            // 동일 팀+이름이 있으면 업데이트 (복합 UNIQUE 기준)
             if (mapping.getId() == null && mapping.getUrlviewerName() != null) {
-                userMappingRepo.findByUrlviewerName(mapping.getUrlviewerName())
+                String team = mapping.getTeamName() != null ? mapping.getTeamName() : "";
+                userMappingRepo.findByTeamNameAndUrlviewerName(team, mapping.getUrlviewerName())
                         .ifPresent(existing -> mapping.setId(existing.getId()));
             }
             JiraUserMapping saved = userMappingRepo.save(mapping);
-            log.info("[Jira] 담당자 매핑 저장: {} → {}",
-                    saved.getUrlviewerName(), saved.getJiraAccountId());
+            log.info("[Jira] 담당자 매핑 저장: [{}] {} → {}",
+                    saved.getTeamName(), saved.getUrlviewerName(), saved.getJiraAccountId());
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             log.error("[Jira] 담당자 매핑 저장 실패: {}", e.getMessage(), e);

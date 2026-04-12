@@ -244,3 +244,27 @@ repositories:
           shortName: mvc-showcase-api-1
         - oid: 10062
           shortName: mvc-showcase-api-2
+
+# Jira 연동 설정
+# 이 섹션을 채운 후 settings 화면에서 [YAML 가져오기]를 클릭하면 Jira 설정 탭의 빈 값이 자동으로 채워집니다.
+jira:
+  baseUrl: ""                          # Jira 서버 URL (예: https://jira.company.com)
+  projectKey: ""                       # Jira 프로젝트 키 (예: CARD)
+  serviceAccount: ""                   # Jira API 호출 계정 (이메일 또는 아이디)
+  apiToken: ""                         # Jira API 토큰 (Cloud: API Token, Server: 패스워드)
+  customFieldId: ""                    # 업무명 커스텀 필드 ID (예: customfield_10001)
+
+  # 담당자 매핑 기본값 (YAML 가져오기 시 미존재 항목만 DB에 추가)
+  userMappings:
+    - team: IT카드개발팀
+      name: 백명선
+      jiraAccountId: ""               # Jira accountId (Cloud: uuid 형식)
+      jiraDisplayName: ""             # Jira 표시명 (예: 백명선 (Myeongseon Baek))
+    - team: IT커머스개발팀
+      name: 김민수
+      jiraAccountId: ""
+      jiraDisplayName: ""
+    - team: IT커머스개발팀
+      name: 한소라
+      jiraAccountId: ""
+      jiraDisplayName: ""

@@ -349,6 +349,7 @@
     .mermaid { display: flex; justify-content: center; overflow-x: auto; }
     .mermaid svg { max-width: 100%; height: auto; }
   </style>
+  <script src="/js/darkmode.js"></script>
 </head>
 <body>
 
@@ -359,6 +360,7 @@
   <a href="/" style="text-decoration:none;"><h1>URL Viewer</h1></a>
   <span class="header-sub">업무 플로우</span>
   <div class="header-right">
+    <button class="dark-toggle" onclick="toggleDarkMode()">🌙 다크모드</button>
     <a href="/"               class="nav-link">📊 대시보드</a>
     <a href="/viewer.html"    class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>

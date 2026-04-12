@@ -410,3 +410,112 @@ input:focus::placeholder { color: var(--border); }
   .header h1 { font-size: 16px; }
   .header-right { gap: 4px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+ * 다크모드 토글 버튼 (모든 페이지 공통)
+ * ═══════════════════════════════════════════════════════════════ */
+.dark-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-family: inherit;
+  padding: 5px 12px;
+  white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.dark-toggle:hover { background: #f1f5f9; color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════
+ * 다크모드 — common.css 기반 페이지 (workflow, proposal-jira)
+ * ═══════════════════════════════════════════════════════════════ */
+:root[data-theme="dark"] {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --bg-subtle: #293548;
+
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-light: #64748b;
+  --border: #334155;
+  --border-dark: #475569;
+
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-dark: #93c5fd;
+  --primary-light: #1e3a5f;
+  --primary-border: #1d4ed8;
+
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --danger-dark: #fca5a5;
+  --danger-light: #450a0a;
+
+  --success: #4ade80;
+  --success-hover: #22c55e;
+  --success-dark: #86efac;
+  --success-light: #052e16;
+
+  --warning: #fbbf24;
+  --warning-hover: #f59e0b;
+  --warning-dark: #fcd34d;
+  --warning-light: #1c1408;
+
+  --purple: #a78bfa;
+  --purple-hover: #8b5cf6;
+  --purple-light: #2e1065;
+
+  --shadow: 0 1px 4px rgba(0,0,0,.4);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.5);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.6);
+
+  --st-use: #4ade80;
+  --st-done: #94a3b8;
+  --st-top: #f87171;
+  --st-low: #fb923c;
+  --st-rev: #fbbf24;
+  --st-del: #fca5a5;
+}
+
+/* 구조 오버라이드 */
+[data-theme="dark"] .header-sub { background: #293548 !important; }
+[data-theme="dark"] .nav-link   { color: var(--text-muted); border-color: var(--border); }
+[data-theme="dark"] .nav-link:hover  { background: #293548 !important; }
+[data-theme="dark"] .nav-active { color: #93c5fd !important; border-color: #60a5fa !important; background: #1e3a5f !important; }
+[data-theme="dark"] .dark-toggle:hover { background: #293548 !important; color: #f1f5f9 !important; }
+
+/* 카드 / 모달 */
+[data-theme="dark"] .card         { background: var(--card) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .modal        { background: var(--card) !important; }
+[data-theme="dark"] .modal-header { background: var(--card) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .modal-footer { background: var(--card) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .modal-overlay { background: rgba(0,0,0,.65) !important; }
+
+/* 폼 */
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background: var(--card) !important; color: var(--text) !important; border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder { color: #64748b !important; }
+
+/* 버튼 */
+[data-theme="dark"] .btn-ghost { background: #293548 !important; color: var(--text-muted) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .btn-ghost:not(:disabled):hover { background: var(--border) !important; color: var(--text) !important; }
+[data-theme="dark"] .collapse-btn:hover { background: #293548 !important; }
+
+/* 상태 배지 */
+[data-theme="dark"] .st-use    { background: #052e16 !important; color: #4ade80 !important; }
+[data-theme="dark"] .st-done   { background: #293548 !important; color: #94a3b8 !important; }
+[data-theme="dark"] .st-del    { background: #450a0a !important; color: #f87171 !important; }
+[data-theme="dark"] .bt-top    { background: #450a0a !important; color: #f87171 !important; }
+[data-theme="dark"] .bt-low    { background: #431407 !important; color: #fb923c !important; }
+[data-theme="dark"] .bt-rev    { background: #1c1408 !important; color: #fcd34d !important; }
+
+/* 알림 배너 */
+[data-theme="dark"] .notice-info    { background: #1e3a5f !important; border-color: #1d4ed8 !important; color: #93c5fd !important; }
+[data-theme="dark"] .notice-warning { background: #1c1408 !important; border-color: #92400e !important; color: #fcd34d !important; }
+[data-theme="dark"] .notice-danger  { background: #450a0a !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+[data-theme="dark"] .notice-success { background: #052e16 !important; border-color: #166534 !important; color: #4ade80 !important; }
+[data-theme="dark"] .notice-deleted { background: #431407 !important; border-color: #7c2d12 !important; color: #fb923c !important; }

@@ -102,9 +102,52 @@
     .toast.show{opacity:1;}
     .toast.error{background:var(--danger);} .toast.success{background:var(--success);}
     @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* ─── 다크모드 오버라이드 ─── */
+    :root[data-theme="dark"]{
+      --bg:#0f172a; --card:#1e293b;
+      --text:#f1f5f9; --text-muted:#94a3b8;
+      --border:#334155;
+      --primary:#60a5fa; --primary-hover:#3b82f6;
+      --shadow:0 1px 4px rgba(0,0,0,.4);
+    }
+    [data-theme="dark"] body{background:var(--bg);color:var(--text);}
+    [data-theme="dark"] .header{background:var(--card);border-color:var(--border);}
+    [data-theme="dark"] .header-sub{background:#293548!important;}
+    [data-theme="dark"] .nav-link{color:var(--text-muted);border-color:var(--border);}
+    [data-theme="dark"] .nav-link:hover{background:#293548!important;}
+    [data-theme="dark"] .nav-active{color:#93c5fd!important;border-color:#60a5fa!important;background:#1e3a5f!important;}
+    [data-theme="dark"] .card{background:var(--card)!important;border-color:var(--border)!important;}
+    [data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{background:var(--card)!important;color:var(--text)!important;border-color:var(--border)!important;}
+    [data-theme="dark"] input::placeholder,[data-theme="dark"] textarea::placeholder{color:#64748b!important;}
+    [data-theme="dark"] .modal-overlay{background:rgba(0,0,0,.65)!important;}
+    [data-theme="dark"] .modal,[data-theme="dark"] .modal-header,[data-theme="dark"] .modal-footer{background:var(--card)!important;border-color:var(--border)!important;}
+    [data-theme="dark"] .st-use{background:#052e16!important;color:#4ade80!important;}
+    [data-theme="dark"] .st-done{background:#293548!important;color:#94a3b8!important;}
+    [data-theme="dark"] .st-del{background:#450a0a!important;color:#f87171!important;}
+    [data-theme="dark"] .st-review{background:#1c1408!important;color:#fcd34d!important;}
+    [data-theme="dark"] .st-target{background:#431407!important;color:#fb923c!important;}
+    [data-theme="dark"] .bt-top{background:#450a0a!important;color:#f87171!important;}
+    [data-theme="dark"] .bt-low{background:#431407!important;color:#fb923c!important;}
+    [data-theme="dark"] .bt-rev{background:#1c1408!important;color:#fcd34d!important;}
+    [data-theme="dark"] .m-GET,[data-theme="dark"] .badge-GET{background:#052e16!important;color:#4ade80!important;}
+    [data-theme="dark"] .m-POST,[data-theme="dark"] .badge-POST{background:#1e3a5f!important;color:#93c5fd!important;}
+    [data-theme="dark"] .m-PUT,[data-theme="dark"] .badge-PUT{background:#1c1408!important;color:#fcd34d!important;}
+    [data-theme="dark"] .m-DELETE,[data-theme="dark"] .badge-DELETE{background:#450a0a!important;color:#f87171!important;}
+    [data-theme="dark"] .m-PATCH,[data-theme="dark"] .badge-PATCH{background:#2e1065!important;color:#a78bfa!important;}
+    [data-theme="dark"] .m-OTHER,[data-theme="dark"] .badge-REQUEST{background:#293548!important;color:#94a3b8!important;}
+    .dark-toggle{background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;padding:5px 12px;white-space:nowrap;transition:background .12s,color .12s;}
+    .dark-toggle:hover{background:#f1f5f9;color:#1e293b;}
+    [data-theme="dark"] .dark-toggle:hover{background:#293548!important;color:#f1f5f9!important;}
+    :root[data-theme="dark"]{--warning:#fbbf24;}
+    [data-theme="dark"] .chart-card{background:var(--card)!important;border-color:var(--border)!important;}
+    [data-theme="dark"] table{border-color:var(--border)!important;}
+    [data-theme="dark"] th{background:#293548!important;color:var(--text-muted)!important;}
+    [data-theme="dark"] td{border-color:var(--border)!important;}
   </style>
   <script src="/exceljs.min.js"></script>
   <script src="/js/dialog.js"></script>
+  <script src="/js/darkmode.js"></script>
 </head>
 <body>
 <div class="header">
@@ -114,6 +157,7 @@
   <a href="/" style="text-decoration:none;"><h1>URL Viewer</h1></a>
   <span class="header-sub">URL호출현황</span>
   <div class="header-right">
+    <button class="dark-toggle" onclick="toggleDarkMode()">🌙 다크모드</button>
     <a href="/"             class="nav-link">📊 대시보드</a>
     <a href="/viewer.html"  class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link nav-active">📈 URL호출현황</a>

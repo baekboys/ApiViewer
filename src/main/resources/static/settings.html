@@ -634,6 +634,7 @@ function updateAdminBadge(valid) {
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">
       URLViewer 팀·담당자명과 Jira 계정을 매핑합니다. 동일 이름이 여러 팀에 있을 경우 팀으로 구분합니다. 매핑이 없는 담당자는 Jira 이슈 생성 시 담당자 미지정으로 발행됩니다.
     </div>
+    <datalist id="jiraTeamsDatalist"></datalist>
     <table style="width:100%;border-collapse:collapse;font-size:12px;" id="jiraMappingTable">
       <thead>
         <tr style="background:#f8fafc;">
@@ -888,6 +889,8 @@ function updateAdminBadge(valid) {
       try {
         const teams = g.teams ? JSON.parse(g.teams) : [];
         teams.forEach(t => renderTeamTag(t));
+        const jiraDl = document.getElementById('jiraTeamsDatalist');
+        if (jiraDl) jiraDl.innerHTML = teams.map(t => `<option value="${t}">`).join('');
       } catch(e) {}
       // 프로필 로드
       document.getElementById('whatapProfileList').innerHTML = '';
@@ -2407,7 +2410,7 @@ function updateAdminBadge(valid) {
     const tr = document.createElement('tr');
     tr.dataset.mappingId = id || '';
     tr.innerHTML = `
-      <td style="padding:6px 10px;border-bottom:1px solid var(--border);"><input type="text" value="${esc(teamName||'')}" placeholder="IT카드개발팀" class="jm-team" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;"></td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border);"><input type="text" value="${esc(teamName||'')}" placeholder="IT카드개발팀" class="jm-team" list="jiraTeamsDatalist" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;"></td>
       <td style="padding:6px 10px;border-bottom:1px solid var(--border);"><input type="text" value="${esc(urlviewerName||'')}" placeholder="홍길동" class="jm-name" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;"></td>
       <td style="padding:6px 10px;border-bottom:1px solid var(--border);"><input type="text" value="${esc(jiraAccountId||'')}" placeholder="5f1a2b3c4d5e6f" class="jm-account" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:monospace;"></td>
       <td style="padding:6px 10px;border-bottom:1px solid var(--border);"><input type="text" value="${esc(jiraDisplayName||'')}" placeholder="Hong Gildong" class="jm-display" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;"></td>

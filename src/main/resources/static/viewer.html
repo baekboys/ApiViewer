@@ -294,11 +294,11 @@
       </label>
       <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
       <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;">⬇ 엑셀 다운로드</button>
-      <button class="btn btn-sm btn-ghost" id="sampleDownloadBtn" onclick="downloadViewerSample()" style="display:none;" title="업로드용 샘플 엑셀 파일 다운로드">📥 샘플 파일</button>
-      <button class="btn" id="excelUploadBtn" onclick="triggerExcelUpload()" style="display:none;background:#7c3aed;color:#fff;border-color:#7c3aed;">⬆ 엑셀 업로드</button>
+      <span id="uploadGroup" style="display:none;gap:0;">
+        <button class="btn" id="excelUploadBtn" onclick="triggerExcelUpload()" style="background:#7c3aed;color:#fff;border-color:#7c3aed;border-radius:6px 0 0 6px;margin:0;">⬆ 엑셀 업로드</button>
+        <button class="btn" id="sampleDownloadBtn" onclick="downloadViewerSample()" style="background:#ede9fe;color:#6d28d9;border-color:#7c3aed;border-left:1px solid #a78bfa;border-radius:0 6px 6px 0;margin:0;" title="업로드용 샘플 엑셀 파일 다운로드">📥 샘플</button>
+      </span>
       <input type="file" id="excelUploadInput" accept=".xlsx" style="display:none;" onchange="handleExcelUpload(event)">
-      <button class="btn btn-sm btn-ghost" id="repoJiraSync" onclick="repoSyncToJira()" style="display:none;" title="선택 레포의 차단대상을 Jira로 발행">🔗 Jira 발행</button>
-      <button class="btn btn-sm btn-ghost" id="repoJiraPull" onclick="repoSyncFromJira()" style="display:none;" title="선택 레포의 Jira 상태를 역방향 동기화">🔄 Jira 동기화</button>
     </div>
 
     <div class="db-meta" id="dbMeta" style="display:none">
@@ -430,7 +430,8 @@
     <button class="btn-apply" id="bulkUnblockBtn" onclick="bulkUnblock()" style="background:#64748b;display:none;" title="선택한 차단완료 건을 '사용'으로 해제 (관리자)">🔓 차단완료 해제</button>
     <button class="btn-apply" id="bulkDeleteBtn" onclick="bulkDeleteRecords()" style="background:#b91c1c;display:none;" title="선택한 레코드를 DB에서 완전 삭제 (관리자, 비밀번호 필요)">🗑 선택 삭제</button>
     <button class="btn-apply" id="bulkPurgeBtn" onclick="bulkPurgeDeleted()" style="background:#7c2d12;display:none;">🗑 영구삭제</button>
-    <button class="btn-apply" id="bulkJiraSyncBtn" onclick="bulkSyncToJira()" style="background:var(--purple);display:none;">🔗 Jira 발행</button>
+    <button class="btn-apply" id="bulkJiraSyncBtn" onclick="bulkSyncToJira()" style="background:var(--purple);">🔗 Jira 발행</button>
+    <button class="btn-apply" id="bulkJiraPullBtn" onclick="bulkPullFromJira()" style="background:#7c3aed;">🔄 Jira 동기화</button>
     <button class="btn-cancel" onclick="clearSelection()">취소</button>
   </div>
 
@@ -2366,7 +2367,7 @@
 
   async function syncSingleToJira(id) {
     try {
-      const res = await adminFetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
+      const res = await fetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '발행 실패');
       showToast(`Jira 발행 완료: ${data.issueKey || ''}`, 'success');
@@ -2376,7 +2377,7 @@
 
   async function pullSingleFromJira(id) {
     try {
-      const res = await adminFetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
+      const res = await fetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
       if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || '동기화 실패'); }
       showToast('역방향 동기화 완료', 'success');
       openDetail(id);
@@ -2390,13 +2391,31 @@
     let success = 0, fail = 0;
     for (const id of selectedIds) {
       try {
-        await adminFetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
+        await fetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
         success++;
         updateBulkProgress(success + fail);
       } catch(e) { fail++; }
     }
     hideBulkProgress();
     showToast(`Jira 발행 완료: 성공 ${success}건, 실패 ${fail}건`, success > 0 ? 'success' : 'error');
+    clearSelection();
+    await refreshAll();
+  }
+
+  async function bulkPullFromJira() {
+    if (!selectedIds.size) { showToast('선택된 항목이 없습니다.', 'error'); return; }
+    if (!await customConfirm(`${selectedIds.size}개 항목의 Jira 상태를 역방향 동기화하시겠습니까?`)) return;
+    showBulkProgress('Jira 동기화 중...', selectedIds.size);
+    let success = 0, fail = 0;
+    for (const id of selectedIds) {
+      try {
+        await fetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
+        success++;
+        updateBulkProgress(success + fail);
+      } catch(e) { fail++; }
+    }
+    hideBulkProgress();
+    showToast(`Jira 동기화 완료: 성공 ${success}건, 실패 ${fail}건`, success > 0 ? 'success' : 'error');
     clearSelection();
     await refreshAll();
   }
@@ -2488,11 +2507,7 @@
     document.getElementById('adminBtn').textContent = admin ? '🔓 관리자 해제' : '🔑 관리자';
     const _ub = document.getElementById('bulkUnblockBtn'); if(_ub) _ub.style.display = admin ? 'inline-block' : 'none';
     const _db = document.getElementById('bulkDeleteBtn'); if(_db) _db.style.display = admin ? 'inline-block' : 'none';
-    const _eu = document.getElementById('excelUploadBtn'); if(_eu) _eu.style.display = admin ? 'inline-block' : 'none';
-    const _sd = document.getElementById('sampleDownloadBtn'); if(_sd) _sd.style.display = admin ? 'inline-block' : 'none';
-    const _rjs = document.getElementById('repoJiraSync'); if(_rjs) _rjs.style.display = admin ? 'inline-block' : 'none';
-    const _rjp = document.getElementById('repoJiraPull'); if(_rjp) _rjp.style.display = admin ? 'inline-block' : 'none';
-    const _bjs = document.getElementById('bulkJiraSyncBtn'); if(_bjs) _bjs.style.display = admin ? 'inline-block' : 'none';
+    const _ug = document.getElementById('uploadGroup'); if(_ug) _ug.style.display = admin ? 'inline-flex' : 'none';
     if (typeof renderRows === 'function' && filteredApis.length) renderRows(filteredApis);
   }
   async function toggleAdmin() {

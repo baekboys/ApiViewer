@@ -22,11 +22,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
- * MockApmService 단위테스트.
+ * ApmCollectionService 단위테스트.
  * self-proxy 필드 때문에 @InjectMocks 대신 수동 생성자 주입.
  */
 @ExtendWith(MockitoExtension.class)
-class MockApmServiceTest {
+class ApmCollectionServiceTest {
 
     @Mock
     private ApmCallDataRepository apmRepo;
@@ -42,13 +42,13 @@ class MockApmServiceTest {
     private WhatapApmService whatapApmService;
     private JenniferApmService jenniferApmService;
 
-    private MockApmService service;
+    private ApmCollectionService service;
 
     @BeforeEach
     void setUp() {
         whatapApmService = new WhatapApmService(apmRepo, null);
         jenniferApmService = new JenniferApmService(apmRepo, null);
-        service = new MockApmService(apmRepo, apiRecordRepo, repoConfigRepo,
+        service = new ApmCollectionService(apmRepo, apiRecordRepo, repoConfigRepo,
                 whatapApmService, jenniferApmService);
     }
 

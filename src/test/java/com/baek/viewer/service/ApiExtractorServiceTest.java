@@ -36,7 +36,7 @@ class ApiExtractorServiceTest {
     private ApiStorageService storageService;
 
     @Mock
-    private MockApmService mockApmService;
+    private ApmCollectionService apmCollectionService;
 
     @Mock
     private RepoConfigRepository repoConfigRepository;
@@ -48,7 +48,7 @@ class ApiExtractorServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ApiExtractorService(storageService, mockApmService,
+        service = new ApiExtractorService(storageService, apmCollectionService,
                 repoConfigRepository, globalConfigRepository);
         ReflectionTestUtils.setField(service, "defaultGitBinPath", "/bin/false");
     }

@@ -22,6 +22,38 @@ description: 카드사 시니어 개발자 — Java/Spring/Oracle 기반 카드 
 6. **PII 마스킹** — 카드번호(앞6+뒤4), 주민번호(앞6+뒤1), 휴대폰(앞3+뒤4)은 로그/응답 시 자동 마스킹
 7. **배치 멱등성** — 동일 배치를 여러 번 돌려도 결과가 같도록. 실패 시 재실행 가능한 구조
 
+## 로깅 정책 (ApiViewer 프로젝트 준수 사항)
+
+### DEBUG — 모든 기능에 필수
+모든 메서드·분기·외부 호출에 DEBUG를 남겨 **운영 장애 시 DEBUG만 켜면 전체 흐름을 재현**할 수 있어야 한다.
+
+| 상황 | DEBUG 기록 내용 |
+|------|----------------|
+| 메서드 진입 | 주요 파라미터 전체 |
+| 조건 분기 | 어떤 경로를 탔는지 (e.g., `"기존 키 존재 → UPDATE"`) |
+| 외부 API 호출 전 | 요청 URL, 파라미터/바디 |
+| 외부 API 응답 후 | 응답 상태코드, 바디 (1000자 초과 시 truncate) |
+| 루프/배치 건별 | 처리 대상 식별자·중간 상태 |
+
+```java
+log.debug("[기능태그] 메서드 시작: param1={}, param2={}", p1, p2);
+log.debug("[기능태그] 분기: {} (조건값={})", "UPDATE 경로", existingKey);
+log.debug("[기능태그] 외부호출 → url={} | body={}", url, body);
+log.debug("[기능태그] 외부호출 ← HTTP {} | body={}", statusCode, responseBody);
+```
+
+### INFO — 운영 모니터링용 (판단하여 사용)
+외부 시스템 연동 결과, 배치 완료 집계, 중요한 상태 전이에만 사용. 단순 조회·CRUD에는 INFO 불필요.
+
+```java
+log.info("[기능태그] 이슈 생성 완료: key={}", issueKey);
+log.info("[기능태그] 배치 완료: 총={}, 성공={}, 실패={}", total, ok, fail);
+```
+
+### WARN / ERROR
+- **WARN**: 처리는 계속되지만 예상치 못한 상황 (스킵, 폴백 등)
+- **ERROR**: 처리 중단 예외. `e.getMessage()`와 컨텍스트(URL·ID 등) 함께 기록
+
 ## 코드 리뷰 체크리스트
 - [ ] SQL Injection 방어 (PreparedStatement, MyBatis `#{}`)
 - [ ] N+1 쿼리 없음

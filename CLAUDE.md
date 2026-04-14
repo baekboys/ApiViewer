@@ -157,6 +157,39 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | 롤링 | 일자별 (`app-yyyy-MM-dd.log`), 90일 보관 |
 | 뷰어 | 설정 페이지에서 달력으로 일자별 조회 |
 
+## 로깅 정책 (코드 작성 원칙)
+
+**모든 기능 구현 시 반드시 준수한다.**
+
+### DEBUG 레벨 — 개발자 추적용 (필수)
+- **모든 메서드 진입/분기/결과**를 DEBUG로 남긴다. 운영에서 문제가 생겼을 때 DEBUG를 켜면 전체 흐름이 재현될 수 있어야 한다.
+- 외부 API 호출 시: 요청 URL·파라미터·바디, 응답 상태코드·바디 모두 DEBUG로 기록
+- 조건 분기마다 어떤 경로로 진입했는지 기록 (e.g., `"기존 키 존재 → UPDATE"`, `"신규 → CREATE"`)
+- 루프/배치 처리 시 건별 처리 내용과 중간 상태 기록
+
+```java
+// 예시
+log.debug("[SmartWay] syncRecordToJira 시작: recordId={}", recordId);
+log.debug("[SmartWay] Step3. 담당자 매핑: manager={}, team={} → jiraAccountId={}", manager, team, assignee);
+log.debug("[SmartWay] Step5. 발행 방식: {} (기존 issueKey={})", wasNew ? "CREATE" : "UPDATE", issueKey);
+```
+
+### INFO 레벨 — 운영 모니터링용 (판단하여 사용)
+- **외부 시스템 연동 결과**: 호출 성공·실패, 생성된 ID/Key
+- **배치·일괄 처리 완료**: 처리 건수 집계 (총/성공/실패)
+- **상태 전이**: 중요한 데이터 상태 변화 (e.g., 이슈 생성, 동기화 완료)
+- 일반 CRUD나 단순 조회는 INFO 불필요
+
+```java
+// 예시
+log.info("[SmartWay] 이슈 생성 완료: key={}, self={}", key, self);
+log.info("[SmartWay] 레포 {} 동기화: 대상={}, 생성={}, 갱신={}, 실패={}", repo, total, created, updated, failed);
+```
+
+### WARN / ERROR 레벨
+- **WARN**: 처리는 계속되지만 예상치 못한 상황 (e.g., 이슈 미존재 스킵, 컴포넌트 생성 실패 후 폴백)
+- **ERROR**: 처리가 중단되는 예외 상황. `e.getMessage()`와 URL/컨텍스트 함께 기록
+
 ---
 
 # Quartz 배치

@@ -312,21 +312,27 @@ public class ApiStorageService {
             List<ApiRecord> dirty = new ArrayList<>(records.size());
 
             for (ApiRecord r : records) {
-                // 변경불가 건은 일체 수정 불가
-                if ("차단완료".equals(r.getStatus())) continue;
+                // 확정완료(statusOverridden=true) 건은 상태확정 해제만 허용, 나머지 모두 수정 가능
+                if (r.isStatusOverridden()) {
+                    if (fields.containsKey("statusOverridden")) {
+                        Object val = fields.get("statusOverridden");
+                        boolean locked = val instanceof Boolean ? (Boolean) val : "true".equals(String.valueOf(val));
+                        r.setStatusOverridden(locked);
+                        r.setModifiedAt(now);
+                        if (clientIp != null) r.setModifiedIp(clientIp);
+                        dirty.add(r);
+                        updated++;
+                    }
+                    continue;
+                }
 
                 if (fields.containsKey("status")) {
-                    // 상태확정된 건은 상태 변경 불가 (확정 토글이 아닌 경우)
-                    if (r.isStatusOverridden() && !fields.containsKey("statusOverridden")) {
-                        // skip status change
+                    String status = fields.get("status") != null ? fields.get("status").toString() : null;
+                    if (status == null || status.isBlank()) {
+                        r.setStatusOverridden(false);
+                        r.setStatus(calculateStatus(r, reviewThreshold));
                     } else {
-                        String status = fields.get("status") != null ? fields.get("status").toString() : null;
-                        if (status == null || status.isBlank()) {
-                            r.setStatusOverridden(false);
-                            r.setStatus(calculateStatus(r, reviewThreshold));
-                        } else {
-                            r.setStatus(status);
-                        }
+                        r.setStatus(status);
                     }
                 }
 

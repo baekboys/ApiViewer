@@ -211,10 +211,11 @@ class ApiStorageServiceTest {
     // ═══════════════════ updateBulk ═══════════════════
 
     @Test
-    @DisplayName("updateBulk — 차단완료 건은 일체 수정 불가")
+    @DisplayName("updateBulk — 확정완료(statusOverridden=true) 건은 일체 수정 불가")
     void updateBulk_blocked_notModified() {
         ApiRecord blocked = new ApiRecord();
-        blocked.setStatus("차단완료");
+        blocked.setStatus("사용");
+        blocked.setStatusOverridden(true);
         when(globalConfigRepository.findById(1L)).thenReturn(Optional.of(defaultConfig()));
         when(repository.findAllById(anyList())).thenReturn(List.of(blocked));
 
@@ -222,6 +223,22 @@ class ApiStorageServiceTest {
 
         assertThat(updated).isEqualTo(0);
         verify(repository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("updateBulk — 차단완료 건도 statusOverridden=false이면 수정 가능")
+    void updateBulk_blockedStatusEditable() {
+        ApiRecord r = new ApiRecord();
+        r.setStatus("차단완료");
+        r.setStatusOverridden(false);
+        when(globalConfigRepository.findById(1L)).thenReturn(Optional.of(defaultConfig()));
+        when(repository.findAllById(anyList())).thenReturn(List.of(r));
+        when(repository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+        int updated = service.updateBulk(List.of(1L), Map.of("blockTarget", "최우선 차단대상"), "1.1.1.1");
+
+        assertThat(updated).isEqualTo(1);
+        assertThat(r.getBlockTarget()).isEqualTo("최우선 차단대상");
     }
 
     @Test
@@ -247,7 +264,6 @@ class ApiStorageServiceTest {
         r.setStatusOverridden(true);
         when(globalConfigRepository.findById(1L)).thenReturn(Optional.of(defaultConfig()));
         when(repository.findAllById(anyList())).thenReturn(List.of(r));
-        when(repository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
         service.updateBulk(List.of(1L), Map.of("status", "추가검토필요 차단대상"), "ip");
 

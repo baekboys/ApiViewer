@@ -37,6 +37,11 @@ public class ReposYamlConfig {
         private Integer whatapPsize;
         private List<WhatapProfile> whatapProfiles;
         private List<JenniferProfile> jenniferProfiles;
+        private String bitbucketUrl;
+        private String bitbucketToken;
+        private Integer listRepoLimit;
+        private String cloneLocalPath;
+        private String gitBashPath;
 
         public PeriodGlobal getPeriod() { return period; }
         public void setPeriod(PeriodGlobal period) { this.period = period; }
@@ -76,6 +81,16 @@ public class ReposYamlConfig {
         public void setWhatapProfiles(List<WhatapProfile> whatapProfiles) { this.whatapProfiles = whatapProfiles; }
         public List<JenniferProfile> getJenniferProfiles() { return jenniferProfiles; }
         public void setJenniferProfiles(List<JenniferProfile> jenniferProfiles) { this.jenniferProfiles = jenniferProfiles; }
+        public String getBitbucketUrl() { return bitbucketUrl; }
+        public void setBitbucketUrl(String v) { this.bitbucketUrl = v; }
+        public String getBitbucketToken() { return bitbucketToken; }
+        public void setBitbucketToken(String v) { this.bitbucketToken = v; }
+        public Integer getListRepoLimit() { return listRepoLimit; }
+        public void setListRepoLimit(Integer v) { this.listRepoLimit = v; }
+        public String getCloneLocalPath() { return cloneLocalPath; }
+        public void setCloneLocalPath(String v) { this.cloneLocalPath = v; }
+        public String getGitBashPath() { return gitBashPath; }
+        public void setGitBashPath(String v) { this.gitBashPath = v; }
     }
 
     public static class PeriodGlobal {

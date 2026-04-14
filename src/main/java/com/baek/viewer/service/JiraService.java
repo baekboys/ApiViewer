@@ -42,6 +42,9 @@ public class JiraService {
     private static final Logger log = LoggerFactory.getLogger(JiraService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /** Epic Name 필드 ID 캐시 (baseUrl → customfield_XXXXX). "" = 필드 없음/사용 불가. */
+    private static final Map<String, String> EPIC_NAME_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
     /** 내부 SmartWay 서버의 사설 인증서 수용용: 모든 인증서를 신뢰하는 SSLSocketFactory. */
     private static final SSLSocketFactory TRUST_ALL_SSL_FACTORY = buildTrustAllSslFactory();
     /** 내부망 호스트명 검증 우회 HostnameVerifier. */
@@ -239,6 +242,50 @@ public class JiraService {
     }
 
     /**
+     * Epic Name 필드 ID 동적 조회 (예: customfield_10011, customfield_10105 등 인스턴스마다 다름).
+     * GET /rest/api/2/field 응답에서 schema.custom == "com.pyxis.greenhopper.jira:gh-epic-label" 인 필드 ID 를 반환.
+     * 못 찾으면 빈 문자열 반환. 결과는 baseUrl 기준으로 캐싱.
+     */
+    @SuppressWarnings("unchecked")
+    private String resolveEpicNameFieldId(RestTemplate rt, JiraConfig cfg) {
+        String baseUrl = cfg.getJiraBaseUrl();
+        String cached = EPIC_NAME_FIELD_CACHE.get(baseUrl);
+        if (cached != null) return cached;
+
+        String url = baseUrl + "/rest/api/2/field";
+        try {
+            List<Map<String, Object>> fields = rt.getForObject(url, List.class);
+            if (fields != null) {
+                for (Map<String, Object> f : fields) {
+                    Map<String, Object> schema = (Map<String, Object>) f.get("schema");
+                    String custom = schema != null ? (String) schema.get("custom") : null;
+                    if ("com.pyxis.greenhopper.jira:gh-epic-label".equals(custom)) {
+                        String id = (String) f.get("id");
+                        log.info("[Jira] Epic Name 필드 동적 해석: {} (name={})", id, f.get("name"));
+                        EPIC_NAME_FIELD_CACHE.put(baseUrl, id);
+                        return id;
+                    }
+                }
+                // 폴백: 이름 기반 ("Epic Name") 매칭
+                for (Map<String, Object> f : fields) {
+                    String name = (String) f.get("name");
+                    if ("Epic Name".equalsIgnoreCase(name)) {
+                        String id = (String) f.get("id");
+                        log.info("[Jira] Epic Name 필드 이름 매칭 해석: {}", id);
+                        EPIC_NAME_FIELD_CACHE.put(baseUrl, id);
+                        return id;
+                    }
+                }
+            }
+            log.warn("[Jira] Epic Name 필드 미발견 → Epic 생성 시 스킵");
+        } catch (Exception e) {
+            log.warn("[Jira] 필드 메타데이터 조회 실패: {} | url={}", e.getMessage(), url);
+        }
+        EPIC_NAME_FIELD_CACHE.put(baseUrl, "");
+        return "";
+    }
+
+    /**
      * Epic 검색 또는 생성
      */
     @SuppressWarnings("unchecked")
@@ -258,9 +305,32 @@ public class JiraService {
         fields.put("project", Map.of("key", cfg.getProjectKey()));
         fields.put("issuetype", Map.of("name", "Epic"));
         fields.put("summary", epicName);
-        fields.put("customfield_10011", epicName);
 
-        Map<String, Object> created = createIssue(rt, cfg, fields);
+        // Epic Name 필드는 인스턴스마다 custom field ID 가 다르므로 동적 조회.
+        // 인스턴스가 차세대(Next-gen)/이름 미사용 구성이면 빈 값이 반환되어 필드를 추가하지 않는다.
+        String epicNameFieldId = resolveEpicNameFieldId(rt, cfg);
+        if (epicNameFieldId != null && !epicNameFieldId.isEmpty()) {
+            fields.put(epicNameFieldId, epicName);
+        }
+
+        Map<String, Object> created;
+        try {
+            created = createIssue(rt, cfg, fields);
+        } catch (RuntimeException ex) {
+            // 해석한 Epic Name 필드가 Create 화면에 없거나 unknown 인 경우: 해당 필드만 제거 후 1회 재시도.
+            String msg = ex.getMessage() == null ? "" : ex.getMessage();
+            if (epicNameFieldId != null && !epicNameFieldId.isEmpty()
+                    && (msg.contains(epicNameFieldId)
+                        || msg.contains("not on the appropriate screen")
+                        || msg.contains("cannot be set"))) {
+                log.warn("[Jira] Epic Name 필드({}) 설정 거부됨 — 필드 제외 후 재시도. 원인: {}", epicNameFieldId, msg);
+                fields.remove(epicNameFieldId);
+                EPIC_NAME_FIELD_CACHE.put(cfg.getJiraBaseUrl(), ""); // 캐시 무효화(스킵 상태로)
+                created = createIssue(rt, cfg, fields);
+            } else {
+                throw ex;
+            }
+        }
         String epicKey = (String) created.get("key");
         log.info("[Jira] Epic 생성: {} → {}", epicName, epicKey);
         return epicKey;

@@ -608,7 +608,8 @@ public class JiraService {
         String s = r.getStatus();
         return "최우선 차단대상".equals(s)
                 || "후순위 차단대상".equals(s)
-                || "추가검토필요 차단대상".equals(s);
+                || "추가검토필요 차단대상".equals(s)
+                || "차단완료".equals(s);
     }
 
     /**

@@ -1,11 +1,14 @@
 package com.baek.viewer.controller;
 
+import com.baek.viewer.service.ApmCollectionService;
 import com.baek.viewer.service.TestDataSeedService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,9 +24,15 @@ public class DbSeedController {
     private static final Logger log = LoggerFactory.getLogger(DbSeedController.class);
 
     private final TestDataSeedService seedService;
+    private final ApmCollectionService apmCollectionService;
+    private final JdbcTemplate jdbc;
 
-    public DbSeedController(TestDataSeedService seedService) {
+    public DbSeedController(TestDataSeedService seedService,
+                             ApmCollectionService apmCollectionService,
+                             JdbcTemplate jdbc) {
         this.seedService = seedService;
+        this.apmCollectionService = apmCollectionService;
+        this.jdbc = jdbc;
     }
 
     /**
@@ -47,6 +56,8 @@ public class DbSeedController {
         try {
             Map<String, Object> result = seedService.seed(apis, days, clean);
             log.warn("[테스트시드 완료] {}", result);
+            // apm_url_stat 집계 갱신 — apm_call_data 실제 레포 목록 기준
+            aggregateAllRepos();
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("[테스트시드 실패] {}", e.getMessage(), e);
@@ -63,6 +74,17 @@ public class DbSeedController {
         } catch (Exception e) {
             log.error("[테스트시드 정리 실패] {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** apm_call_data에 존재하는 모든 레포를 apm_url_stat에 집계 */
+    private void aggregateAllRepos() {
+        List<String> repos = jdbc.queryForList(
+                "SELECT DISTINCT repository_name FROM apm_call_data", String.class);
+        log.info("[URL통계집계] 대상 레포 {}건", repos.size());
+        for (String repo : repos) {
+            try { apmCollectionService.aggregateToApmUrlStat(repo); }
+            catch (Exception e) { log.warn("[URL통계집계 실패] repo={}: {}", repo, e.getMessage()); }
         }
     }
 }

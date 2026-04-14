@@ -31,13 +31,7 @@
     .section-divider{display:flex;align-items:center;gap:10px;margin:20px 0 14px;font-size:12px;font-weight:700;color:var(--text-muted);}
     .section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
 
-    /* 대시보드 period 탭 */
-    .period-tabs{display:flex;gap:4px;margin-bottom:14px;}
-    .period-tab{padding:6px 16px;border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:var(--card);color:var(--text-muted);transition:all .15s;}
-    .period-tab:hover{background:#f1f5f9;}
-    .period-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-
-    /* 필터 바 */
+/* 필터 바 */
     .filter-bar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
     .field{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
     .field input, .field select{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);}
@@ -132,20 +126,21 @@
 
   <!-- 기간 선택 + 레포 필터 -->
   <div class="card" style="padding-bottom:10px;">
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-      <div class="period-tabs">
-        <button class="period-tab" onclick="selectPeriod('yesterday')">전일</button>
-        <button class="period-tab" onclick="selectPeriod('week')">1주</button>
-        <button class="period-tab active" id="tab-month" onclick="selectPeriod('month')">1달</button>
-        <button class="period-tab" onclick="selectPeriod('3month')">3달</button>
-        <button class="period-tab" onclick="selectPeriod('6month')">6달</button>
-        <button class="period-tab" onclick="selectPeriod('year')">1년</button>
-      </div>
-      <label class="field" style="margin-top:0;">레포
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label class="field" style="margin-top:0;">레포지토리
         <select id="dashRepoSelect" style="min-width:160px;" onchange="loadDashboard()">
           <option value="">(전체)</option>
         </select>
       </label>
+      <div class="filter-bar" style="margin:0;">
+        <span style="font-size:10px;color:var(--text-muted);font-weight:600;">기간:</span>
+        <button class="btn btn-ghost" id="tab-yesterday" onclick="selectPeriod('yesterday')">전일</button>
+        <button class="btn btn-ghost" id="tab-week"      onclick="selectPeriod('week')">1주</button>
+        <button class="btn btn-blue"  id="tab-month"     onclick="selectPeriod('month')">1달</button>
+        <button class="btn btn-ghost" id="tab-3month"    onclick="selectPeriod('3month')">3달</button>
+        <button class="btn btn-ghost" id="tab-6month"    onclick="selectPeriod('6month')">6달</button>
+        <button class="btn btn-ghost" id="tab-year"      onclick="selectPeriod('year')">1년</button>
+      </div>
       <span id="dashUpdatedAt" style="font-size:10px;color:var(--text-muted);margin-left:auto;"></span>
     </div>
   </div>
@@ -344,10 +339,10 @@
 
   function selectPeriod(p) {
     currentPeriod = p;
-    document.querySelectorAll('.period-tab').forEach(el => el.classList.remove('active'));
-    // 버튼 찾기: onclick 속성으로 매칭
-    document.querySelectorAll('.period-tab').forEach(el => {
-      if (el.getAttribute('onclick') === `selectPeriod('${p}')`) el.classList.add('active');
+    ['yesterday','week','month','3month','6month','year'].forEach(key => {
+      const el = document.getElementById(`tab-${key}`);
+      if (!el) return;
+      el.className = key === p ? 'btn btn-blue' : 'btn btn-ghost';
     });
     loadDashboard();
   }

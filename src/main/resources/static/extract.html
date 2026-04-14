@@ -306,11 +306,15 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
         <button class="btn" style="background:#8b5cf6;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(true)">🧪 전체 MOCK 수집</button>
         <span style="border-left:2px solid #fcd34d;height:20px;margin:0 4px;"></span>
+        <select id="mockRepoSelect" style="padding:4px 8px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;background:#fffbeb;height:32px;min-width:160px;">
+          <option value="">레포지토리 선택</option>
+        </select>
+        <button class="btn" style="background:#8b5cf6;color:#fff;height:32px;font-size:12px;" onclick="collectOneMock()">🧪 선택 레포 수집</button>
         <button class="btn" style="background:#f59e0b;color:#fff;height:32px;font-size:12px;" onclick="deleteMockData('repo')">🗑 선택 레포 삭제</button>
         <button class="btn" style="background:#d97706;color:#fff;height:32px;font-size:12px;" onclick="deleteMockData('all')">🗑 전체 MOCK 삭제</button>
       </div>
       <div style="font-size:10px;color:#92400e;">
-        수집: 모든 레포에 365일치 MOCK 랜덤 데이터 생성 + 집계 반영 &nbsp;·&nbsp; 삭제: WHATAP/JENNIFER 데이터는 유지
+        전체 수집: 모든 레포에 365일치 MOCK 데이터 생성 &nbsp;·&nbsp; 선택 수집/삭제: 레포 선택 후 실행 &nbsp;·&nbsp; 삭제: WHATAP/JENNIFER 데이터는 유지
       </div>
     </div>
   </div>
@@ -370,6 +374,7 @@
       allRepos = await res.json();
       const sel = document.getElementById('repoConfigSelect');
       const apmSel = document.getElementById('apmCollectRepo');
+      const mockSel = document.getElementById('mockRepoSelect');
       allRepos.forEach(r => {
         const opt = document.createElement('option');
         opt.value = r.id;
@@ -380,6 +385,12 @@
           opt2.value = r.repoName;
           opt2.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
           apmSel.appendChild(opt2);
+        }
+        if (mockSel) {
+          const opt3 = document.createElement('option');
+          opt3.value = r.repoName;
+          opt3.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
+          mockSel.appendChild(opt3);
         }
       });
       // 첫 레포 선택 시 자동으로 APM 종류/기간 세팅
@@ -647,8 +658,38 @@
     }
   }
 
+  async function collectOneMock() {
+    const repoName = document.getElementById('mockRepoSelect').value;
+    if (!repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
+    clearLogs(); hideResult();
+    showWorkCard(true, `MOCK 수집`);
+    addLocalLog('INFO', `── MOCK 수집 시작: ${repoName} ──`);
+    document.getElementById('progCount').textContent = '수집 중...';
+    try {
+      const res = await fetch('/api/apm/mock/generate', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('adminToken')||''},
+        body: JSON.stringify({ repoName, days: 365, source: 'MOCK' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '수집 실패');
+      document.getElementById('progFill').style.width = '100%';
+      document.getElementById('progPct').textContent = '100%';
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progStatus').textContent = '완료';
+      document.getElementById('progCount').textContent = `수집 완료`;
+      showResult('ok', `"${repoName}" MOCK 수집 완료`);
+      showToast(`"${repoName}" MOCK 수집 완료`,'success');
+    } catch(e) {
+      document.getElementById('progSpinner').style.display = 'none';
+      document.getElementById('progStatus').textContent = '실패';
+      addLocalLog('ERROR', `MOCK 수집 실패: ${e.message}`);
+      showToast(e.message,'error');
+    }
+  }
+
   async function deleteMockData(scope) {
-    const repoName = scope === 'all' ? 'ALL' : document.getElementById('apmCollectRepo').value;
+    const repoName = scope === 'all' ? 'ALL' : document.getElementById('mockRepoSelect').value;
     if (scope !== 'all' && !repoName) { showToast('레포지토리를 선택하세요.','error'); return; }
     const label = scope === 'all' ? '전체 레포의 MOCK 데이터' : `"${repoName}"의 MOCK 데이터`;
     if (!await customConfirm(`${label}를 삭제하시겠습니까?\nWHATAP/JENNIFER 데이터는 유지됩니다.`)) return;

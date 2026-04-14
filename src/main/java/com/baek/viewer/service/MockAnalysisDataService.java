@@ -24,7 +24,8 @@ import java.util.Set;
  * 실제 소스코드 파싱 없이 ApiRecord 를 더미로 생성한다.
  * Railway 등 소스 반입이 불가능한 환경에서 데모/시연용 데이터를 채울 때 사용.
  *
- * - 네임스페이스: 사용자 지정 repoName 앞에 "mock-" prefix 자동 부착.
+ * - 대상 레포: 사용자가 선택한 <b>기존 등록 레포</b>에 그대로 INSERT (repo 네임스페이스 분리 X)
+ * - 식별 방식: apiPath 가 "/mock-test/" 로 시작하는 레코드를 mock 으로 간주.
  * - 중복방지: (repositoryName, apiPath, httpMethod) 이미 존재하면 스킵.
  * - git_history: 랜덤 커밋 1~3개 JSON 생성 (상태 판정 로직 동작 확인용).
  */
@@ -33,7 +34,8 @@ public class MockAnalysisDataService {
 
     private static final Logger log = LoggerFactory.getLogger(MockAnalysisDataService.class);
 
-    public static final String MOCK_PREFIX = "mock-";
+    /** mock 분석데이터 식별자 — apiPath 가 이 prefix 로 시작. */
+    public static final String MOCK_PATH_PREFIX = "/mock-test/";
 
     private static final String[] HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH"};
 
@@ -79,31 +81,29 @@ public class MockAnalysisDataService {
     /**
      * Mock 분석데이터 생성.
      *
-     * @param repoNameRaw 사용자 지정 레포명 (자동으로 mock- prefix 부착)
-     * @param count       생성할 ApiRecord 개수 (1~5000)
+     * @param repoName 이미 등록된 레포지토리 이름 (RepoConfig.repoName)
+     * @param count    생성할 ApiRecord 개수 (1~5000)
      * @return 생성 통계
      */
     @Transactional
-    public Map<String, Object> generate(String repoNameRaw, int count) {
-        if (repoNameRaw == null || repoNameRaw.isBlank()) {
-            throw new IllegalArgumentException("레포명을 입력하세요.");
+    public Map<String, Object> generate(String repoName, int count) {
+        if (repoName == null || repoName.isBlank()) {
+            throw new IllegalArgumentException("레포지토리를 선택하세요.");
         }
         if (count < 1 || count > 5000) {
             throw new IllegalArgumentException("건수 범위: 1 ~ 5000");
         }
 
-        String repoName = repoNameRaw.startsWith(MOCK_PREFIX)
-                ? repoNameRaw
-                : MOCK_PREFIX + repoNameRaw.trim();
+        String target = repoName.trim();
+        log.info("[Mock 분석데이터] 생성 시작: repo={}, count={}, pathPrefix={}",
+                target, count, MOCK_PATH_PREFIX);
 
-        log.info("[Mock 분석데이터] 생성 시작: repo={}, count={}", repoName, count);
-
-        // 기존 레코드 키 조회 (중복방지)
+        // 기존 레코드 키 조회 (중복방지) — 해당 레포 전체 키를 set 으로 보관
         Set<String> existingKeys = new HashSet<>();
-        for (ApiRecord r : repo.findByRepositoryName(repoName)) {
+        for (ApiRecord r : repo.findByRepositoryName(target)) {
             existingKeys.add(r.getApiPath() + "|" + r.getHttpMethod());
         }
-        log.debug("[Mock 분석데이터] 기존 레코드={}건", existingKeys.size());
+        log.debug("[Mock 분석데이터] 기존 레코드={}건 (레포 전체 기준)", existingKeys.size());
 
         Random rnd = new Random();
         LocalDateTime now = LocalDateTime.now();
@@ -116,14 +116,16 @@ public class MockAnalysisDataService {
             String domain = DOMAINS[domIdx];
             String resource = RESOURCES[resIdx];
             String method = HTTP_METHODS[rnd.nextInt(HTTP_METHODS.length)];
-            String apiPath = String.format("/api/%s/%s/%d", domain, resource, rnd.nextInt(900) + 100);
+            // /mock-test/ prefix 로 mock 분석데이터 식별
+            String apiPath = String.format("%s%s/%s/%d",
+                    MOCK_PATH_PREFIX, domain, resource, rnd.nextInt(9000) + 1000);
             String key = apiPath + "|" + method;
 
             // 중복방지: 기존 DB + 이번 배치 내 중복
             if (existingKeys.contains(key)) { skipped++; continue; }
             existingKeys.add(key);
 
-            ApiRecord r = buildRecord(repoName, apiPath, method, domIdx, resIdx, i, rnd, now);
+            ApiRecord r = buildRecord(target, apiPath, method, domIdx, resIdx, i, rnd, now);
             toSave.add(r);
         }
 
@@ -133,43 +135,50 @@ public class MockAnalysisDataService {
 
         // call_count 컬럼은 0으로 초기화 (실제 호출이력은 Mock APM에서 별도 생성)
         log.info("[Mock 분석데이터] 생성 완료: repo={}, inserted={}, skipped(중복)={}",
-                repoName, toSave.size(), skipped);
+                target, toSave.size(), skipped);
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("repositoryName", repoName);
+        result.put("repositoryName", target);
         result.put("inserted", toSave.size());
         result.put("skippedDuplicate", skipped);
         result.put("requested", count);
+        result.put("pathPrefix", MOCK_PATH_PREFIX);
         return result;
     }
 
-    /** mock- 레포 전체 목록 (선택 UI 용). */
-    public List<String> listMockRepos() {
-        return jdbc.queryForList(
-                "SELECT DISTINCT repository_name FROM api_record " +
-                        "WHERE repository_name LIKE ? ORDER BY repository_name",
-                String.class, MOCK_PREFIX + "%");
-    }
-
-    /** 단일 mock- 레포 또는 전체 mock-* 삭제. */
+    /**
+     * Mock 분석데이터 삭제 — apiPath 가 "/mock-test/" 로 시작하는 레코드만 제거.
+     *
+     * @param repoName null/blank/"ALL" 이면 모든 레포 대상, 아니면 해당 레포만.
+     */
     @Transactional
-    public Map<String, Object> delete(String repoNameRaw) {
+    public Map<String, Object> delete(String repoName) {
+        String pathLike = MOCK_PATH_PREFIX + "%";
         int deletedApm;
         int deletedApi;
         String target;
-        if (repoNameRaw == null || repoNameRaw.isBlank() || "ALL".equalsIgnoreCase(repoNameRaw)) {
-            target = MOCK_PREFIX + "*";
-            deletedApm = jdbc.update("DELETE FROM apm_call_data WHERE repository_name LIKE ?", MOCK_PREFIX + "%");
-            deletedApi = jdbc.update("DELETE FROM api_record WHERE repository_name LIKE ?", MOCK_PREFIX + "%");
+
+        if (repoName == null || repoName.isBlank() || "ALL".equalsIgnoreCase(repoName)) {
+            target = "ALL";
+            deletedApm = jdbc.update(
+                    "DELETE FROM apm_call_data WHERE api_path LIKE ?", pathLike);
+            deletedApi = jdbc.update(
+                    "DELETE FROM api_record WHERE api_path LIKE ?", pathLike);
         } else {
-            target = repoNameRaw.startsWith(MOCK_PREFIX) ? repoNameRaw : MOCK_PREFIX + repoNameRaw;
-            deletedApm = jdbc.update("DELETE FROM apm_call_data WHERE repository_name = ?", target);
-            deletedApi = jdbc.update("DELETE FROM api_record WHERE repository_name = ?", target);
+            target = repoName.trim();
+            deletedApm = jdbc.update(
+                    "DELETE FROM apm_call_data WHERE repository_name = ? AND api_path LIKE ?",
+                    target, pathLike);
+            deletedApi = jdbc.update(
+                    "DELETE FROM api_record WHERE repository_name = ? AND api_path LIKE ?",
+                    target, pathLike);
         }
-        log.warn("[Mock 분석데이터 삭제] target={}, api_record -{}, apm_call_data -{}",
-                target, deletedApi, deletedApm);
+        log.warn("[Mock 분석데이터 삭제] target={}, pathPrefix={}, api_record -{}, apm_call_data -{}",
+                target, MOCK_PATH_PREFIX, deletedApi, deletedApm);
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("target", target);
+        result.put("pathPrefix", MOCK_PATH_PREFIX);
         result.put("apiRecordDeleted", deletedApi);
         result.put("apmCallDataDeleted", deletedApm);
         return result;
@@ -192,12 +201,12 @@ public class MockAnalysisDataService {
         r.setCallCountMonth(0L);
         r.setCallCountWeek(0L);
 
-        String controllerName = capitalize(DOMAINS[domIdx]) + "Controller";
+        String controllerName = capitalize(DOMAINS[domIdx]) + "MockController";
         String methodName = RESOURCES[resIdx] + capitalize(DOMAINS[domIdx]);
         r.setControllerName(controllerName);
         r.setMethodName(methodName);
         r.setProgramId(String.format("MOCK%04d", seq % 10000));
-        r.setApiOperationValue(DOMAIN_KO[domIdx] + " " + ACTION_KO[resIdx]);
+        r.setApiOperationValue(DOMAIN_KO[domIdx] + " " + ACTION_KO[resIdx] + " (Mock)");
         r.setDescriptionTag(DOMAIN_KO[domIdx] + " API");
         r.setControllerComment("/** Mock " + DOMAIN_KO[domIdx] + " 컨트롤러 */");
         r.setFullUrl("http://mock.local" + apiPath);

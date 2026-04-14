@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,6 +13,9 @@ import java.util.Map;
  *
  * 실제 소스 분석 없이 더미 ApiRecord 를 생성하여 Railway 등 소스 반입이
  * 불가능한 환경에서 데모 데이터를 채울 때 사용한다.
+ *
+ * 대상은 <b>기존 등록 레포</b>이며, apiPath 가 "/mock-test/" 로 시작하는
+ * 레코드만 mock 으로 간주/삭제한다.
  */
 @RestController
 @RequestMapping("/api/mock/analysis")
@@ -27,15 +29,9 @@ public class MockAnalysisController {
         this.service = service;
     }
 
-    /** 현재 등록된 mock- 레포 목록 */
-    @GetMapping("/repos")
-    public ResponseEntity<List<String>> listRepos() {
-        return ResponseEntity.ok(service.listMockRepos());
-    }
-
     /**
      * Mock 분석데이터 생성.
-     * @param repoName 레포명 (mock- prefix 없으면 자동 부착)
+     * @param repoName 이미 등록된 레포지토리명 (RepoConfig.repoName)
      * @param count    생성 건수 (1~5000)
      */
     @PostMapping("/generate")
@@ -53,7 +49,9 @@ public class MockAnalysisController {
     }
 
     /**
-     * Mock 분석데이터 삭제. repoName 미지정/ALL = 모든 mock-* 레포 일괄 삭제.
+     * Mock 분석데이터 삭제 (apiPath 가 "/mock-test/" 로 시작하는 레코드만).
+     *
+     * @param repoName null 또는 "ALL" 이면 모든 레포의 mock 레코드 일괄 삭제.
      */
     @DeleteMapping
     public ResponseEntity<?> delete(@RequestParam(required = false) String repoName) {

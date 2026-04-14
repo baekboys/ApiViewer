@@ -114,6 +114,10 @@ public class YamlConfigService {
             if (g.getLogTailLines() != null) gc.setLogTailLines(g.getLogTailLines());
             if (g.getWhatapPtotal() != null) gc.setWhatapPtotal(g.getWhatapPtotal());
             if (g.getWhatapPsize() != null) gc.setWhatapPsize(g.getWhatapPsize());
+            if (g.getBitbucketUrl() != null) gc.setBitbucketUrl(g.getBitbucketUrl());
+            if (g.getBitbucketToken() != null) gc.setBitbucketToken(g.getBitbucketToken());
+            if (g.getListRepoLimit() != null) gc.setListRepoLimit(g.getListRepoLimit());
+            if (g.getCloneLocalPath() != null) gc.setCloneLocalPath(g.getCloneLocalPath());
 
             // teams, 와탭/제니퍼 공통 프로필 JSON 저장
             try {

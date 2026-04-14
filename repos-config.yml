@@ -36,6 +36,12 @@ global:
   # 로그 조회 시 tail 줄 수 (기본 1000, 0이면 전체 — 대용량 시 브라우저 다운 주의)
   logTailLines: 1000
 
+  # Bitbucket 클론 설정
+  bitbucketUrl: ""                # Bitbucket 서버 URL (예: https://bitbucket.company.com)
+  bitbucketToken: ""              # Bitbucket Bearer 토큰 (Personal Access Token)
+  listRepoLimit: 25               # 레포 목록 조회 시 페이지당 건수
+  cloneLocalPath: ""              # 클론받을 로컬 디렉토리 경로 (예: /Users/dev/repos)
+
   # 와탭 조회 파라미터 (ptotal: 전체 건수 상한, psize: 한 페이지 건수)
   whatapPtotal: 100
   whatapPsize: 10000

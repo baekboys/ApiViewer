@@ -424,7 +424,52 @@
     .diagram-note b { color: var(--text); }
     .mermaid { display: flex; justify-content: center; overflow-x: auto; }
     .mermaid svg { max-width: 100%; height: auto; }
+
+    /* ─── 다크모드 오버라이드 (workflow 전용 하드코딩 색상) ─── */
+    [data-theme="dark"] .step            { background: #1e293b !important; }
+    [data-theme="dark"] .step:hover      { background: #293548 !important; }
+    [data-theme="dark"] .step-tag:hover  { background: #1e3a5f !important; }
+    [data-theme="dark"] .step-tag.locked { background: #293548 !important; color: var(--text-muted) !important; border-color: var(--border) !important; }
+    [data-theme="dark"] .status-card     { background: #1e293b !important; border-color: var(--border) !important; }
+    [data-theme="dark"] .lc-step         { background: #1e293b !important; border-color: var(--border) !important; }
+    [data-theme="dark"] .auth-card       { background: #1e293b !important; border-color: var(--border) !important; }
+    [data-theme="dark"] .diagram-note    { background: #1e293b !important; }
+    /* 인라인 style 테이블 행 오버라이드 */
+    [data-theme="dark"] tr[style*="background:#f8fafc"] { background: #1e293b !important; }
+    [data-theme="dark"] tr[style*="background:#f1f5f9"] { background: #293548 !important; }
+    [data-theme="dark"] td[style*="border:1px solid #e2e8f0"] { border-color: #334155 !important; color: var(--text) !important; }
+    /* 인라인 style 스팬 배지 오버라이드 */
+    [data-theme="dark"] span[style*="background:#fef3c7"] { background: #1c1408 !important; color: #fcd34d !important; }
+    [data-theme="dark"] span[style*="background:#dbeafe"] { background: #1e3a5f !important; color: #93c5fd !important; }
+    [data-theme="dark"] span[style*="background:#f0fdf4"] { background: #052e16 !important; color: #4ade80 !important; }
+    /* 인라인 스타일 다크모드 보편 오버라이드 */
+    [data-theme="dark"] [style*="color:#92400e"] { color:#fbbf24 !important; }
+    [data-theme="dark"] [style*="color:#1e40af"] { color:#93c5fd !important; }
+    [data-theme="dark"] [style*="color:#3730a3"] { color:#a5b4fc !important; }
+    [data-theme="dark"] [style*="color:#7c3aed"] { color:#c4b5fd !important; }
+    [data-theme="dark"] [style*="color:#6d28d9"] { color:#c4b5fd !important; }
+    [data-theme="dark"] [style*="color:#9a3412"] { color:#fb923c !important; }
+    [data-theme="dark"] [style*="color:#d97706"] { color:#fbbf24 !important; }
+    [data-theme="dark"] [style*="color:#16a34a"] { color:#4ade80 !important; }
+    [data-theme="dark"] [style*="background:#e0e7ff"] { background:#1e1b4b !important; }
+    [data-theme="dark"] [style*="background:#ede9fe"] { background:#2d1b69 !important; }
+    [data-theme="dark"] [style*="background:#fffbeb"] { background:#1c1408 !important; }
+    /* 개요 범례 · 상태 카드 배경 */
+    [data-theme="dark"] .legend-item { background: var(--card) !important; }
+    [data-theme="dark"] .sc-done { background: #293548 !important; }
+    [data-theme="dark"] .sc-top  { background: #2d1515 !important; }
+    [data-theme="dark"] .sc-low  { background: #2d1b0a !important; }
+    [data-theme="dark"] .sc-rev  { background: #1c1408 !important; }
+    [data-theme="dark"] .sc-use  { background: #052e16 !important; }
+    [data-theme="dark"] [style*="background:#fef2f2"] { background:#2d1515 !important; }
+    [data-theme="dark"] [style*="background:#fff7ed"] { background:#2d1b0a !important; }
+    [data-theme="dark"] [style*="background:#f8fafc"] { background:#1e293b !important; }
+    [data-theme="dark"] [style*="background:#f5f3ff"] { background:#2e1065 !important; color:var(--text) !important; }
+    [data-theme="dark"] th[style*="border:1px solid #e2e8f0"] { border-color:#334155 !important; color:var(--text) !important; }
+    [data-theme="dark"] [style*="color:#991b1b"] { color:#f87171 !important; }
+    [data-theme="dark"] [style*="color:#7c2d12"] { color:#fb923c !important; }
   </style>
+  <script src="/js/darkmode.js"></script>
 </head>
 <body>
 
@@ -432,9 +477,10 @@
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
-  <h1>URL Viewer</h1>
+  <a href="/" style="text-decoration:none;"><h1>URL Viewer</h1></a>
   <span class="header-sub">업무 흐름</span>
   <div class="header-right">
+    <button class="dark-toggle" onclick="toggleDarkMode()">🌙 다크모드</button>
     <a href="/"               class="nav-link">📊 대시보드</a>
     <a href="/viewer.html"    class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>

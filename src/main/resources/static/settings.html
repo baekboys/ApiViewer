@@ -71,6 +71,7 @@
     .modal-section{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--border);}
     .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--card);}
 
+
     /* Toast */
     .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
     .toast.show{opacity:1;}
@@ -311,7 +312,10 @@ function updateAdminBadge(valid) {
       </label>
       <label class="field">
         <span class="label">클론 로컬 경로</span>
-        <input id="bbLocalPath" type="text" class="input" placeholder="/Users/dev/repos">
+        <div style="display:flex;gap:6px;">
+          <input id="bbLocalPath" type="text" class="input" placeholder="/Users/dev/repos" style="flex:1;">
+          <button type="button" class="btn btn-ghost" style="height:34px;white-space:nowrap;padding:0 12px;flex-shrink:0;" onclick="openDirBrowser(this)">탐색...</button>
+        </div>
       </label>
     </div>
     <div class="field-row col3" style="margin-top:8px;">
@@ -360,6 +364,7 @@ function updateAdminBadge(valid) {
       </div>
     </div>
   </div>
+
 
   <!-- ─── 스크립트 모달 ─── -->
   <div id="bbScriptModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;" onclick="if(event.target===this)closeBbScriptModal()">
@@ -1544,7 +1549,7 @@ function updateAdminBadge(valid) {
       const cloneUrl = sshLink.href || '';
       const checked  = bbState.selected.has(slug) ? 'checked' : '';
       return `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:4px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-        <input type="checkbox" class="bb-repo-chk" data-slug="${esc(slug)}" data-clone-url="${esc(cloneUrl)}" style="width:15px;height:15px;cursor:pointer;" ${checked} onchange="bbOnCheck(this)">
+        <input type="checkbox" class="bb-repo-chk" data-slug="${esc(slug)}" data-clone-url="${esc(cloneUrl)}" data-project="${esc(project)}" style="width:15px;height:15px;cursor:pointer;" ${checked} onchange="bbOnCheck(this)">
         <span style="font-size:13px;font-weight:600;color:var(--text);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;">${esc(slug)}</span>
         <span style="font-size:11px;color:var(--text-muted);background:#f1f5f9;padding:2px 7px;border-radius:10px;white-space:nowrap;">${esc(project)}</span>
       </label>`;
@@ -1553,7 +1558,7 @@ function updateAdminBadge(valid) {
 
   function bbOnCheck(chk) {
     if (chk.checked) {
-      bbState.selected.set(chk.dataset.slug, chk.dataset.cloneUrl);
+      bbState.selected.set(chk.dataset.slug, { cloneUrl: chk.dataset.cloneUrl, project: chk.dataset.project || '' });
     } else {
       bbState.selected.delete(chk.dataset.slug);
     }
@@ -1571,7 +1576,7 @@ function updateAdminBadge(valid) {
     // 현재 페이지 레포만 선택에 추가
     document.querySelectorAll('.bb-repo-chk').forEach(c => {
       c.checked = true;
-      bbState.selected.set(c.dataset.slug, c.dataset.cloneUrl);
+      bbState.selected.set(c.dataset.slug, { cloneUrl: c.dataset.cloneUrl, project: c.dataset.project || '' });
     });
     bbUpdateSelectedInfo();
   }
@@ -1583,7 +1588,7 @@ function updateAdminBadge(valid) {
   }
 
   function bbGetSelected() {
-    return Array.from(bbState.selected.entries()).map(([slug, cloneUrl]) => ({ slug, cloneUrl }));
+    return Array.from(bbState.selected.entries()).map(([slug, val]) => ({ slug, cloneUrl: val.cloneUrl, project: val.project || '' }));
   }
 
   /** Clone 실행 */
@@ -1685,6 +1690,28 @@ function updateAdminBadge(valid) {
       await navigator.clipboard.writeText(text);
       showToast('스크립트 복사 완료', 'success');
     } catch(e) { showToast('복사 실패 — 직접 선택하여 복사하세요.', 'error'); }
+  }
+
+  // ── 디렉토리 탐색기 (OS 네이티브 폴더 선택 다이얼로그) ──────
+  async function openDirBrowser(btn) {
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '선택 중...';
+    try {
+      const res = await adminFetch('/api/clone/pick-dir');
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || '폴더 선택 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+      if (data.cancelled) return;
+      document.getElementById('bbLocalPath').value = data.path;
+    } catch (e) {
+      showToast('폴더 선택 중 오류가 발생했습니다: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
   }
 
   // ── 헬퍼 ──────────────────────────────────────────────────

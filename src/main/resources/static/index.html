@@ -398,14 +398,14 @@
     <!-- ── URL 호출건수 TOP 10 (대시보드 하단) ── -->
     <div class="two-col" style="margin-top:14px;">
       <div class="card">
-        <div class="card-title"><span class="dot" style="background:#f59e0b;"></span>전체 URL 호출건수 TOP 10 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);margin-left:6px;">(최근 1년)</span></div>
+        <div class="card-title"><span class="dot" style="background:#f59e0b;"></span>전체 URL 호출건수 TOP 10 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);margin-left:6px;">(최근 1년, 집계 기준)</span></div>
         <div id="dashTopApisWrap" style="max-height:360px;overflow:auto;">
           <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">로딩 중...</div>
         </div>
       </div>
       <div class="card">
         <div class="card-title" style="display:flex;align-items:center;gap:8px;">
-          <span class="dot" style="background:#8b5cf6;"></span>레포별 TOP 5 호출건수 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);font-size:10px;">(최근 1년)</span>
+          <span class="dot" style="background:#8b5cf6;"></span>레포별 TOP 10 호출건수 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);font-size:10px;">(최근 1년, 집계 기준)</span>
           <select id="dashTopRepoSelect" onchange="loadTopApisByRepo()" style="margin-left:auto;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;">
             <option value="">(레포 선택)</option>
           </select>
@@ -453,9 +453,7 @@
     const wrap = document.getElementById('dashTopApisWrap');
     wrap.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div><br><span style="color:var(--text-muted);font-size:11px;">조회 중...</span></div>';
     try {
-      const to = new Date().toLocaleDateString('sv-SE');
-      const from = new Date(Date.now()-365*86400000).toLocaleDateString('sv-SE');
-      const res = await fetch(`/api/call-stats/summary?from=${from}&to=${to}&topN=10`);
+      const res = await fetch(`/api/call-stats/dashboard?period=year&topN=10`);
       if (!res.ok) throw new Error();
       const d = await res.json();
       renderTopApisTable(d.topApis, 'dashTopApisWrap');
@@ -486,9 +484,7 @@
     }
     wrap.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div><br><span style="color:var(--text-muted);font-size:11px;">조회 중...</span></div>';
     try {
-      const to = new Date().toLocaleDateString('sv-SE');
-      const from = new Date(Date.now()-365*86400000).toLocaleDateString('sv-SE');
-      const res = await fetch(`/api/call-stats/summary?from=${from}&to=${to}&repo=${encodeURIComponent(repo)}&topN=5`);
+      const res = await fetch(`/api/call-stats/dashboard?period=year&repo=${encodeURIComponent(repo)}&topN=10`);
       if (!res.ok) throw new Error();
       const d = await res.json();
       renderTopApisTable(d.topApis, 'dashTopRepoApisWrap');

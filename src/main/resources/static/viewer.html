@@ -207,6 +207,11 @@
     .detail-grid { display:grid; grid-template-columns:130px 1fr; gap:4px 12px; font-size:12px; }
     .detail-label { color:var(--text-muted); font-weight:600; padding:3px 0; }
     .detail-value { color:var(--text); padding:3px 0; word-break:break-all; white-space:pre-wrap; }
+    .df-input,.df-select { width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit;background:#fff;color:var(--text);box-sizing:border-box; }
+    .df-input:focus,.df-select:focus { border-color:var(--primary);outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.15); }
+    .df-textarea { width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit;resize:vertical;min-height:56px;background:#fff;color:var(--text);box-sizing:border-box; }
+    .df-textarea:focus { border-color:var(--primary);outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.15); }
+    .df-input:disabled,.df-select:disabled,.df-textarea:disabled { background:#f8fafc;color:var(--text-muted);cursor:not-allowed;border-color:var(--border); }
     .detail-git-table { width:100%; border-collapse:collapse; font-size:11px; }
     .detail-git-table th { background:#f1f5f9; padding:5px 8px; text-align:left; font-weight:600; color:var(--text-muted); }
     .detail-git-table td { padding:5px 8px; border-bottom:1px solid var(--border); }
@@ -542,8 +547,8 @@
       <button class="btn-apply" onclick="bulkClearStatusChange()" style="background:#6b7280;">확인</button>
     </span>
 
-    <!-- 그룹4: Jira -->
-    <span class="bulk-group">
+    <!-- 그룹4: Jira (관리자 전용) -->
+    <span class="bulk-group" id="jiraBulkGroup">
       <span class="bulk-label">SmartWay</span>
       <button class="btn-apply" id="bulkJiraSyncBtn" onclick="bulkSyncToJira()" style="background:var(--purple);">발행</button>
       <button class="btn-apply" id="bulkJiraPullBtn" onclick="bulkPullFromJira()" style="background:#7c3aed;">동기화</button>
@@ -585,7 +590,7 @@
           <th class="hg-desc" style="min-width:110px;" onclick="sortBy('callCountWeek')">1주 호출건 <span class="sort-icon">↕</span></th>
           <!-- 차단/검토 -->
           <th class="hg-block" onclick="sortBy('blockedDate')">차단일자 <span class="sort-icon">↕</span></th>
-          <th class="hg-block no-sort">차단근거</th>
+          <th class="hg-block no-sort" style="min-width:100px;">차단근거</th>
           <th class="hg-block no-sort">비고(입력가능)</th>
           <th class="hg-block" onclick="sortBy('reviewResult')">현업검토결과 <span class="sort-icon">↕</span></th>
           <th class="hg-block no-sort">현업검토의견</th>
@@ -693,7 +698,10 @@
   <div class="detail-content">
     <div class="detail-header">
       <h3>URL 상세 정보</h3>
-      <button onclick="closeDetail()" class="btn btn-ghost btn-sm">닫기 ✕</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="detailSaveBtn" onclick="saveDetailChanges()" class="btn btn-sm" style="background:var(--primary);color:#fff;display:none;">저장</button>
+        <button onclick="closeDetail()" class="btn btn-ghost btn-sm">닫기 ✕</button>
+      </div>
     </div>
     <div id="detailBody" class="detail-body"></div>
   </div>
@@ -1426,46 +1434,44 @@
       const checked = selectedIds.has(a.id) ? 'checked' : '';
       const locked = a.statusOverridden;
       const isBlocked = a.status === '차단완료';
-      const rowCls  = (selectedIds.has(a.id) ? ' row-selected' : '') + (a.statusChanged ? ' row-changed' : '') + ((locked || isBlocked) ? ' row-locked' : '');
+      const rowCls  = (selectedIds.has(a.id) ? ' row-selected' : '') + (a.statusChanged ? ' row-changed' : '') + (locked ? ' row-locked' : '');
       const cfg = repoConfigMap[a.repositoryName] || {};
       const git1 = parseGitHistory(a.gitHistory)[0];
-      const lockIcon = isBlocked
-        ? `<span class="lock-btn lock-blocked">변경불가</span>`
-        : locked
+      const lockIcon = locked
         ? `<span class="lock-btn lock-on" onclick="toggleLock(${a.id}, false)" title="클릭하여 확정 해제">🔒 확정</span>`
         : `<span class="lock-btn lock-off" onclick="toggleLock(${a.id}, true)" title="클릭하여 상태 확정">미확정</span>`;
       return `
       <tr class="${rowCls}" id="row-${a.id}">
-        <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;text-align:center;font-size:10px;color:var(--text-muted);">${off+idx+1}<br><input type="checkbox" data-id="${a.id}" ${checked} ${isBlocked?'disabled':''} onchange="toggleRow(this)"></td>
+        <td class="cb-cell sk" style="left:0;min-width:36px;width:36px;text-align:center;font-size:10px;color:var(--text-muted);">${off+idx+1}<br><input type="checkbox" data-id="${a.id}" ${checked} onchange="toggleRow(this)"></td>
         <td class="sk" style="left:36px;min-width:110px;"><b style="font-size:12px;">${esc(a.repositoryName)}</b></td>
         <td class="sk" style="left:146px;min-width:100px;font-size:11px;color:var(--text-muted);">${esc(cfg.businessName || '')}</td>
-        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;teamOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:246px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
-        <td class="sk memo-cell" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;managerOverride&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 편집'}" style="left:326px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(resolveManager(a))}</td>
+        <td class="sk memo-cell" onclick="${locked?'':('editField(this,'+a.id+',&apos;teamOverride&apos;)')}" title="${locked?'수정불가':'클릭하여 편집'}" style="left:246px;min-width:80px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.teamOverride || cfg.team)}</td>
+        <td class="sk memo-cell" onclick="${locked?'':('editField(this,'+a.id+',&apos;managerOverride&apos;)')}" title="${locked?'수정불가':'클릭하여 편집'}" style="left:326px;min-width:70px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(resolveManager(a))}</td>
         <td class="sk sk-last" style="left:396px;min-width:200px;"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyApiPath(event,${a.id})" title="URL 경로 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><div class="api-path api-path-click" onclick="openDetail(${a.id})" title="클릭: 상세보기">${esc(a.apiPath)}</div></div></td>
         <!-- 개발 메타 -->
         <td>${a.fullUrl ? `<a href="${esc(a.fullUrl)}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;padding:2px 8px;border:1px solid var(--primary);border-radius:4px;white-space:nowrap;">열기 ↗</a>` : '<span style="color:#cbd5e1;font-size:11px;">-</span>'}</td>
         <!-- 상태 / 상태확정 -->
-        <td>${statusBadge(a.status, a.logWorkExcluded)}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${a.statusChanged ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭하여 확인 완료">⚠️ ${esc(a.statusChangeLog||'변경감지')}</span>` : ''}</td>
+        <td>${statusBadge(a.status, a.logWorkExcluded)}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${(() => { if (!a.statusChanged) return ''; const logs = parseChangeLog(a.statusChangeLog); const last = logs.length ? logs[logs.length-1] : '변경감지'; const extra = logs.length > 1 ? ` <span style="color:#f87171;">(외 ${logs.length-1}건)</span>` : ''; return `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭: 확인 완료 | 상세보기에서 전체 이력 확인">⚠️ ${esc(last)}${extra}</span>`; })()}</td>
         <td style="text-align:center;">${lockIcon}</td>
         <!-- 개발 메타 -->
         <td class="ctrl-name"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyText(event,'${esc(a.controllerName)}')" title="컨트롤러명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(a.controllerName)}</div></td>
         <td style="font-size:12px;min-width:160px;"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyText(event,'${esc(a.methodName)}')" title="메소드명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(a.methodName)}</div></td>
         <!-- 기타 메타 -->
         <td class="git-col">${git1 ? `<span class="git-col-d">${esc(git1.date)}</span> <span class="git-col-a">${esc(git1.author)}</span><br><span class="git-col-m" title="${esc(git1.message)}">${esc(git1.message)}</span>` : '<span style="color:#cbd5e1;">-</span>'}</td>
-        <td class="desc-col" title="${esc(allDesc(a))}">${esc(allDesc(a))}</td>
+        <td class="desc-col ${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;descriptionOverride&apos;)')}" title="${(locked||isBlocked)?esc(allDesc(a)):'클릭하여 수정 — 자동 파싱값 대신 사용'}" style="font-size:11px;">${esc(allDesc(a))}${a.descriptionOverride ? '<span style=\"display:inline-block;margin-left:4px;padding:0 4px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;vertical-align:middle;\" title=\"사용자 수정됨\">수정</span>' : ''}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'total')}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'month')}</td>
         <td style="text-align:right;font-size:12px;">${callCountCell(a, 'week')}</td>
         <!-- 차단/검토 -->
-        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.blockedDate || '')}</td>
-        <td style="font-size:11px;color:var(--text-muted);max-width:200px;">${renderBlockedReason((a.blockedReason||'').slice(0,40))}${(a.blockedReason||'').length>40?'…':''}</td>
-        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;memo&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.memo || '')}</td>
+        <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;blockedDate&apos;)')}" title="${locked?'수정불가':'클릭하여 날짜 입력'}" style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${esc(a.blockedDate || '')}</td>
+        <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;blockedReason&apos;)')}" title="${locked?'수정불가':'클릭하여 입력'}" style="font-size:11px;color:var(--text-muted);min-width:100px;max-width:220px;">${renderBlockedReason((a.blockedReason||'').slice(0,60))}${(a.blockedReason||'').length>60?'…':''}</td>
+        <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;memo&apos;)')}" title="${locked?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.memo || '')}</td>
         <td>${reviewResultBadge(a.reviewResult)}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.reviewOpinion || '')}</td>
         <td>${a.jiraIssueKey ? `<a href="${esc(a.jiraIssueUrl)}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">${esc(a.jiraIssueKey)}</a>` : '<span style="color:#cbd5e1;font-size:11px;">-</span>'}</td>
-        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;cboScheduledDate&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 날짜 선택'}" style="font-size:11px;white-space:nowrap;">${esc(a.cboScheduledDate || '')}</td>
-        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;deployScheduledDate&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 날짜 선택'}" style="font-size:11px;white-space:nowrap;">${esc(a.deployScheduledDate || '')}</td>
-        <td class="${(locked||isBlocked)?'':'memo-editable'}" onclick="${(locked||isBlocked)?'':('editField(this,'+a.id+',&apos;deployCsr&apos;)')}" title="${(locked||isBlocked)?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.deployCsr || '')}</td>
+        <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;cboScheduledDate&apos;)')}" title="${locked?'수정불가':'클릭하여 날짜 선택'}" style="font-size:11px;white-space:nowrap;">${esc(a.cboScheduledDate || '')}</td>
+        <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;deployScheduledDate&apos;)')}" title="${locked?'수정불가':'클릭하여 날짜 선택'}" style="font-size:11px;white-space:nowrap;">${esc(a.deployScheduledDate || '')}</td>
+        <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;deployCsr&apos;)')}" title="${locked?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.deployCsr || '')}</td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fmtDt(a.lastAnalyzedAt)}${isAdmin()&&a.createdIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.createdIp)}</span>` : ''}</td>
         <td style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fmtDt(a.modifiedAt)}${isAdmin()&&a.modifiedIp ? `<br><span style="color:#94a3b8;font-size:9px;">${esc(a.modifiedIp)}</span>` : ''}</td>
       </tr>`;
@@ -1524,6 +1530,12 @@
       await refreshAll();
       showToast(`${data.cleared}건 알림 해제 완료`,'success');
     } catch(e) { showToast('실패: ' + e.message,'error'); } finally { hideBulkProgress(); }
+  }
+
+  // ' | ' 구분자로 나뉜 변경이력 문자열을 배열로 파싱
+  function parseChangeLog(log) {
+    if (!log) return [];
+    return log.split(' | ').map(s => s.trim()).filter(Boolean);
   }
 
   async function clearNewFlag(event, id) {
@@ -1633,34 +1645,64 @@
   }
 
   function editField(td, id, field) {
-    if (td.querySelector('input')) return;
-    const old = td.textContent.trim();
+    if (td.querySelector('input, textarea')) return;
+    // descriptionOverride 는 실제 오버라이드 값(없으면 빈 문자열)을 초기값으로 사용
+    let old;
+    if (field === 'descriptionOverride') {
+      const entry = allApis.find(a => a.id === id);
+      old = entry && entry.descriptionOverride ? entry.descriptionOverride : '';
+    } else {
+      old = td.textContent.trim();
+    }
     td.dataset.oldVal = old;
-    const isDateField = field === 'cboScheduledDate' || field === 'deployScheduledDate';
+    td.dataset.origHtml = td.innerHTML; // 취소 시 복원용
+    const isDateField = field === 'cboScheduledDate' || field === 'deployScheduledDate' || field === 'blockedDate';
+    const isLongText = field === 'descriptionOverride';
     const listAttr = field === 'teamOverride' ? 'list="teamsDatalist"' : '';
-    const inputType = isDateField ? 'date' : 'text';
-    td.innerHTML = `<input type="${inputType}" value="${esc(old)}" ${listAttr} style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
-      onblur="saveFieldInline(this,${id},'${field}')"
-      onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
-    td.querySelector('input').focus();
+    if (isLongText) {
+      td.innerHTML = `<textarea rows="2" style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;resize:vertical;font-family:inherit;" placeholder="비우면 자동 파싱값 사용"
+        onblur="saveFieldInline(this,${id},'${field}')"
+        onkeydown="if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();this.blur();}">${esc(old)}</textarea>`;
+    } else {
+      const inputType = isDateField ? 'date' : 'text';
+      td.innerHTML = `<input type="${inputType}" value="${esc(old)}" ${listAttr} style="width:100%;padding:3px 6px;border:1px solid var(--primary);border-radius:4px;font-size:11px;outline:none;"
+        onblur="saveFieldInline(this,${id},'${field}')"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
+    }
+    const el = td.querySelector('input, textarea');
+    el.focus();
+    if (el.select) el.select();
   }
   async function saveFieldInline(input, id, field) {
     const td = input.parentElement;
     const old = td.dataset.oldVal || '';
-    if (input.dataset.cancel) { td.textContent = old; return; }
+    const origHtml = td.dataset.origHtml;
+    if (input.dataset.cancel) {
+      if (origHtml !== undefined) td.innerHTML = origHtml; else td.textContent = old;
+      return;
+    }
     const val = input.value.trim();
     try {
       const body = {}; body[field] = val || null;
       const res = await fetch(`/api/db/record/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '저장 실패');
-      td.textContent = val;
-      // 인메모리 데이터만 갱신 (전체 리렌더링 없이)
+      // 인메모리 데이터 갱신
       const entry = allApis.find(a => a.id === id);
       if (entry) entry[field] = val || null;
+      // 표시값 갱신: descriptionOverride 는 allDesc 재계산 + 수정 배지
+      if (field === 'descriptionOverride' && entry) {
+        const shown = allDesc(entry);
+        td.innerHTML = esc(shown) + (entry.descriptionOverride
+          ? '<span style="display:inline-block;margin-left:4px;padding:0 4px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;vertical-align:middle;" title="사용자 수정됨">수정</span>'
+          : '');
+        td.title = '클릭하여 수정 — 자동 파싱값 대신 사용';
+      } else {
+        td.textContent = val;
+      }
       showToast('저장 완료', 'success');
     } catch(e) {
-      td.textContent = old;
+      if (origHtml !== undefined) td.innerHTML = origHtml; else td.textContent = old;
       showToast(e.message || '저장 실패', 'error');
     }
   }
@@ -2106,8 +2148,48 @@
     return '';
   }
 
-  /** 내용: 우선순위 기반 — 첫 번째 비어있지 않은 값 사용 */
+  /** 상세 모달 — 내용 오버라이드 저장 */
+  async function saveDetailDescOverride(id) {
+    const ta = document.getElementById('detailDescOverride');
+    if (!ta) return;
+    const val = ta.value.trim();
+    try {
+      const res = await fetch(`/api/db/record/${id}`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ descriptionOverride: val || null })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+      const entry = allApis.find(a => a.id === id);
+      if (entry) entry.descriptionOverride = val || null;
+      // 상세 모달 내 표시값 갱신
+      const shown = document.getElementById('detailDescShown');
+      if (shown && entry) shown.textContent = allDesc(entry) || '-';
+      // 목록 내 해당 행의 내용 셀도 갱신 (재조회 없이)
+      const row = document.getElementById(`row-${id}`);
+      if (row) {
+        const descTd = row.querySelector('td.desc-col');
+        if (descTd && entry) {
+          descTd.innerHTML = esc(allDesc(entry)) + (entry.descriptionOverride
+            ? '<span style="display:inline-block;margin-left:4px;padding:0 4px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;vertical-align:middle;" title="사용자 수정됨">수정</span>'
+            : '');
+        }
+      }
+      showToast('저장 완료', 'success');
+    } catch(e) {
+      showToast(e.message || '저장 실패', 'error');
+    }
+  }
+  function clearDetailDescOverride(id) {
+    const ta = document.getElementById('detailDescOverride');
+    if (ta) ta.value = '';
+    saveDetailDescOverride(id);
+  }
+
+  /** 내용: 우선순위 기반 — 사용자 오버라이드 → 첫 번째 비어있지 않은 자동 파싱값 */
   function allDesc(a) {
+    if (a.descriptionOverride && a.descriptionOverride !== '-') return a.descriptionOverride;
     if (a.apiOperationValue && a.apiOperationValue !== '-') return a.apiOperationValue;
     if (a.descriptionTag && a.descriptionTag !== '-') return a.descriptionTag;
     if (a.controllerComment && a.controllerComment !== '-') return a.controllerComment;
@@ -2129,9 +2211,10 @@
     if (!text) return '-';
     const escaped = esc(text);
     if (!jiraBaseUrl) return escaped;
-    return escaped.replace(/\[([A-Z][A-Z0-9]*-\d+)\]/g, (_, ticket) =>
-      `<a href="${esc(jiraBaseUrl)}/browse/${esc(ticket)}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">${esc(ticket)}</a>`
-    );
+    const linkFn = t =>
+      `<a href="${esc(jiraBaseUrl)}/browse/${t}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">${t}</a>`;
+    // [CSR-12345] / [OP-12345] 먼저 처리, 그 다음 대괄호 없는 CSR-12345 / OP-12345
+    return escaped.replace(/\[((?:CSR|OP)-\d+)\]|\b((?:CSR|OP)-\d+)\b/g, (_, t1, t2) => linkFn(t1 || t2));
   }
 
   // ── 상세 모달 ─────────────────────────────────────────────
@@ -2375,9 +2458,18 @@
     });
     if (!gitRows) gitRows = '<tr><td colspan="4" style="color:#94a3b8;text-align:center;">이력 없음</td></tr>';
 
+    const lk = r.statusOverridden; // true면 전체 입력 비활성
+    const dis = lk ? 'disabled' : '';
+    const lockNote = lk ? '<span style="font-size:10px;color:#ef4444;margin-left:6px;">※ 확정완료 — 수정 불가 (해제 후 편집)</span>' : '';
+
+    // 저장 버튼 표시/숨김
+    const saveBtn = document.getElementById('detailSaveBtn');
+    if (saveBtn) saveBtn.style.display = lk ? 'none' : '';
+
     document.getElementById('detailBody').innerHTML = `
+      <input type="hidden" id="df-id" value="${r.id}">
       <div class="detail-section">
-        <div class="detail-section-title">기본 정보</div>
+        <div class="detail-section-title">기본 정보${lockNote}</div>
         <div class="detail-grid">
           <div class="detail-label">레포지토리</div><div class="detail-value">${esc(r.repositoryName)} ${cfg.businessName ? '('+esc(cfg.businessName)+')' : ''}</div>
           <div class="detail-label">URL 경로</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;"><span class="api-path">${esc(r.apiPath)}</span><button class="copy-btn" onclick="copyText(event,'${esc(r.apiPath)}')" title="URL 경로 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
@@ -2387,14 +2479,22 @@
           <div class="detail-label">파일경로</div><div class="detail-value" style="font-family:monospace;font-size:11px;">${esc(r.controllerFilePath || '-')}</div>
           <div class="detail-label">메소드명</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;">${esc(r.methodName)}<button class="copy-btn" onclick="copyText(event,'${esc(r.methodName)}')" title="메소드명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           <div class="detail-label">프로그램ID</div><div class="detail-value" style="font-family:monospace;">${esc(r.programId)}</div>
-          <div class="detail-label">팀</div><div class="detail-value">${esc(r.teamOverride || cfg.team)}</div>
-          <div class="detail-label">담당자</div><div class="detail-value">${esc(resolveManager(r))}</div>
+          <div class="detail-label">팀 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value"><input id="df-teamOverride" class="df-input" list="teamsDatalist" value="${esc(r.teamOverride || cfg.team || '')}" placeholder="${esc(cfg.team || '')}" ${dis}></div>
+          <div class="detail-label">담당자 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value"><input id="df-managerOverride" class="df-input" value="${esc(r.managerOverride || '')}" placeholder="${esc(resolveManager(r))}" ${dis}></div>
         </div>
       </div>
       <div class="detail-section">
         <div class="detail-section-title">관련 메뉴(또는 기능) / 참고용 주석</div>
         <div class="detail-grid">
-          <div class="detail-label">관련 메뉴(또는 기능)</div><div class="detail-value" style="font-weight:600;">${esc(allDesc(r)) || '-'}</div>
+          <div class="detail-label">관련 메뉴(또는 기능)</div>
+          <div class="detail-value" style="font-weight:600;">
+            <span id="detailDescShown">${esc(allDesc(r)) || '-'}</span>
+            ${r.descriptionOverride ? '<span style="display:inline-block;margin-left:6px;padding:1px 6px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:10px;font-weight:600;" title="사용자 수정됨">수정</span>' : ''}
+          </div>
+          <div class="detail-label">내용(수정) <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value" style="white-space:normal;"><textarea id="detailDescOverride" rows="2" placeholder="비우면 자동 파싱값(ApiOperation/Description/컨트롤러주석) 사용" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;resize:vertical;font-family:inherit;" ${("차단완료"===r.status)?'disabled':''}>${esc(r.descriptionOverride || '')}</textarea><div style="display:flex;gap:6px;margin-top:6px;align-items:center;"><button type="button" onclick="saveDetailDescOverride(${r.id})" ${("차단완료"===r.status)?'disabled':''} style="padding:4px 12px;background:var(--primary);color:#fff;border:0;border-radius:4px;font-size:11px;cursor:pointer;${("차단완료"===r.status)?'opacity:.4;cursor:not-allowed;':''}">저장</button><button type="button" onclick="clearDetailDescOverride(${r.id})" ${("차단완료"===r.status)?'disabled':''} style="padding:4px 12px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:11px;cursor:pointer;${("차단완료"===r.status)?'opacity:.4;cursor:not-allowed;':''}">지우기(자동파싱값 사용)</button><span style="font-size:10px;color:var(--text-muted);">※ 저장 시 현황화면의 "내용" 컬럼에 반영됩니다.</span></div></div>
           <div class="detail-label">ApiOperation</div><div class="detail-value">${esc(v(r.apiOperationValue)) || '-'}</div>
           <div class="detail-label">Description주석</div><div class="detail-value">${esc(v(r.descriptionTag)) || '-'}</div>
           <div class="detail-label">메소드주석</div><div class="detail-value">${esc(v(r.fullComment)) || '-'}</div>
@@ -2406,15 +2506,32 @@
       <div class="detail-section">
         <div class="detail-section-title">상태 / 차단</div>
         <div class="detail-grid">
-          <div class="detail-label">상태</div><div class="detail-value">${statusBadge(r.status)}${(r.status==='최우선 차단대상' && r.logWorkExcluded) ? ' <span style="font-size:11px;color:#9a3412;font-weight:600;">(침해사고 로그 제외)</span>' : ''}${r.statusOverridden ? ' 🔒 수동설정' : ''}</div>
+          <div class="detail-label">상태 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value" style="white-space:normal;"><select id="df-status" class="df-select" style="width:100%;" onchange="onDetailStatusChange()" ${dis}><option value="사용" ${r.status==='사용'?'selected':''}>사용</option><option value="차단완료" ${r.status==='차단완료'?'selected':''}>차단완료</option><option value="최우선 차단대상" ${r.status==='최우선 차단대상'?'selected':''}>① 최우선 차단대상</option><option value="후순위 차단대상" ${r.status==='후순위 차단대상'?'selected':''}>② 후순위 차단대상</option><option value="추가검토필요 차단대상" ${r.status==='추가검토필요 차단대상'?'selected':''}>③ 추가검토필요 차단대상</option></select>${(r.status==='최우선 차단대상' && r.logWorkExcluded) ? '<span style="font-size:11px;color:#9a3412;font-weight:600;margin-top:4px;display:block;">(침해사고 로그 제외)</span>' : ''}</div>
+          <div class="detail-label">차단대상기준 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value" style="white-space:normal;"><select id="df-blockCriteria" class="df-select" style="width:100%;" ${dis}>${buildCriteriaOptions(r.status, r.blockCriteria || '')}</select></div>
+          <div class="detail-label">상태확정</div>
+          <div class="detail-value">
+            ${lk
+              ? `<span class="lock-btn lock-on" style="cursor:pointer;" onclick="toggleDetailLock(${r.id},false)">🔒 확정완료</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px;">클릭하여 해제</span>`
+              : `<span class="lock-btn lock-off" style="cursor:pointer;" onclick="toggleDetailLock(${r.id},true)">미확정</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px;">클릭하여 확정 (이후 수정불가)</span>`}
+          </div>
           <div class="detail-label">1년 호출건</div><div class="detail-value">${detailCallCell(r, 'total', r.callCount)}</div>
           <div class="detail-label">최근 1달 호출건</div><div class="detail-value">${detailCallCell(r, 'month', r.callCountMonth)}</div>
           <div class="detail-label">최근 1주 호출건</div><div class="detail-value">${detailCallCell(r, 'week', r.callCountWeek)}</div>
-          <div class="detail-label">차단일자</div><div class="detail-value">${esc(r.blockedDate || '-')}</div>
-          <div class="detail-label">차단근거</div><div class="detail-value">${renderBlockedReason(r.blockedReason)}</div>
-          <div class="detail-label">차단기준</div><div class="detail-value">${esc(r.blockCriteria || '-')}</div>
-          <div class="detail-label">Deprecated</div><div class="detail-value">${r.isDeprecated === 'Y' ? '예' : '아니오'}</div>
-          <div class="detail-label">비고</div><div class="detail-value">${esc(r.memo || '-')}</div>
+          <div class="detail-label">차단일자 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value"><input id="df-blockedDate" type="date" class="df-input" value="${esc(r.blockedDate || '')}" ${dis}></div>
+          <div class="detail-label">차단근거 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value"><textarea id="df-blockedReason" class="df-textarea" rows="3" ${dis}>${esc(r.blockedReason || '')}</textarea></div>
+          <div class="detail-label">Deprecated <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value">
+            <select id="df-isDeprecated" class="df-select" style="width:auto;" ${dis}>
+              <option value="" ${!r.isDeprecated||r.isDeprecated==='N'?'selected':''}>아니오 (N)</option>
+              <option value="Y" ${r.isDeprecated==='Y'?'selected':''}>예 (Y)</option>
+            </select>
+          </div>
+          <div class="detail-label">비고 <span style="color:var(--primary);font-size:10px;">✎</span></div>
+          <div class="detail-value"><textarea id="df-memo" class="df-textarea" rows="2" ${dis}>${esc(r.memo || '')}</textarea></div>
         </div>
       </div>
       <div class="detail-section">
@@ -2439,10 +2556,10 @@
           <div class="detail-label">마지막 동기화</div>
           <div class="detail-value">${r.jiraSyncedAt ? fmtDt(r.jiraSyncedAt) : '-'}</div>
         </div>
-        <div style="margin-top:10px;display:flex;gap:8px;">
+        ${isAdmin() ? `<div style="margin-top:10px;display:flex;gap:8px;">
           <button class="btn btn-sm" style="background:var(--purple);color:#fff;" onclick="syncSingleToJira(${r.id})">🔗 SmartWay 발행</button>
           ${r.jiraIssueKey ? `<button class="btn btn-sm btn-ghost" onclick="pullSingleFromJira(${r.id})">🔄 역방향 동기화</button>` : ''}
-        </div>
+        </div>` : ''}
       </div>
       <div class="detail-section">
         <div class="detail-section-title">소스 변경 이력 (최근 5개)</div>
@@ -2451,6 +2568,24 @@
           <tbody>${gitRows}</tbody>
         </table>
       </div>
+      ${(() => {
+        const logs = parseChangeLog(r.statusChangeLog);
+        if (!logs.length) return '';
+        const rows = logs.map((entry, i) => {
+          const num = logs.length - i;
+          return `<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);">
+            <span style="min-width:22px;text-align:right;font-size:10px;color:var(--text-muted);flex-shrink:0;">${num}</span>
+            <span style="font-size:12px;color:var(--text);word-break:break-all;">${esc(entry)}</span>
+          </div>`;
+        }).reverse().join('');
+        const clearBtn = r.statusChanged
+          ? `<button class="btn btn-sm btn-ghost" style="padding:2px 8px;font-size:10px;" onclick="clearStatusFlag(event,${r.id})">⚠️ 확인 완료</button>`
+          : '<span style="font-size:10px;color:#22c55e;">✔ 확인됨</span>';
+        return `<div class="detail-section">
+          <div class="detail-section-title" style="display:flex;align-items:center;gap:8px;">상태 변경 이력 <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(${logs.length}건)</span>${clearBtn}</div>
+          <div style="max-height:200px;overflow-y:auto;">${rows}</div>
+        </div>`;
+      })()}
       <div class="detail-section">
         <div class="detail-section-title">메타 정보</div>
         <div class="detail-grid">
@@ -2487,9 +2622,90 @@
     return `<span class="status-badge ${m.cls}">${m.label}</span>`;
   }
 
+  // ── 상세 패널 — 차단대상기준 옵션 HTML 빌드 ─────────────────
+  function buildCriteriaOptions(status, currentVal) {
+    const opts = getCriteriaOptions()[status] || [];
+    let html = '<option value="">-- 선택 --</option>';
+    opts.forEach(o => {
+      html += `<option value="${esc(o)}"${currentVal===o?' selected':''}>${esc(o)}</option>`;
+    });
+    // 현재 값이 preset에 없는 경우(직접 입력값) 추가
+    if (currentVal && !opts.includes(currentVal)) {
+      html += `<option value="${esc(currentVal)}" selected>${esc(currentVal)}</option>`;
+    }
+    return html;
+  }
+
+  // ── 상세 패널 — 상태 변경 시 차단대상기준 자동 연동 ────────
+  function onDetailStatusChange() {
+    const statusEl = document.getElementById('df-status');
+    const criteriaEl = document.getElementById('df-blockCriteria');
+    if (!statusEl || !criteriaEl) return;
+    const st = statusEl.value;
+    const opts = getCriteriaOptions()[st] || [];
+    const prevVal = criteriaEl.value;
+    criteriaEl.innerHTML = '<option value="">-- 선택 --</option>';
+    opts.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o; opt.textContent = o;
+      if (o === prevVal) opt.selected = true;
+      criteriaEl.appendChild(opt);
+    });
+    // 선택된 상태에 옵션이 있으면 첫 번째 자동 선택 (기존값이 없을 때)
+    if (opts.length && !opts.includes(prevVal)) criteriaEl.value = opts[0];
+    // 저장 버튼 표시
+    const saveBtn = document.getElementById('detailSaveBtn');
+    if (saveBtn) saveBtn.style.display = '';
+  }
+
+  // ── 상세 패널 — 일괄 저장 ────────────────────────────────
+  async function saveDetailChanges() {
+    const id = parseInt(document.getElementById('df-id')?.value || '0');
+    if (!id) return;
+    const g = (fid) => { const el = document.getElementById('df-' + fid); return el ? el.value.trim() : undefined; };
+    const body = {};
+    // 상태: 변경 시 자동 확정
+    const status = g('status');
+    if (status !== undefined) body.status = status || null;
+    const bd = g('blockedDate');      if (bd !== undefined) body.blockedDate     = bd || null;
+    const br = g('blockedReason');    if (br !== undefined) body.blockedReason   = br || null;
+    const bc = g('blockCriteria');    if (bc !== undefined) body.blockCriteria   = bc || null;
+    const dep = g('isDeprecated');    if (dep !== undefined) body.isDeprecated   = dep || null;
+    const memo = g('memo');           if (memo !== undefined) body.memo           = memo || null;
+    const team = g('teamOverride');   if (team !== undefined) body.teamOverride   = team || null;
+    const mgr = g('managerOverride'); if (mgr !== undefined) body.managerOverride = mgr || null;
+    if (!Object.keys(body).length) { showToast('변경 사항 없음', 'info'); return; }
+    try {
+      const res = await adminFetch(`/api/db/record/${id}`, { method:'PATCH', body: JSON.stringify(body) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || '저장 실패');
+      // 인메모리 데이터 갱신
+      const entry = allApis.find(a => a.id === id);
+      if (entry) Object.assign(entry, body);
+      showToast('저장 완료', 'success');
+      openDetail(id);
+      filterTable({ immediate:true });
+    } catch(e) { showToast('저장 실패: ' + e.message, 'error'); }
+  }
+
+  // ── 상태확정 토글 (상세 패널 전용, 독립 동작) ──────────────
+  async function toggleDetailLock(id, lock) {
+    try {
+      const res = await adminFetch(`/api/db/record/${id}`, { method:'PATCH',
+        body: JSON.stringify({ statusOverridden: lock }) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || '변경 실패');
+      const entry = allApis.find(a => a.id === id);
+      if (entry) entry.statusOverridden = lock;
+      showToast(lock ? '상태 확정 완료' : '상태 확정 해제', 'success');
+      openDetail(id);
+      filterTable({ immediate:true });
+    } catch(e) { showToast('변경 실패: ' + e.message, 'error'); }
+  }
+
   async function syncSingleToJira(id) {
     try {
-      const res = await fetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
+      const res = await adminFetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '발행 실패');
       showToast(`SmartWay 발행 완료: ${data.issueKey || ''}`, 'success');
@@ -2499,7 +2715,7 @@
 
   async function pullSingleFromJira(id) {
     try {
-      const res = await fetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
+      const res = await adminFetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
       if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || '동기화 실패'); }
       showToast('역방향 동기화 완료', 'success');
       openDetail(id);
@@ -2519,7 +2735,7 @@
     updateJiraProgress();
     for (const id of selectedIds) {
       try {
-        const res = await fetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
+        const res = await adminFetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
         if (!res.ok) { fail++; } else { success++; }
       } catch(e) { fail++; }
       updateJiraProgress();
@@ -2546,7 +2762,7 @@
     updateJiraProgress();
     for (const id of selectedIds) {
       try {
-        const res = await fetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
+        const res = await adminFetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
         if (!res.ok) { fail++; } else { success++; }
       } catch(e) { fail++; }
       updateJiraProgress();
@@ -2646,6 +2862,7 @@
     document.getElementById('adminBtn').textContent = admin ? '🔓 관리자 해제' : '🔑 관리자';
     const _dg = document.getElementById('bulkDeleteGroup'); if(_dg) _dg.style.display = admin ? 'inline-flex' : 'none';
     const _ug = document.getElementById('uploadGroup'); if(_ug) _ug.style.display = admin ? 'inline-flex' : 'none';
+    const _jg = document.getElementById('jiraBulkGroup'); if(_jg) _jg.style.display = admin ? '' : 'none';
     if (typeof renderRows === 'function' && filteredApis.length) renderRows(filteredApis);
   }
   async function toggleAdmin() {

@@ -81,7 +81,9 @@ public class ApmController {
         if (repoName == null || repoName.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "repoName 필수"));
         log.info("[APM Mock] 생성 요청: repo={}, days={}, source={}", repoName, days, source);
-        return ResponseEntity.ok(apmCollectionService.generateMockData(repoName, days, source));
+        Map<String, Object> result = apmCollectionService.generateMockData(repoName, days, source);
+        apmCollectionService.aggregateToApmUrlStat(repoName);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -102,8 +104,10 @@ public class ApmController {
                 return ResponseEntity.badRequest().body(Map.of("error", "from/to 날짜 필수"));
             log.info("[APM 수동수집 요청] repo={}, source={}, {}~{}", repoName, source, from, to);
             apmCollectionService.getApmLogs().clear();
-            return ResponseEntity.ok(apmCollectionService.generateMockDataByRange(
-                    repoName, LocalDate.parse(from), LocalDate.parse(to), source));
+            Map<String, Object> result = apmCollectionService.generateMockDataByRange(
+                    repoName, LocalDate.parse(from), LocalDate.parse(to), source);
+            apmCollectionService.aggregateToApmUrlStat(repoName);
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -131,6 +135,18 @@ public class ApmController {
                                        @RequestParam(defaultValue = "daily") String bucket,
                                        @RequestParam(defaultValue = "30") int days) {
         return ResponseEntity.ok(apmCollectionService.getChartData(repoName, apiPath, bucket, days));
+    }
+
+    /** apm_url_stat 전체 레포 재집계 (대시보드 데이터 갱신) */
+    @PostMapping("/aggregate-url-stat")
+    public ResponseEntity<?> aggregateUrlStat() {
+        var repos = repoConfigRepository.findAll();
+        log.info("[URL 통계 집계] 전체 레포 수동 실행: {}건", repos.size());
+        repos.forEach(r -> {
+            try { apmCollectionService.aggregateToApmUrlStat(r.getRepoName()); }
+            catch (Exception e) { log.warn("[URL 통계 집계] 실패: repo={}, {}", r.getRepoName(), e.getMessage()); }
+        });
+        return ResponseEntity.ok(Map.of("message", "집계 완료", "repoCount", repos.size()));
     }
 
     /** APM 데이터 → ApiRecord 호출건수 집계 반영 */

@@ -8,17 +8,30 @@ import com.baek.viewer.repository.ApiRecordRepository;
 import com.baek.viewer.repository.JiraConfigRepository;
 import com.baek.viewer.repository.JiraUserMappingRepository;
 import com.baek.viewer.repository.RepoConfigRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
+import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -27,6 +40,33 @@ import java.util.*;
 public class JiraService {
 
     private static final Logger log = LoggerFactory.getLogger(JiraService.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** Epic Name 필드 ID 캐시 (baseUrl → customfield_XXXXX). "" = 필드 없음/사용 불가. */
+    private static final Map<String, String> EPIC_NAME_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 내부 SmartWay 서버의 사설 인증서 수용용: 모든 인증서를 신뢰하는 SSLSocketFactory. */
+    private static final SSLSocketFactory TRUST_ALL_SSL_FACTORY = buildTrustAllSslFactory();
+    /** 내부망 호스트명 검증 우회 HostnameVerifier. */
+    private static final HostnameVerifier TRUST_ALL_HOSTNAME = (hostname, session) -> true;
+
+    private static SSLSocketFactory buildTrustAllSslFactory() {
+        try {
+            TrustManager[] trustAll = new TrustManager[] {
+                    new X509TrustManager() {
+                        @Override public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+                        @Override public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+                        @Override public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                    }
+            };
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(null, trustAll, new java.security.SecureRandom());
+            return ctx.getSocketFactory();
+        } catch (Exception e) {
+            log.error("[Jira] Trust-All SSLContext 초기화 실패: {}", e.getMessage(), e);
+            return null;
+        }
+    }
 
     private final ApiRecordRepository recordRepo;
     private final RepoConfigRepository repoConfigRepo;
@@ -48,18 +88,57 @@ public class JiraService {
     // ========================================================================
 
     /**
-     * Bearer Token + JSON Content-Type 인터셉터 적용 (Jira Server REST API v2)
+     * Bearer Token + JSON + 디버그 모드 시 요청/응답 전문 로깅 인터셉터 적용.
+     * BufferingClientHttpRequestFactory 를 사용해 응답 바디를 두 번 읽을 수 있도록 한다.
      */
     private RestTemplate buildRestTemplate(JiraConfig config) {
-        RestTemplate rt = new RestTemplate();
+        // BufferingFactory: 응답 스트림을 버퍼링해 인터셉터에서 바디를 읽어도 이후 역직렬화 가능
+        // 망분리 내부 SmartWay 서버는 사설/내부 CA 인증서를 사용하므로 HTTPS 연결에 한해
+        // SSL 검증을 우회한다 (해당 RestTemplate 인스턴스 범위로만 적용, JVM 전역 영향 없음).
+        SimpleClientHttpRequestFactory inner = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                if (connection instanceof HttpsURLConnection https) {
+                    SSLSocketFactory sf = TRUST_ALL_SSL_FACTORY;
+                    if (sf != null) {
+                        https.setSSLSocketFactory(sf);
+                        https.setHostnameVerifier(TRUST_ALL_HOSTNAME);
+                    }
+                }
+                super.prepareConnection(connection, httpMethod);
+            }
+        };
+        inner.setConnectTimeout(10_000);
+        inner.setReadTimeout(30_000);
+        RestTemplate rt = new RestTemplate(new BufferingClientHttpRequestFactory(inner));
+
         String token = config.getApiToken();
 
+        // 인증 + Content-Type + 요청/응답 상세 로깅 인터셉터
         ClientHttpRequestInterceptor authInterceptor = (request, body, execution) -> {
             request.getHeaders().set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
             request.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             request.getHeaders().setAccept(List.of(MediaType.APPLICATION_JSON));
-            return execution.execute(request, body);
+
+            String bodyStr = body.length > 0 ? new String(body, StandardCharsets.UTF_8) : "(empty)";
+            log.info("[SmartWay →] {} {} | body={}",
+                    request.getMethod(), request.getURI(),
+                    bodyStr.length() > 1000 ? bodyStr.substring(0, 1000) + "…(truncated)" : bodyStr);
+
+            var response = execution.execute(request, body);
+
+            try {
+                byte[] respBody = response.getBody().readAllBytes();
+                String respStr = new String(respBody, StandardCharsets.UTF_8);
+                log.info("[SmartWay ←] HTTP {} {} {} | body={}",
+                        response.getStatusCode().value(),
+                        request.getMethod(), request.getURI(),
+                        respStr.length() > 1000 ? respStr.substring(0, 1000) + "…(truncated)" : respStr);
+            } catch (IOException ignored) {}
+
+            return response;
         };
+
         rt.setInterceptors(List.of(authInterceptor));
         return rt;
     }
@@ -71,12 +150,15 @@ public class JiraService {
     private Map<String, Object> createIssue(RestTemplate rt, JiraConfig cfg, Map<String, Object> fields) {
         String url = cfg.getJiraBaseUrl() + "/rest/api/2/issue";
         Map<String, Object> body = Map.of("fields", fields);
+        log.info("[SmartWay] createIssue → {}", url);
         try {
             Map<String, Object> result = rt.postForObject(url, body, Map.class);
-            log.info("[Jira] 이슈 생성 완료: {}", result != null ? result.get("key") : "null");
+            String key = result != null ? (String) result.get("key") : "null";
+            log.info("[SmartWay] 이슈 생성 완료: key={}, self={}", key,
+                    result != null ? result.get("self") : "-");
             return result != null ? result : Map.of();
         } catch (Exception e) {
-            log.error("[Jira] 이슈 생성 실패: {}", e.getMessage());
+            log.error("[SmartWay] 이슈 생성 실패: {} | url={}", e.getMessage(), url);
             throw new RuntimeException("Jira 이슈 생성 실패: " + e.getMessage(), e);
         }
     }
@@ -87,11 +169,12 @@ public class JiraService {
     private void updateIssue(RestTemplate rt, JiraConfig cfg, String issueKey, Map<String, Object> fields) {
         String url = cfg.getJiraBaseUrl() + "/rest/api/2/issue/" + issueKey;
         Map<String, Object> body = Map.of("fields", fields);
+        log.info("[SmartWay] updateIssue → {} | fields={}", url, fields.keySet());
         try {
             rt.put(url, body);
-            log.info("[Jira] 이슈 업데이트 완료: {}", issueKey);
+            log.info("[SmartWay] 이슈 업데이트 완료: {}", issueKey);
         } catch (Exception e) {
-            log.error("[Jira] 이슈 업데이트 실패 {}: {}", issueKey, e.getMessage());
+            log.error("[SmartWay] 이슈 업데이트 실패 {}: {} | url={}", issueKey, e.getMessage(), url);
             throw new RuntimeException("Jira 이슈 업데이트 실패: " + e.getMessage(), e);
         }
     }
@@ -102,17 +185,27 @@ public class JiraService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> getIssue(RestTemplate rt, JiraConfig cfg, String issueKey) {
         String url = cfg.getJiraBaseUrl() + "/rest/api/2/issue/" + issueKey;
+        log.info("[SmartWay] getIssue → {}", url);
         try {
             Map<String, Object> result = rt.getForObject(url, Map.class);
+            if (result != null && result.containsKey("fields")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> f = (Map<String, Object>) result.get("fields");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> st = f != null ? (Map<String, Object>) f.get("status") : null;
+                log.info("[SmartWay] getIssue ← issueKey={}, status={}", issueKey,
+                        st != null ? st.get("name") : "?");
+            }
             return result != null ? result : Map.of();
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                log.warn("[Jira] 이슈 미존재: {}", issueKey);
+                log.warn("[SmartWay] 이슈 미존재: {} | url={}", issueKey, url);
                 return Map.of();
             }
+            log.error("[SmartWay] 이슈 조회 실패 {}: {} | url={}", issueKey, e.getMessage(), url);
             throw new RuntimeException("Jira 이슈 조회 실패: " + e.getMessage(), e);
         } catch (Exception e) {
-            log.error("[Jira] 이슈 조회 실패 {}: {}", issueKey, e.getMessage());
+            log.error("[SmartWay] 이슈 조회 실패 {}: {} | url={}", issueKey, e.getMessage(), url);
             throw new RuntimeException("Jira 이슈 조회 실패: " + e.getMessage(), e);
         }
     }
@@ -127,16 +220,65 @@ public class JiraService {
         body.put("jql", jql);
         body.put("maxResults", maxResults);
         body.put("fields", List.of("summary", "status", "resolution", "assignee", "components", "labels", "priority"));
+        log.info("[SmartWay] searchByJql → {} | jql={} | maxResults={}", url, jql, maxResults);
         try {
             Map<String, Object> result = rt.postForObject(url, body, Map.class);
             if (result != null && result.get("issues") instanceof List) {
-                return (List<Map<String, Object>>) result.get("issues");
+                List<Map<String, Object>> issues = (List<Map<String, Object>>) result.get("issues");
+                log.info("[SmartWay] searchByJql ← total={}, returned={}",
+                        result.getOrDefault("total", "?"), issues.size());
+                return issues;
             }
+            log.info("[SmartWay] searchByJql ← 결과 없음");
             return List.of();
         } catch (Exception e) {
-            log.error("[Jira] JQL 검색 실패: jql={}, error={}", jql, e.getMessage());
+            log.error("[SmartWay] JQL 검색 실패: jql={}, error={}", jql, e.getMessage());
             return List.of();
         }
+    }
+
+    /**
+     * Epic Name 필드 ID 동적 조회 (예: customfield_10011, customfield_10105 등 인스턴스마다 다름).
+     * GET /rest/api/2/field 응답에서 schema.custom == "com.pyxis.greenhopper.jira:gh-epic-label" 인 필드 ID 를 반환.
+     * 못 찾으면 빈 문자열 반환. 결과는 baseUrl 기준으로 캐싱.
+     */
+    @SuppressWarnings("unchecked")
+    private String resolveEpicNameFieldId(RestTemplate rt, JiraConfig cfg) {
+        String baseUrl = cfg.getJiraBaseUrl();
+        String cached = EPIC_NAME_FIELD_CACHE.get(baseUrl);
+        if (cached != null) return cached;
+
+        String url = baseUrl + "/rest/api/2/field";
+        try {
+            List<Map<String, Object>> fields = rt.getForObject(url, List.class);
+            if (fields != null) {
+                for (Map<String, Object> f : fields) {
+                    Map<String, Object> schema = (Map<String, Object>) f.get("schema");
+                    String custom = schema != null ? (String) schema.get("custom") : null;
+                    if ("com.pyxis.greenhopper.jira:gh-epic-label".equals(custom)) {
+                        String id = (String) f.get("id");
+                        log.info("[Jira] Epic Name 필드 동적 해석: {} (name={})", id, f.get("name"));
+                        EPIC_NAME_FIELD_CACHE.put(baseUrl, id);
+                        return id;
+                    }
+                }
+                // 폴백: 이름 기반 ("Epic Name") 매칭
+                for (Map<String, Object> f : fields) {
+                    String name = (String) f.get("name");
+                    if ("Epic Name".equalsIgnoreCase(name)) {
+                        String id = (String) f.get("id");
+                        log.info("[Jira] Epic Name 필드 이름 매칭 해석: {}", id);
+                        EPIC_NAME_FIELD_CACHE.put(baseUrl, id);
+                        return id;
+                    }
+                }
+            }
+            log.warn("[Jira] Epic Name 필드 미발견 → Epic 생성 시 스킵");
+        } catch (Exception e) {
+            log.warn("[Jira] 필드 메타데이터 조회 실패: {} | url={}", e.getMessage(), url);
+        }
+        EPIC_NAME_FIELD_CACHE.put(baseUrl, "");
+        return "";
     }
 
     /**
@@ -144,25 +286,49 @@ public class JiraService {
      */
     @SuppressWarnings("unchecked")
     private String getOrCreateEpic(RestTemplate rt, JiraConfig cfg, String epicName) {
-        // JQL로 기존 Epic 검색
         String jql = "project = " + cfg.getProjectKey()
                 + " AND issuetype = Epic AND summary ~ \"" + epicName.replace("\"", "\\\"") + "\"";
+        log.info("[SmartWay] Epic 검색: epicName={}", epicName);
         List<Map<String, Object>> results = searchByJql(rt, cfg, jql, 1);
         if (!results.isEmpty()) {
-            return (String) results.get(0).get("key");
+            String existingKey = (String) results.get(0).get("key");
+            log.info("[SmartWay] Epic 기존 사용: {} → {}", epicName, existingKey);
+            return existingKey;
         }
 
-        // 없으면 새로 생성
+        log.info("[SmartWay] Epic 신규 생성: {}", epicName);
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("project", Map.of("key", cfg.getProjectKey()));
         fields.put("issuetype", Map.of("name", "Epic"));
         fields.put("summary", epicName);
-        // Epic Name 필드 (Jira Server 기본: customfield_10011)
-        fields.put("customfield_10011", epicName);
 
-        Map<String, Object> created = createIssue(rt, cfg, fields);
+        // Epic Name 필드는 인스턴스마다 custom field ID 가 다르므로 동적 조회.
+        // 인스턴스가 차세대(Next-gen)/이름 미사용 구성이면 빈 값이 반환되어 필드를 추가하지 않는다.
+        String epicNameFieldId = resolveEpicNameFieldId(rt, cfg);
+        if (epicNameFieldId != null && !epicNameFieldId.isEmpty()) {
+            fields.put(epicNameFieldId, epicName);
+        }
+
+        Map<String, Object> created;
+        try {
+            created = createIssue(rt, cfg, fields);
+        } catch (RuntimeException ex) {
+            // 해석한 Epic Name 필드가 Create 화면에 없거나 unknown 인 경우: 해당 필드만 제거 후 1회 재시도.
+            String msg = ex.getMessage() == null ? "" : ex.getMessage();
+            if (epicNameFieldId != null && !epicNameFieldId.isEmpty()
+                    && (msg.contains(epicNameFieldId)
+                        || msg.contains("not on the appropriate screen")
+                        || msg.contains("cannot be set"))) {
+                log.warn("[Jira] Epic Name 필드({}) 설정 거부됨 — 필드 제외 후 재시도. 원인: {}", epicNameFieldId, msg);
+                fields.remove(epicNameFieldId);
+                EPIC_NAME_FIELD_CACHE.put(cfg.getJiraBaseUrl(), ""); // 캐시 무효화(스킵 상태로)
+                created = createIssue(rt, cfg, fields);
+            } else {
+                throw ex;
+            }
+        }
         String epicKey = (String) created.get("key");
-        log.info("[Jira] Epic 생성: {} → {}", epicName, epicKey);
+        log.info("[SmartWay] Epic 생성 완료: {} → {}", epicName, epicKey);
         return epicKey;
     }
 
@@ -172,31 +338,34 @@ public class JiraService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> getOrCreateComponent(RestTemplate rt, JiraConfig cfg, String name, String desc) {
         String url = cfg.getJiraBaseUrl() + "/rest/api/2/project/" + cfg.getProjectKey() + "/components";
+        log.info("[SmartWay] Component 검색: name={} | url={}", name, url);
         try {
             List<Map<String, Object>> components = rt.getForObject(url, List.class);
             if (components != null) {
+                log.info("[SmartWay] Component 목록: {}개", components.size());
                 for (Map<String, Object> comp : components) {
                     if (name.equals(comp.get("name"))) {
+                        log.info("[SmartWay] Component 기존 사용: {} (id={})", name, comp.get("id"));
                         return comp;
                     }
                 }
             }
         } catch (Exception e) {
-            log.warn("[Jira] 컴포넌트 목록 조회 실패: {}", e.getMessage());
+            log.warn("[SmartWay] 컴포넌트 목록 조회 실패: {} | url={}", e.getMessage(), url);
         }
 
-        // 없으면 생성
         String createUrl = cfg.getJiraBaseUrl() + "/rest/api/2/component";
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("project", cfg.getProjectKey());
         body.put("name", name);
         if (desc != null) body.put("description", desc);
+        log.info("[SmartWay] Component 신규 생성: name={} | url={}", name, createUrl);
         try {
             Map<String, Object> created = rt.postForObject(createUrl, body, Map.class);
-            log.info("[Jira] 컴포넌트 생성: {}", name);
+            log.info("[SmartWay] 컴포넌트 생성 완료: {} (id={})", name, created != null ? created.get("id") : "?");
             return created != null ? created : Map.of();
         } catch (Exception e) {
-            log.warn("[Jira] 컴포넌트 생성 실패 (이미 존재할 수 있음): {}", e.getMessage());
+            log.warn("[SmartWay] 컴포넌트 생성 실패 (이미 존재할 수 있음): {} | url={}", e.getMessage(), createUrl);
             return Map.of();
         }
     }
@@ -210,10 +379,19 @@ public class JiraService {
      */
     @Transactional
     public Map<String, Object> syncRecordToJira(Long recordId) {
+        log.info("[SmartWay] syncRecordToJira 시작: recordId={}", recordId);
+
         JiraConfig cfg = getConfig();
+        log.info("[SmartWay] 설정 로드: baseUrl={}, project={}", cfg.getJiraBaseUrl(), cfg.getProjectKey());
+
         RestTemplate rt = buildRestTemplate(cfg);
         ApiRecord record = recordRepo.findById(recordId)
                 .orElseThrow(() -> new IllegalArgumentException("레코드 없음: id=" + recordId));
+
+        log.info("[SmartWay] 레코드: id={}, repo={}, path={}, status={}, jiraKey={}",
+                record.getId(), record.getRepositoryName(), record.getApiPath(),
+                record.getStatus(), record.getJiraIssueKey());
+
         RepoConfig repoCfg = repoConfigRepo.findByRepoName(record.getRepositoryName()).orElse(null);
 
         String businessName = repoCfg != null && repoCfg.getBusinessName() != null
@@ -221,29 +399,42 @@ public class JiraService {
         String appType = repoCfg != null && repoCfg.getAppType() != null ? repoCfg.getAppType() : "APP";
         String appTypeLabel = "APP".equals(appType) ? "앱" : "홈페이지";
 
+        log.info("[SmartWay] 메타: businessName={}, appType={}", businessName, appType);
+
         // 1. Epic 확보
         String epicName = "[" + businessName + "] URL 차단 검토";
+        log.info("[SmartWay] Step1. Epic 확보: {}", epicName);
         String epicKey = getOrCreateEpic(rt, cfg, epicName);
+        log.info("[SmartWay] Step1. Epic 완료: {}", epicKey);
 
         // 2. Component 확보
         String componentName = record.getRepositoryName() + " (" + appTypeLabel + ")";
+        log.info("[SmartWay] Step2. Component 확보: {}", componentName);
         Map<String, Object> component = getOrCreateComponent(rt, cfg, componentName,
                 businessName + " - " + appTypeLabel);
+        log.info("[SmartWay] Step2. Component 완료: id={}", component.get("id"));
 
         // 3. 담당자 매핑
         String assignee = resolveAssignee(record, repoCfg);
+        log.info("[SmartWay] Step3. 담당자 매핑: manager={}, team={} → jiraAccountId={}",
+                record.getManagerOverride() != null ? record.getManagerOverride()
+                        : (repoCfg != null ? repoCfg.getManagerName() : null),
+                record.getTeamOverride() != null ? record.getTeamOverride()
+                        : (repoCfg != null ? repoCfg.getTeamName() : null),
+                assignee);
 
         // 4. Story 필드 구성
         Map<String, Object> fields = buildStoryFields(cfg, record, repoCfg, businessName,
                 epicKey, component, assignee);
+        log.info("[SmartWay] Step4. Story 필드: summary={}, priority={}",
+                fields.get("summary"), ((Map<?, ?>) fields.getOrDefault("priority", Map.of())).get("name"));
 
-        // 5. 멱등성: jiraIssueKey가 있으면 UPDATE, 없으면 커스텀필드로 검색 후 CREATE/UPDATE
+        // 5. 멱등성: jiraIssueKey가 있으면 UPDATE, 없으면 CREATE
         String issueKey = record.getJiraIssueKey();
         boolean wasNew = (issueKey == null || issueKey.isBlank());
+        log.info("[SmartWay] Step5. 발행 방식: {} (기존 issueKey={})", wasNew ? "CREATE" : "UPDATE", issueKey);
 
-        // jiraIssueKey 없으면 바로 신규 생성 (커스텀 필드 검색 불필요)
-
-        if (issueKey != null && !issueKey.isBlank()) {
+        if (!wasNew) {
             updateIssue(rt, cfg, issueKey, fields);
         } else {
             Map<String, Object> result = createIssue(rt, cfg, fields);
@@ -261,7 +452,8 @@ public class JiraService {
         recordRepo.save(record);
 
         String action = wasNew ? "created" : "updated";
-        log.info("[Jira] 레코드 {} → {} ({})", recordId, issueKey, action);
+        log.info("[SmartWay] Step6. DB 갱신 완료: recordId={}, issueKey={}, action={}, reviewStage={}",
+                recordId, issueKey, action, record.getReviewStage());
         return Map.of("issueKey", issueKey, "action", action);
     }
 
@@ -273,6 +465,8 @@ public class JiraService {
         List<ApiRecord> targets = recordRepo.findByRepositoryName(repositoryName).stream()
                 .filter(this::isBlockCandidate)
                 .toList();
+        log.info("[SmartWay] syncRepoToJira: repo={}, 대상={}건", repositoryName, targets.size());
+
         int created = 0, updated = 0, failed = 0;
         for (ApiRecord r : targets) {
             try {
@@ -280,11 +474,11 @@ public class JiraService {
                 if ("created".equals(result.get("action"))) created++;
                 else updated++;
             } catch (Exception e) {
-                log.warn("[Jira] {} 동기화 실패: {}", r.getApiPath(), e.getMessage());
+                log.warn("[SmartWay] {} 동기화 실패: {}", r.getApiPath(), e.getMessage());
                 failed++;
             }
         }
-        log.info("[Jira] 레포 {} 동기화: 대상={}, 생성={}, 갱신={}, 실패={}",
+        log.info("[SmartWay] 레포 {} 동기화: 대상={}, 생성={}, 갱신={}, 실패={}",
                 repositoryName, targets.size(), created, updated, failed);
         return Map.of("total", targets.size(), "created", created, "updated", updated, "failed", failed);
     }
@@ -295,6 +489,7 @@ public class JiraService {
     @Transactional
     public Map<String, Object> syncAllToJira() {
         List<String> repos = recordRepo.findAllRepositoryNames();
+        log.info("[SmartWay] syncAllToJira: 전체 레포 {}개", repos.size());
         int totalCreated = 0, totalUpdated = 0, totalFailed = 0;
         for (String repo : repos) {
             Map<String, Object> result = syncRepoToJira(repo);
@@ -302,7 +497,7 @@ public class JiraService {
             totalUpdated += (int) result.get("updated");
             totalFailed += (int) result.get("failed");
         }
-        log.info("[Jira] 전체 동기화 완료: 생성={}, 갱신={}, 실패={}",
+        log.info("[SmartWay] 전체 동기화 완료: 생성={}, 갱신={}, 실패={}",
                 totalCreated, totalUpdated, totalFailed);
         return Map.of("created", totalCreated, "updated", totalUpdated, "failed", totalFailed);
     }
@@ -321,15 +516,22 @@ public class JiraService {
         ApiRecord record = recordRepo.findById(recordId)
                 .orElseThrow(() -> new IllegalArgumentException("레코드 없음: id=" + recordId));
 
+        log.info("[SmartWay] syncRecordFromJira: recordId={}, issueKey={}", recordId, record.getJiraIssueKey());
+
         if (record.getJiraIssueKey() == null || record.getJiraIssueKey().isBlank()) {
+            log.info("[SmartWay] 역방향 스킵 — jiraIssueKey 없음: recordId={}", recordId);
             return Map.of("status", "skipped", "reason", "no jira issue key");
         }
 
         Map<String, Object> issue = getIssue(rt, cfg, record.getJiraIssueKey());
         if (issue.isEmpty()) {
+            log.info("[SmartWay] 역방향 스킵 — Jira 이슈 미존재: {}", record.getJiraIssueKey());
             return Map.of("status", "skipped", "reason", "issue not found in Jira");
         }
+        String beforeStage = record.getReviewStage();
         applyJiraStatusToRecord(record, issue, cfg);
+        log.info("[SmartWay] 역방향 반영: issueKey={}, reviewStage {} → {}",
+                record.getJiraIssueKey(), beforeStage, record.getReviewStage());
         record.setJiraSyncedAt(LocalDateTime.now());
         recordRepo.save(record);
 
@@ -344,6 +546,8 @@ public class JiraService {
         List<ApiRecord> targets = recordRepo.findByRepositoryName(repositoryName).stream()
                 .filter(r -> r.getJiraIssueKey() != null && !r.getJiraIssueKey().isBlank())
                 .toList();
+        log.info("[SmartWay] syncRepoFromJira: repo={}, 대상={}건", repositoryName, targets.size());
+
         int synced = 0, failed = 0;
         JiraConfig cfg = getConfig();
         RestTemplate rt = buildRestTemplate(cfg);
@@ -351,13 +555,17 @@ public class JiraService {
             try {
                 Map<String, Object> issue = getIssue(rt, cfg, r.getJiraIssueKey());
                 if (!issue.isEmpty()) {
+                    String before = r.getReviewStage();
                     applyJiraStatusToRecord(r, issue, cfg);
+                    log.info("[SmartWay] {} 역방향: stage {} → {}", r.getJiraIssueKey(), before, r.getReviewStage());
                     r.setJiraSyncedAt(LocalDateTime.now());
                     recordRepo.save(r);
                     synced++;
+                } else {
+                    log.info("[SmartWay] {} 이슈 미존재 — 스킵", r.getJiraIssueKey());
                 }
             } catch (Exception e) {
-                log.warn("[Jira] {} 역방향 동기화 실패: {}", r.getJiraIssueKey(), e.getMessage());
+                log.warn("[SmartWay] {} 역방향 동기화 실패: {}", r.getJiraIssueKey(), e.getMessage());
                 failed++;
             }
         }
@@ -372,41 +580,42 @@ public class JiraService {
         JiraConfig cfg = getConfig();
         RestTemplate rt = buildRestTemplate(cfg);
 
-        // 마지막 동기화 이후 변경된 티켓만 조회
         String jql = "project = " + cfg.getProjectKey();
         if (cfg.getLastSyncedAt() != null) {
             String since = cfg.getLastSyncedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
             jql += " AND updated >= \"" + since + "\"";
         }
+        log.info("[SmartWay] syncAllFromJira: jql={}", jql);
 
         List<Map<String, Object>> issues = searchByJql(rt, cfg, jql, 500);
-        int synced = 0, notFound = 0, failed = 0;
+        log.info("[SmartWay] 역방향 대상 이슈: {}건", issues.size());
 
+        int synced = 0, notFound = 0, failed = 0;
         for (Map<String, Object> issue : issues) {
             String issueKey = (String) issue.get("key");
             try {
-                // issueKey로 ApiRecord 찾기
                 ApiRecord record = recordRepo.findByJiraIssueKey(issueKey).orElse(null);
                 if (record == null) {
+                    log.info("[SmartWay] {} — DB에 매핑 레코드 없음 (스킵)", issueKey);
                     notFound++;
                     continue;
                 }
-
+                String before = record.getReviewStage();
                 applyJiraStatusToRecord(record, issue, cfg);
+                log.info("[SmartWay] {} 역방향: stage {} → {}", issueKey, before, record.getReviewStage());
                 record.setJiraSyncedAt(LocalDateTime.now());
                 recordRepo.save(record);
                 synced++;
             } catch (Exception e) {
-                log.warn("[Jira] {} 역방향 동기화 실패: {}", issueKey, e.getMessage());
+                log.warn("[SmartWay] {} 역방향 동기화 실패: {}", issueKey, e.getMessage());
                 failed++;
             }
         }
 
-        // 마지막 동기화 시각 갱신
         cfg.setLastSyncedAt(LocalDateTime.now());
         jiraConfigRepo.save(cfg);
 
-        log.info("[Jira] 전체 역방향 동기화: 총={}, 동기화={}, 미발견={}, 실패={}",
+        log.info("[SmartWay] 전체 역방향 동기화: 총={}, 동기화={}, 미발견={}, 실패={}",
                 issues.size(), synced, notFound, failed);
         return Map.of("total", issues.size(), "synced", synced, "notFound", notFound, "failed", failed);
     }
@@ -421,20 +630,34 @@ public class JiraService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> testConnection() {
         JiraConfig cfg = getConfig();
+        String url = cfg.getJiraBaseUrl() + "/rest/api/2/myself";
+        log.info("[SmartWay] 연결 테스트 → url={}", url);
         RestTemplate rt = buildRestTemplate(cfg);
         try {
-            Map<String, Object> me = rt.getForObject(
-                    cfg.getJiraBaseUrl() + "/rest/api/2/myself", Map.class);
+            Map<String, Object> me = rt.getForObject(url, Map.class);
             if (me == null) {
+                log.warn("[SmartWay] 연결 테스트 — 응답 비어있음");
                 return Map.of("success", false, "error", "응답이 비어 있습니다.");
             }
-            log.info("[Jira] 연결 테스트 성공: {}", me.get("displayName"));
+            log.info("[SmartWay] 연결 테스트 성공: displayName={}, email={}",
+                    me.get("displayName"), me.get("emailAddress"));
             return Map.of("success", true,
                     "user", me.getOrDefault("displayName", ""),
                     "email", me.getOrDefault("emailAddress", ""));
         } catch (Exception e) {
-            log.error("[Jira] 연결 테스트 실패: {}", e.getMessage());
-            return Map.of("success", false, "error", e.getMessage());
+            log.error("[SmartWay] 연결 테스트 실패: {} | url={}", e.getMessage(), url);
+            String msg = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            // 대표적인 오류 한글 힌트 부여
+            if (msg.contains("PKIX") || msg.contains("SunCertPathBuilderException")) {
+                msg = "SSL 인증서 검증 실패 (내부 CA 미신뢰). 서버 재기동 후 재시도해 주세요. 원인: " + msg;
+            } else if (msg.contains("401") || msg.toLowerCase().contains("unauthorized")) {
+                msg = "인증 실패 (401) — Bearer 토큰을 확인해 주세요.";
+            } else if (msg.contains("404")) {
+                msg = "경로 미존재 (404) — SmartWay URL 을 확인해 주세요.";
+            } else if (msg.contains("ConnectException") || msg.contains("connect timed out")) {
+                msg = "서버 접속 실패 — 네트워크/URL 을 확인해 주세요. 원인: " + msg;
+            }
+            return Map.of("success", false, "error", msg);
         }
     }
 
@@ -446,37 +669,47 @@ public class JiraService {
         String s = r.getStatus();
         return "최우선 차단대상".equals(s)
                 || "후순위 차단대상".equals(s)
-                || "추가검토필요 차단대상".equals(s);
+                || "추가검토필요 차단대상".equals(s)
+                || "차단완료".equals(s);
     }
 
     /**
      * 담당자 매핑: managerOverride → managerMappings → managerName → JiraUserMapping 변환
-     * 팀+이름으로 우선 매핑, 없으면 이름만으로 폴백
      */
     private String resolveAssignee(ApiRecord record, RepoConfig repoCfg) {
         String manager = record.getManagerOverride();
         if (manager == null && repoCfg != null) {
             manager = repoCfg.getManagerName();
         }
-        if (manager == null) return null;
+        if (manager == null) {
+            log.debug("[Jira] resolveAssignee: 담당자 없음 → assignee=null");
+            return null;
+        }
 
-        // 팀+이름 복합 매칭 우선
         String team = record.getTeamOverride();
         if (team == null && repoCfg != null) {
             team = repoCfg.getTeamName();
         }
+
         if (team != null) {
             Optional<JiraUserMapping> byTeam =
                     userMappingRepo.findByTeamNameAndUrlviewerName(team, manager);
             if (byTeam.isPresent()) {
+                log.debug("[Jira] resolveAssignee: 팀+이름 매핑 성공: team={}, name={} → {}",
+                        team, manager, byTeam.get().getJiraAccountId());
                 return byTeam.get().getJiraAccountId();
             }
+            log.debug("[Jira] resolveAssignee: 팀+이름 매핑 미존재 — 이름만으로 폴백: team={}, name={}", team, manager);
         }
 
-        // 이름만으로 폴백
-        return userMappingRepo.findFirstByUrlviewerName(manager)
-                .map(JiraUserMapping::getJiraAccountId)
-                .orElse(null);
+        Optional<JiraUserMapping> byName = userMappingRepo.findFirstByUrlviewerName(manager);
+        if (byName.isPresent()) {
+            log.debug("[Jira] resolveAssignee: 이름 단독 매핑: {} → {}",
+                    manager, byName.get().getJiraAccountId());
+        } else {
+            log.debug("[Jira] resolveAssignee: 매핑 없음: name={} → assignee=null", manager);
+        }
+        return byName.map(JiraUserMapping::getJiraAccountId).orElse(null);
     }
 
     /**
@@ -485,8 +718,6 @@ public class JiraService {
     private Map<String, Object> buildStoryFields(JiraConfig cfg, ApiRecord record, RepoConfig repoCfg,
                                                   String businessName, String epicKey,
                                                   Map<String, Object> component, String assigneeAccountId) {
-        // Summary: [{businessName}] {apiPath} — {내용}
-        // 내용: apiOperationValue > descriptionTag 순으로 폴백
         String content = null;
         if (record.getApiOperationValue() != null && !record.getApiOperationValue().isBlank()
                 && !"-".equals(record.getApiOperationValue())) {
@@ -501,7 +732,6 @@ public class JiraService {
             summary = summary.substring(0, 252) + "...";
         }
 
-        // Description 템플릿
         StringBuilder desc = new StringBuilder();
         desc.append("■ 기본 정보\n");
         desc.append("- 업무명: ").append(businessName).append("\n");
@@ -527,33 +757,29 @@ public class JiraService {
         desc.append("\n■ URLViewer 참조\n");
         desc.append("- URLViewer ID: ").append(record.getId()).append("\n");
 
-        // Priority 매핑
         String priority = switch (record.getStatus()) {
             case "최우선 차단대상" -> "Highest";
             case "후순위 차단대상" -> "Medium";
             default -> "Low";
         };
 
-        // 필드 맵 구성
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("project", Map.of("key", cfg.getProjectKey()));
         fields.put("issuetype", Map.of("name", "Story"));
         fields.put("summary", summary);
         fields.put("description", desc.toString());
         fields.put("priority", Map.of("name", priority));
-
-        // Labels
         fields.put("labels", List.of(record.getRepositoryName()));
 
-        // Component
         if (component != null && component.get("id") != null) {
             fields.put("components", List.of(Map.of("id", String.valueOf(component.get("id")))));
         }
-
-        // Assignee (Jira Server: name 방식)
         if (assigneeAccountId != null) {
             fields.put("assignee", Map.of("name", assigneeAccountId));
         }
+
+        log.debug("[Jira] buildStoryFields: summary='{}', priority={}, epicKey={}, assignee={}",
+                summary, priority, epicKey, assigneeAccountId);
 
         return fields;
     }
@@ -564,13 +790,15 @@ public class JiraService {
     @SuppressWarnings("unchecked")
     private void applyJiraStatusToRecord(ApiRecord record, Map<String, Object> issue, JiraConfig cfg) {
         Map<String, Object> fields = (Map<String, Object>) issue.get("fields");
-        if (fields == null) return;
+        if (fields == null) {
+            log.debug("[Jira] applyJiraStatusToRecord: fields 없음 — 스킵");
+            return;
+        }
 
         Map<String, Object> statusObj = (Map<String, Object>) fields.get("status");
         Map<String, Object> resolutionObj = (Map<String, Object>) fields.get("resolution");
         String resolution = resolutionObj != null ? (String) resolutionObj.get("name") : null;
 
-        // statusCategory.key 로 완료 여부 판단
         String category = "";
         if (statusObj != null) {
             Map<String, Object> statusCategory = (Map<String, Object>) statusObj.get("statusCategory");
@@ -578,6 +806,9 @@ public class JiraService {
                 category = (String) statusCategory.getOrDefault("key", "");
             }
         }
+
+        log.debug("[Jira] applyJiraStatusToRecord: statusCategory={}, resolution={}, issueKey={}",
+                category, resolution, issue.get("key"));
 
         if ("done".equals(category)) {
             if ("Blocked".equalsIgnoreCase(resolution) || "차단확정".equals(resolution)) {
@@ -587,14 +818,15 @@ public class JiraService {
                 record.setReviewStage("JIRA_REJECTED");
                 record.setReviewResult("차단대상 제외");
             } else {
-                // 기타 Done (판단불가 등)
                 record.setReviewStage("JIRA_APPROVED");
                 record.setReviewResult("판단불가");
             }
         } else {
-            // To Do, In Progress 등
             record.setReviewStage("JIRA_ISSUED");
         }
+
+        log.debug("[Jira] applyJiraStatusToRecord 결과: reviewStage={}, reviewResult={}",
+                record.getReviewStage(), record.getReviewResult());
     }
 
     /** null-safe Long → String */
@@ -606,8 +838,11 @@ public class JiraService {
      * Jira 설정 조회 (없으면 예외)
      */
     private JiraConfig getConfig() {
-        return jiraConfigRepo.findAll().stream().findFirst()
+        JiraConfig cfg = jiraConfigRepo.findAll().stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "Jira 설정이 없습니다. 설정 페이지에서 Jira 연동을 설정해 주세요."));
+        log.debug("[Jira] getConfig: baseUrl={}, project={}, lastSyncedAt={}",
+                cfg.getJiraBaseUrl(), cfg.getProjectKey(), cfg.getLastSyncedAt());
+        return cfg;
     }
 }

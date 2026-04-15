@@ -3,7 +3,6 @@
     <property name="LOG_DIR" value="./logs"/>
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%-5level] [%X{role:-SYSTEM}] [%X{clientIp:-}] %logger{30} - %msg%n"/>
 
-    <!-- 콘솔 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -11,7 +10,6 @@
         </encoder>
     </appender>
 
-    <!-- 시스템 로그 파일 (Spring, Hibernate, Quartz 등) -->
     <appender name="SYSTEM_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/system.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -24,7 +22,6 @@
         </encoder>
     </appender>
 
-    <!-- 비즈니스 로그 파일 (com.baek.viewer) -->
     <appender name="BUSINESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/business.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -37,15 +34,37 @@
         </encoder>
     </appender>
 
-    <!-- 비즈니스 로거: com.baek.viewer 패키지 → 비즈니스 파일 + 콘솔 -->
     <logger name="com.baek.viewer" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="BUSINESS_FILE"/>
     </logger>
 
-    <!-- 루트 로거: 나머지 (Spring, Hibernate, Quartz 등) → 시스템 파일 + 콘솔 -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="SYSTEM_FILE"/>
     </root>
+
+    <springProfile name="debug">
+        <logger name="com.baek.viewer" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="BUSINESS_FILE"/>
+        </logger>
+        <logger name="org.springframework.web.client.RestTemplate" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="SYSTEM_FILE"/>
+        </logger>
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="SYSTEM_FILE"/>
+        </logger>
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="SYSTEM_FILE"/>
+        </logger>
+        <logger name="org.springframework.web.servlet.DispatcherServlet" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="SYSTEM_FILE"/>
+        </logger>
+    </springProfile>
+
 </configuration>

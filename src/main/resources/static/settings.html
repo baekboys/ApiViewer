@@ -74,6 +74,7 @@
     .modal-section{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--border);}
     .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--card);}
 
+
     /* Toast */
     .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
     .toast.show{opacity:1;}
@@ -379,6 +380,92 @@ function updateAdminBadge(valid) {
       <div class="empty-repos">등록된 레포지토리가 없습니다.</div>
     </div>
   </div>
+
+  <!-- ─── Bitbucket Clone ─── -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="margin-bottom:14px;">
+      <span class="dot" style="background:#f97316;"></span>Bitbucket 레포 클론
+      <button class="btn btn-ghost" style="margin-left:auto;height:28px;padding:4px 14px;font-size:12px;" onclick="saveBitbucketConfig()">설정 저장</button>
+    </div>
+
+    <!-- 설정 입력 -->
+    <div class="field-row col3">
+      <label class="field">
+        <span class="label">Bitbucket URL</span>
+        <input id="bbUrl" type="text" class="input" placeholder="https://bitbucket.company.com">
+      </label>
+      <label class="field">
+        <span class="label">Bearer 토큰</span>
+        <input id="bbToken" type="password" class="input" placeholder="Personal Access Token">
+      </label>
+      <label class="field">
+        <span class="label">클론 로컬 경로</span>
+        <div style="display:flex;gap:6px;">
+          <input id="bbLocalPath" type="text" class="input" placeholder="/Users/dev/repos" style="flex:1;">
+          <button type="button" class="btn btn-ghost" style="height:34px;white-space:nowrap;padding:0 12px;flex-shrink:0;" onclick="openDirBrowser(this)">탐색...</button>
+        </div>
+      </label>
+    </div>
+    <div class="field-row col3" style="margin-top:8px;">
+      <label class="field" style="max-width:160px;">
+        <span class="label">페이지당 건수</span>
+        <input id="bbLimit" type="number" class="input" value="25" min="5" max="100">
+      </label>
+      <label class="field" style="flex:1;">
+        <span class="label">git-bash.exe 경로 <span style="font-size:10px;color:var(--text-muted);">(Windows, repos-config.yml의 gitBashPath)</span></span>
+        <input id="bbGitBashPath" type="text" class="input" placeholder="C:\Program Files\Git\git-bash.exe" readonly style="background:#f8fafc;color:var(--text-muted);">
+      </label>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="btn btn-blue" style="height:34px;white-space:nowrap;" onclick="bbListRepos(0)">레포 조회</button>
+      </div>
+    </div>
+
+    <!-- 레포 목록 영역 -->
+    <div id="bbRepoArea" style="display:none;margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);">
+          조회된 레포지토리 (<span id="bbTotalCount">0</span>개)
+          <span id="bbSelectedInfo" style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;display:none;">· 선택 <span id="bbSelectedCount">0</span>개</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="height:28px;font-size:12px;" onclick="bbSelectAll()">전체 선택</button>
+          <button class="btn btn-ghost" style="height:28px;font-size:12px;" onclick="bbClearAll()">선택 해제</button>
+          <button class="btn btn-blue" style="height:28px;font-size:12px;" onclick="bbStartClone()">Clone (선택)</button>
+          <button class="btn" style="height:28px;font-size:12px;background:#8b5cf6;color:#fff;border:none;" onclick="bbShowScript()">스크립트 생성</button>
+        </div>
+      </div>
+
+      <!-- 페이지 네비게이션 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:var(--text-muted);">
+        <button class="btn btn-ghost" style="height:24px;font-size:11px;padding:2px 10px;" id="bbPrevBtn" onclick="bbListReposPrev()" disabled>◀ 이전</button>
+        <span id="bbPageInfo">1 페이지</span>
+        <button class="btn btn-ghost" style="height:24px;font-size:11px;padding:2px 10px;" id="bbNextBtn" onclick="bbListReposNext()" disabled>다음 ▶</button>
+      </div>
+
+      <!-- 레포 체크박스 목록 -->
+      <div id="bbRepoList" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;"></div>
+
+      <!-- 진행 상태 영역 -->
+      <div id="bbProgressArea" style="display:none;margin-top:16px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">클론 진행 상태</div>
+        <div id="bbProgressList" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ─── 스크립트 모달 ─── -->
+  <div id="bbScriptModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;" onclick="if(event.target===this)closeBbScriptModal()">
+    <div style="background:#fff;border-radius:10px;padding:24px;width:min(720px,95vw);max-height:85vh;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:15px;font-weight:700;">클론 스크립트</span>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">복사 후 로컬 터미널에서 실행하세요</span>
+        <button class="btn btn-ghost" style="margin-left:auto;height:28px;font-size:12px;" onclick="bbCopyScript()">복사</button>
+        <button class="btn btn-ghost" style="height:28px;font-size:12px;" onclick="closeBbScriptModal()">닫기</button>
+      </div>
+      <pre id="bbScriptContent" style="flex:1;overflow:auto;background:#1e1e2e;color:#cdd6f4;padding:16px;border-radius:6px;font-size:12px;font-family:monospace;line-height:1.6;margin:0;white-space:pre;"></pre>
+    </div>
+  </div>
 </section>
 
 <!-- ═══ ⏱️ 배치/관리 (배치스케줄 + APM아카이브) ═══ -->
@@ -544,39 +631,6 @@ function updateAdminBadge(valid) {
 
   <div style="border-top:2px solid var(--border);margin:20px 0;"></div>
 
-  <!-- 성능 테스트용 대량 데이터 생성 -->
-  <div class="card" style="border:1px solid #fde68a;">
-    <div class="card-title" style="margin-bottom:12px;">
-      <span class="dot" style="background:#f59e0b;"></span>성능 테스트 시드 데이터
-      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">
-        대량 더미 데이터 생성 — <b>test-repo-*</b> 네임스페이스 격리 (운영 데이터에 영향 없음)
-      </span>
-    </div>
-    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-      <label class="field" style="min-width:140px;">api_record 건수
-        <input id="seedApis" type="number" value="20000" min="1" max="200000"
-               style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-      </label>
-      <label class="field" style="min-width:140px;">APM 일수
-        <input id="seedDays" type="number" value="100" min="1" max="1000"
-               style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-      </label>
-      <label class="field" style="min-width:180px;">
-        <span style="visibility:hidden;">.</span>
-        <label style="display:flex;align-items:center;gap:6px;height:32px;font-size:12px;">
-          <input id="seedClean" type="checkbox" checked> 실행 전 기존 test-repo-* 삭제
-        </label>
-      </label>
-      <button class="btn" style="background:#f59e0b;color:#fff;height:34px;" onclick="seedTestData()">⚡ 시드 데이터 생성</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="cleanTestData()">🧹 test-repo-* 정리</button>
-    </div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
-      총 APM 건수 = api_record × APM 일수 &nbsp; · &nbsp;
-      기본값(20,000 × 100) = <b>200만 건</b> APM 생성 &nbsp; · &nbsp;
-      생성에 수 분 소요될 수 있음
-    </div>
-    <div id="seedResult" style="margin-top:8px;font-size:12px;"></div>
-  </div>
 </section>
 
 <!-- ═══ 📧 알림 (메일 발송) ═══ -->
@@ -941,7 +995,7 @@ function updateAdminBadge(valid) {
 
   // ── 초기 로드 ─────────────────────────────────────────────
   async function init() {
-    await Promise.all([loadGlobal(), loadRepos()]);
+    await Promise.all([loadGlobal(), loadRepos(), loadBitbucketConfig()]);
   }
 
   async function loadGlobal() {
@@ -1423,6 +1477,332 @@ function updateAdminBadge(valid) {
     } catch(e) { showToast(e.message || '복사 실패','error'); }
   }
 
+  // ── Bitbucket Clone ───────────────────────────────────────
+  const bbState = { start: 0, nextStart: 0, startHistory: [], isLastPage: true, pollTimer: null, jobId: null, allRepos: [], selected: new Map() };
+
+  /** repos 탭 활성화 시 Bitbucket 설정 로드 */
+  async function loadBitbucketConfig() {
+    try {
+      const res = await fetch('/api/config/global');
+      const g   = await res.json();
+      document.getElementById('bbUrl').value         = g.bitbucketUrl   || '';
+      document.getElementById('bbToken').value       = g.bitbucketToken  || '';
+      document.getElementById('bbLocalPath').value   = g.cloneLocalPath  || '';
+      document.getElementById('bbLimit').value       = g.listRepoLimit   ?? 25;
+      document.getElementById('bbGitBashPath').value = g.gitBashPath     || '(미설정 — repos-config.yml의 gitBashPath 참고)';
+    } catch(e) {}
+
+    // 창을 닫은 후 재접속 시 이전 클론 작업 복원
+    bbRestorePendingJob();
+  }
+
+  /** localStorage에 저장된 미완료 클론 작업 복원 */
+  async function bbRestorePendingJob() {
+    const saved = localStorage.getItem('bbCloneJob');
+    if (!saved) return;
+    try {
+      const { jobId, repos } = JSON.parse(saved);
+      if (!jobId || !repos?.length) { localStorage.removeItem('bbCloneJob'); return; }
+
+      // 서버에서 현재 상태 조회
+      const res = await adminFetch(`/api/clone/status/${jobId}`);
+      if (!res.ok) { localStorage.removeItem('bbCloneJob'); return; }
+      const statuses = await res.json();
+      if (!statuses?.length) { localStorage.removeItem('bbCloneJob'); return; }
+
+      const allDone = statuses.every(s => s.status === 'DONE' || s.status === 'ERROR');
+
+      // 진행 영역 복원
+      bbState.jobId = jobId;
+      const progressArea = document.getElementById('bbProgressArea');
+      const bbRepoArea   = document.getElementById('bbRepoArea');
+      bbRepoArea.style.display   = 'block';
+      progressArea.style.display = 'block';
+
+      const notice = allDone
+        ? `<div style="font-size:13px;font-weight:600;color:#16a34a;margin-bottom:8px;">✔ 이전 클론 작업 완료 (창 닫힌 후 서버에서 완료됨)</div>`
+        : `<div style="font-size:13px;font-weight:600;color:#2563eb;margin-bottom:8px;">↺ 이전 클론 작업 진행 중 — 상태를 복원했습니다.</div>`;
+
+      document.getElementById('bbProgressList').innerHTML = notice + repos.map(r =>
+        `<div id="bbProg_${esc(r.slug)}" style="border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid var(--border);">
+            <span id="bbStat_${esc(r.slug)}" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e2e8f0;color:#64748b;">PENDING</span>
+            <span style="font-size:13px;font-weight:600;">${esc(r.slug)}</span>
+            <span id="bbPct_${esc(r.slug)}" style="margin-left:auto;font-size:12px;font-weight:700;color:#2563eb;min-width:36px;text-align:right;">0%</span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;">
+            <div id="bbBar_${esc(r.slug)}" style="height:100%;width:0%;background:#2563eb;transition:width 0.4s ease;"></div>
+          </div>
+          <pre id="bbLog_${esc(r.slug)}" style="margin:0;padding:8px 12px;font-size:11px;font-family:monospace;background:#1e1e2e;color:#cdd6f4;max-height:120px;overflow-y:auto;white-space:pre-wrap;"></pre>
+        </div>`
+      ).join('');
+
+      // 현재 상태 즉시 반영
+      statuses.forEach(s => bbApplyStatus(s));
+
+      if (!allDone) {
+        // 아직 진행 중이면 폴링 재개
+        bbPollStatus(repos.map(r => r.slug));
+      } else {
+        localStorage.removeItem('bbCloneJob');
+      }
+    } catch(e) {
+      localStorage.removeItem('bbCloneJob');
+    }
+  }
+
+  /** 상태 객체 하나를 DOM에 반영하는 공통 함수 */
+  function bbApplyStatus(s) {
+    const statEl = document.getElementById('bbStat_' + s.slug);
+    const logEl  = document.getElementById('bbLog_'  + s.slug);
+    const pctEl  = document.getElementById('bbPct_'  + s.slug);
+    const barEl  = document.getElementById('bbBar_'  + s.slug);
+    if (statEl) {
+      const colors    = { PENDING:'#e2e8f0,#64748b', CLONING:'#dbeafe,#2563eb', DONE:'#dcfce7,#16a34a', ERROR:'#fee2e2,#dc2626', ALREADY_EXISTS:'#fef9c3,#b45309' };
+      const barColors = { PENDING:'#94a3b8', CLONING:'#2563eb', DONE:'#16a34a', ERROR:'#dc2626', ALREADY_EXISTS:'#d97706' };
+      const [bg, fg] = (colors[s.status] || colors.PENDING).split(',');
+      statEl.style.background = bg;
+      statEl.style.color      = fg;
+      statEl.textContent      = s.status;
+      if (barEl) barEl.style.background = barColors[s.status] || '#2563eb';
+    }
+    const pct = (s.status === 'DONE') ? 100 : (s.percent ?? 0);
+    if (pctEl) pctEl.textContent = pct + '%';
+    if (barEl) barEl.style.width = pct + '%';
+    if (logEl && s.logs) { logEl.textContent = s.logs.join('\n'); logEl.scrollTop = logEl.scrollHeight; }
+  }
+
+  /** Bitbucket 설정만 저장 (globalConfig merge) */
+  async function saveBitbucketConfig() {
+    try {
+      // 현재 globalConfig 읽어서 bitbucket 필드만 덮어쓰기
+      const cur  = await (await fetch('/api/config/global')).json();
+      cur.bitbucketUrl   = document.getElementById('bbUrl').value.trim();
+      cur.bitbucketToken = document.getElementById('bbToken').value.trim();
+      cur.cloneLocalPath = document.getElementById('bbLocalPath').value.trim();
+      cur.listRepoLimit  = parseInt(document.getElementById('bbLimit').value) || 25;
+      const res = await adminFetch('/api/config/global', { method:'PUT', body: JSON.stringify(cur) });
+      if (!res.ok) throw new Error();
+      showToast('Bitbucket 설정 저장 완료', 'success');
+    } catch(e) { showToast('설정 저장 실패', 'error'); }
+  }
+
+  /** Bitbucket 레포 목록 조회 */
+  async function bbListRepos(start) {
+    try {
+      const res = await adminFetch(`/api/clone/repos?start=${start}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || '레포 조회 실패', 'error'); return;
+      }
+      const data = await res.json();
+      bbState.start      = start;
+      bbState.nextStart  = data.nextPageStart ?? 0;
+      bbState.isLastPage = data.isLastPage ?? true;
+      bbState.allRepos   = data.values || [];
+
+      const pageNum = bbState.startHistory.length + 1;
+      document.getElementById('bbRepoArea').style.display = 'block';
+      document.getElementById('bbTotalCount').textContent  = bbState.allRepos.length;
+      document.getElementById('bbPageInfo').textContent    = `${pageNum} 페이지`;
+      document.getElementById('bbPrevBtn').disabled        = bbState.startHistory.length === 0;
+      document.getElementById('bbNextBtn').disabled        = bbState.isLastPage;
+
+      bbRenderRepoList(bbState.allRepos);
+      bbUpdateSelectedInfo();
+    } catch(e) { showToast('레포 조회 중 오류: ' + e.message, 'error'); }
+  }
+
+  function bbListReposNext() {
+    if (bbState.isLastPage) return;
+    bbState.startHistory.push(bbState.start);
+    bbListRepos(bbState.nextStart);
+  }
+
+  function bbListReposPrev() {
+    if (bbState.startHistory.length === 0) return;
+    const prevStart = bbState.startHistory.pop();
+    bbListRepos(prevStart);
+  }
+
+  function bbRenderRepoList(repos) {
+    const el = document.getElementById('bbRepoList');
+    if (!repos.length) {
+      el.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px;">레포지토리가 없습니다.</div>';
+      return;
+    }
+    el.innerHTML = repos.map(r => {
+      const slug     = r.slug || r.name || '';
+      const project  = (r.project && r.project.key) ? r.project.key : '';
+      const sshLink  = ((r.links && r.links.clone) || []).find(c => c.name === 'ssh') || {};
+      const cloneUrl = sshLink.href || '';
+      const checked  = bbState.selected.has(slug) ? 'checked' : '';
+      return `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:4px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+        <input type="checkbox" class="bb-repo-chk" data-slug="${esc(slug)}" data-clone-url="${esc(cloneUrl)}" data-project="${esc(project)}" style="width:15px;height:15px;cursor:pointer;" ${checked} onchange="bbOnCheck(this)">
+        <span style="font-size:13px;font-weight:600;color:var(--text);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;">${esc(slug)}</span>
+        <span style="font-size:11px;color:var(--text-muted);background:#f1f5f9;padding:2px 7px;border-radius:10px;white-space:nowrap;">${esc(project)}</span>
+      </label>`;
+    }).join('');
+  }
+
+  function bbOnCheck(chk) {
+    if (chk.checked) {
+      bbState.selected.set(chk.dataset.slug, { cloneUrl: chk.dataset.cloneUrl, project: chk.dataset.project || '' });
+    } else {
+      bbState.selected.delete(chk.dataset.slug);
+    }
+    bbUpdateSelectedInfo();
+  }
+
+  function bbUpdateSelectedInfo() {
+    const cnt = bbState.selected.size;
+    const infoEl = document.getElementById('bbSelectedInfo');
+    document.getElementById('bbSelectedCount').textContent = cnt;
+    infoEl.style.display = cnt > 0 ? 'inline' : 'none';
+  }
+
+  function bbSelectAll() {
+    // 현재 페이지 레포만 선택에 추가
+    document.querySelectorAll('.bb-repo-chk').forEach(c => {
+      c.checked = true;
+      bbState.selected.set(c.dataset.slug, { cloneUrl: c.dataset.cloneUrl, project: c.dataset.project || '' });
+    });
+    bbUpdateSelectedInfo();
+  }
+
+  function bbClearAll() {
+    bbState.selected.clear();
+    document.querySelectorAll('.bb-repo-chk').forEach(c => c.checked = false);
+    bbUpdateSelectedInfo();
+  }
+
+  function bbGetSelected() {
+    return Array.from(bbState.selected.entries()).map(([slug, val]) => ({ slug, cloneUrl: val.cloneUrl, project: val.project || '' }));
+  }
+
+  /** Clone 실행 */
+  async function bbStartClone() {
+    const repos = bbGetSelected();
+    if (!repos.length) { showToast('클론할 레포지토리를 선택하세요.', 'error'); return; }
+
+    try {
+      const res = await adminFetch('/api/clone/execute', {
+        method: 'POST',
+        body: JSON.stringify({ repos })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Clone 실행 실패', 'error'); return;
+      }
+      const data = await res.json();
+      bbState.jobId = data.jobId;
+      // 창 닫혀도 복원 가능하도록 jobId + 레포 목록 저장
+      localStorage.setItem('bbCloneJob', JSON.stringify({ jobId: data.jobId, repos }));
+
+      // 진행 영역 초기화
+      const progressArea = document.getElementById('bbProgressArea');
+      progressArea.style.display = 'block';
+      document.getElementById('bbProgressList').innerHTML = repos.map(r =>
+        `<div id="bbProg_${esc(r.slug)}" style="border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid var(--border);">
+            <span id="bbStat_${esc(r.slug)}" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e2e8f0;color:#64748b;">PENDING</span>
+            <span style="font-size:13px;font-weight:600;">${esc(r.slug)}</span>
+            <span id="bbPct_${esc(r.slug)}" style="margin-left:auto;font-size:12px;font-weight:700;color:#2563eb;min-width:36px;text-align:right;">0%</span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;">
+            <div id="bbBar_${esc(r.slug)}" style="height:100%;width:0%;background:#2563eb;transition:width 0.4s ease;"></div>
+          </div>
+          <pre id="bbLog_${esc(r.slug)}" style="margin:0;padding:8px 12px;font-size:11px;font-family:monospace;background:#1e1e2e;color:#cdd6f4;max-height:120px;overflow-y:auto;white-space:pre-wrap;"></pre>
+        </div>`
+      ).join('');
+
+      showToast('Clone 시작 — 진행 상황을 확인하세요.', 'info');
+      bbPollStatus(repos.map(r => r.slug));
+    } catch(e) { showToast('Clone 실행 오류: ' + e.message, 'error'); }
+  }
+
+  function bbPollStatus(slugs) {
+    if (bbState.pollTimer) clearInterval(bbState.pollTimer);
+    bbState.pollTimer = setInterval(async () => {
+      try {
+        const res = await adminFetch(`/api/clone/status/${bbState.jobId}`);
+        if (!res.ok) return;
+        const statuses = await res.json();
+        let allDone = true;
+        statuses.forEach(s => {
+          bbApplyStatus(s);
+          if (s.status !== 'DONE' && s.status !== 'ERROR' && s.status !== 'ALREADY_EXISTS') allDone = false;
+        });
+        if (allDone) {
+          clearInterval(bbState.pollTimer);
+          bbState.pollTimer = null;
+          localStorage.removeItem('bbCloneJob');
+          const skipCount = statuses.filter(s => s.status === 'ALREADY_EXISTS').length;
+          const doneCount = statuses.filter(s => s.status === 'DONE').length;
+          const errCount  = statuses.filter(s => s.status === 'ERROR').length;
+          const parts = [];
+          if (doneCount  > 0) parts.push(`성공 ${doneCount}개`);
+          if (skipCount  > 0) parts.push(`이미 존재 ${skipCount}개`);
+          if (errCount   > 0) parts.push(`실패 ${errCount}개`);
+          showToast('Clone 완료 — ' + parts.join(', '), errCount > 0 ? 'error' : 'success');
+        }
+      } catch(e) {}
+    }, 2000);
+  }
+
+  /** 스크립트 생성 모달 */
+  async function bbShowScript() {
+    const repos = bbGetSelected();
+    if (!repos.length) { showToast('레포지토리를 선택하세요.', 'error'); return; }
+    try {
+      const res = await adminFetch('/api/clone/script', {
+        method: 'POST',
+        body: JSON.stringify({ repos })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || '스크립트 생성 실패', 'error'); return;
+      }
+      const data = await res.json();
+      document.getElementById('bbScriptContent').textContent = data.script || '';
+      document.getElementById('bbScriptModal').style.display = 'flex';
+    } catch(e) { showToast('스크립트 생성 오류', 'error'); }
+  }
+
+  function closeBbScriptModal() {
+    document.getElementById('bbScriptModal').style.display = 'none';
+  }
+
+  async function bbCopyScript() {
+    const text = document.getElementById('bbScriptContent').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('스크립트 복사 완료', 'success');
+    } catch(e) { showToast('복사 실패 — 직접 선택하여 복사하세요.', 'error'); }
+  }
+
+  // ── 디렉토리 탐색기 (OS 네이티브 폴더 선택 다이얼로그) ──────
+  async function openDirBrowser(btn) {
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '선택 중...';
+    try {
+      const res = await adminFetch('/api/clone/pick-dir');
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || '폴더 선택 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+      if (data.cancelled) return;
+      document.getElementById('bbLocalPath').value = data.path;
+    } catch (e) {
+      showToast('폴더 선택 중 오류가 발생했습니다: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+
   // ── 헬퍼 ──────────────────────────────────────────────────
   function esc(s) {
     if (!s) return '';
@@ -1888,53 +2268,6 @@ function updateAdminBadge(valid) {
     } catch(e) {
       document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
       showToast(e.message || '삭제 실패', 'error');
-    } finally { hideDelProgress(); }
-  }
-
-  // ── 성능 테스트 시드 데이터 ──────────────────────────────
-  async function seedTestData() {
-    const apis = parseInt(document.getElementById('seedApis').value, 10);
-    const days = parseInt(document.getElementById('seedDays').value, 10);
-    const clean = document.getElementById('seedClean').checked;
-    if (!Number.isFinite(apis) || apis < 1 || apis > 200000) { showToast('api_record 건수: 1 ~ 200,000', 'error'); return; }
-    if (!Number.isFinite(days) || days < 1 || days > 1000) { showToast('APM 일수: 1 ~ 1000', 'error'); return; }
-    const total = apis * days;
-    if (!await customConfirm(`성능 테스트 시드 데이터를 생성합니다.\n\napi_record: ${apis.toLocaleString()}건\nAPM 일수: ${days}일\n예상 APM 총 건수: ${total.toLocaleString()}건\n실행 전 삭제: ${clean ? '예' : '아니오'}\n\n수 분 소요될 수 있습니다.`)) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress(`시드 데이터 생성 중... (예상 ${total.toLocaleString()}건, 수 분 소요)`);
-    const t0 = Date.now();
-    try {
-      const url = `/api/db/seed?apis=${apis}&days=${days}&clean=${clean}`;
-      const res = await adminFetch(url, { method:'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '시드 실패');
-      const sec = ((Date.now() - t0) / 1000).toFixed(1);
-      document.getElementById('seedResult').innerHTML =
-        `<span style="color:var(--success);">✓ 생성 완료 — api_record ${data.apiRecordInserted.toLocaleString()}건, apm_call_data ${data.apmCallDataInserted.toLocaleString()}건 (${sec}s) · api=${data.apiInsertMs}ms apm=${data.apmInsertMs}ms agg=${data.aggregateMs}ms</span>`;
-      showToast(`시드 생성 완료 (${sec}s)`, 'success');
-      // DB 모니터링 갱신
-      try { loadDbMonitor(); } catch(e) {}
-    } catch(e) {
-      document.getElementById('seedResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '시드 실패', 'error');
-    } finally { hideDelProgress(); }
-  }
-
-  async function cleanTestData() {
-    if (!await customConfirm('test-repo-* prefix 로 생성된 모든 시드 데이터를 삭제하시겠습니까?\n(운영 데이터에는 영향 없음)')) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress('시드 데이터 정리 중...');
-    try {
-      const res = await adminFetch('/api/db/seed', { method:'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '정리 실패');
-      document.getElementById('seedResult').innerHTML =
-        `<span style="color:var(--success);">✓ 정리 완료 — api_record ${data.apiRecordDeleted.toLocaleString()}건, apm_call_data ${data.apmCallDataDeleted.toLocaleString()}건 삭제</span>`;
-      showToast('시드 데이터 정리 완료', 'success');
-      try { loadDbMonitor(); } catch(e) {}
-    } catch(e) {
-      document.getElementById('seedResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '정리 실패', 'error');
     } finally { hideDelProgress(); }
   }
 

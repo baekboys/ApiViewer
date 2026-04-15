@@ -40,13 +40,15 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/db/records",         // 선택 레코드 강제 삭제
                         "/api/db/monitor/**",      // DB 모니터링
                         "/api/db/seed",            // 성능테스트용 시드 데이터
+                        "/api/mock/**",            // Mock 분석데이터 생성/삭제
                         "/api/config/**",          // 설정 변경
                         "/api/logs/**",            // 로그 조회
                         "/api/schedule/**",        // 스케줄 관리
                         "/api/apm/**",             // APM 데이터 관리
                         "/api/upload/**",          // 엑셀 업로드
                         "/api/mail/**",            // 메일 발송/서식 관리
-                        "/api/jira/**"             // Jira 연동 관리
+                        "/api/jira/**",            // Jira 연동 관리
+                        "/api/clone/**"            // Bitbucket 클론 관리
                 )
                 .excludePathPatterns(
                         "/api/apm/chart",          // 차트 조회는 공개 (viewer.html)

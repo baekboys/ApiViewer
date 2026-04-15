@@ -439,6 +439,7 @@ public class ApiViewController {
         m.put("statusChangeLog",    r.getStatusChangeLog());
         m.put("teamOverride",       r.getTeamOverride());
         m.put("managerOverride",    r.getManagerOverride());
+        m.put("descriptionOverride", r.getDescriptionOverride());
         m.put("gitHistory",         r.getGitHistory());
         // Excel 내보내기 / 상세 표시에 필요한 TEXT 필드 (페이지 단위라 부담 작음)
         m.put("fullComment",        r.getFullComment());
@@ -623,21 +624,46 @@ public class ApiViewController {
             ApiRecord r = recordRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("레코드를 찾을 수 없습니다: " + id));
 
-            // 차단완료건은 내용/상태 수정 불가. 단, 확인 플래그(isNew, statusChanged) 해제는 허용.
-            if ("차단완료".equals(r.getStatus())) {
-                java.util.Set<String> allowed = java.util.Set.of("isNew", "statusChanged");
+            // 확정완료(statusOverridden=true) 건은 내용/상태 수정 불가. 단, 확인 플래그 해제는 허용.
+            if (r.isStatusOverridden()) {
+                java.util.Set<String> allowed = java.util.Set.of("isNew", "statusChanged", "statusOverridden");
                 boolean onlyFlagOps = !body.isEmpty() && body.keySet().stream().allMatch(allowed::contains);
                 if (!onlyFlagOps) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "변경불가 상태의 레코드는 수정할 수 없습니다. (신규/상태변경 플래그 해제만 가능)"));
+                    return ResponseEntity.badRequest().body(Map.of("error", "확정완료 상태의 레코드는 수정할 수 없습니다. 먼저 확정을 해제해 주세요."));
                 }
             }
 
             boolean anyChanged = false;
             boolean reviewChanged = false;
             if (body.containsKey("isNew"))           { r.setNew(!Boolean.FALSE.equals(body.get("isNew")) && Boolean.parseBoolean(String.valueOf(body.get("isNew")))); }
+            if (body.containsKey("statusOverridden")) {
+                Object val = body.get("statusOverridden");
+                r.setStatusOverridden(val instanceof Boolean ? (Boolean) val : "true".equals(String.valueOf(val)));
+                anyChanged = true;
+            }
+            if (body.containsKey("status")) {
+                String st = body.get("status") != null ? body.get("status").toString().trim() : null;
+                if (st != null && !st.isBlank()) {
+                    r.setStatus(st);
+                    anyChanged = true;
+                }
+            }
+            if (body.containsKey("blockedDate")) {
+                String ds = body.get("blockedDate") != null ? body.get("blockedDate").toString().trim() : "";
+                r.setBlockedDate(ds.isEmpty() ? null : java.time.LocalDate.parse(ds)); anyChanged = true;
+            }
+            if (body.containsKey("blockedReason"))  { r.setBlockedReason(body.get("blockedReason") != null ? body.get("blockedReason").toString() : null); anyChanged = true; }
+            if (body.containsKey("blockCriteria"))  { r.setBlockCriteria(body.get("blockCriteria") != null ? body.get("blockCriteria").toString() : null); anyChanged = true; }
+            if (body.containsKey("isDeprecated"))   { r.setIsDeprecated(body.get("isDeprecated") != null ? body.get("isDeprecated").toString() : null); anyChanged = true; }
             if (body.containsKey("memo"))            { r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null); anyChanged = true; }
             if (body.containsKey("teamOverride"))    { r.setTeamOverride(body.get("teamOverride") != null ? body.get("teamOverride").toString() : null); anyChanged = true; }
             if (body.containsKey("managerOverride")) { r.setManagerOverride(body.get("managerOverride") != null ? body.get("managerOverride").toString() : null); anyChanged = true; }
+            if (body.containsKey("descriptionOverride")) {
+                Object v = body.get("descriptionOverride");
+                String s = v == null ? null : v.toString().trim();
+                r.setDescriptionOverride(s == null || s.isEmpty() ? null : s);
+                anyChanged = true;
+            }
             if (body.containsKey("reviewResult"))    { r.setReviewResult(body.get("reviewResult") != null ? body.get("reviewResult").toString() : null); anyChanged = true; reviewChanged = true; }
             if (body.containsKey("reviewOpinion"))   { r.setReviewOpinion(body.get("reviewOpinion") != null ? body.get("reviewOpinion").toString() : null); anyChanged = true; reviewChanged = true; }
             if (body.containsKey("cboScheduledDate")) {

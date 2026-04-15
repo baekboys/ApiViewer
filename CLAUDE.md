@@ -120,7 +120,7 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | 발급 | `POST /api/verify-password` → 토큰 반환 |
 | 전송 | `X-Admin-Token` 헤더에 토큰 포함 |
 | 검증 | AdminInterceptor가 보호 경로에서 토큰 검증 |
-| 보호 경로 | `/api/extract`, `/api/config/**`, `/api/logs/**`, `/api/schedule/**`, `/api/db/delete-all`, `/api/db/seed` |
+| 보호 경로 | `/api/extract`, `/api/config/**`, `/api/logs/**`, `/api/schedule/**`, `/api/db/delete-all`, `/api/db/seed`, `/api/mock/**` |
 | 공개 경로 | `GET /api/config/global`, `GET /api/config/repos` |
 
 ---
@@ -138,6 +138,7 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | `call_count` / `call_count_month` / `call_count_week` | 호출건수 3분할 (총/1달/1주) |
 | `block_criteria` | 차단기준 텍스트 |
 | `team_override` / `manager_override` | 레코드별 팀/담당자 오버라이드 |
+| `description_override` | 내용(관련 메뉴/기능) 사용자 오버라이드. 설정 시 ApiOperation/Description/컨트롤러주석보다 우선 |
 | `manager_mappings` (repo_config) | 프로그램ID별 담당자 매핑 JSON. 매칭 없으면 `managerName`(팀 대표)로 폴백 |
 | `blocked_date` / `blocked_reason` | 차단일자/차단근거 (fullComment에서 파싱) |
 | `review_result` / `review_opinion` | 현업검토결과/의견 |
@@ -155,6 +156,39 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | 파일 위치 | `./logs/app.log` |
 | 롤링 | 일자별 (`app-yyyy-MM-dd.log`), 90일 보관 |
 | 뷰어 | 설정 페이지에서 달력으로 일자별 조회 |
+
+## 로깅 정책 (코드 작성 원칙)
+
+**모든 기능 구현 시 반드시 준수한다.**
+
+### DEBUG 레벨 — 개발자 추적용 (필수)
+- **모든 메서드 진입/분기/결과**를 DEBUG로 남긴다. 운영에서 문제가 생겼을 때 DEBUG를 켜면 전체 흐름이 재현될 수 있어야 한다.
+- 외부 API 호출 시: 요청 URL·파라미터·바디, 응답 상태코드·바디 모두 DEBUG로 기록
+- 조건 분기마다 어떤 경로로 진입했는지 기록 (e.g., `"기존 키 존재 → UPDATE"`, `"신규 → CREATE"`)
+- 루프/배치 처리 시 건별 처리 내용과 중간 상태 기록
+
+```java
+// 예시
+log.debug("[SmartWay] syncRecordToJira 시작: recordId={}", recordId);
+log.debug("[SmartWay] Step3. 담당자 매핑: manager={}, team={} → jiraAccountId={}", manager, team, assignee);
+log.debug("[SmartWay] Step5. 발행 방식: {} (기존 issueKey={})", wasNew ? "CREATE" : "UPDATE", issueKey);
+```
+
+### INFO 레벨 — 운영 모니터링용 (판단하여 사용)
+- **외부 시스템 연동 결과**: 호출 성공·실패, 생성된 ID/Key
+- **배치·일괄 처리 완료**: 처리 건수 집계 (총/성공/실패)
+- **상태 전이**: 중요한 데이터 상태 변화 (e.g., 이슈 생성, 동기화 완료)
+- 일반 CRUD나 단순 조회는 INFO 불필요
+
+```java
+// 예시
+log.info("[SmartWay] 이슈 생성 완료: key={}, self={}", key, self);
+log.info("[SmartWay] 레포 {} 동기화: 대상={}, 생성={}, 갱신={}, 실패={}", repo, total, created, updated, failed);
+```
+
+### WARN / ERROR 레벨
+- **WARN**: 처리는 계속되지만 예상치 못한 상황 (e.g., 이슈 미존재 스킵, 컴포넌트 생성 실패 후 폴백)
+- **ERROR**: 처리가 중단되는 예외 상황. `e.getMessage()`와 URL/컨텍스트 함께 기록
 
 ---
 
@@ -215,6 +249,7 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 |-----------|----------|
 | 신규 페이지 추가 / 기존 페이지 제거 | 스윔레인의 step 카드 및 "6. 페이지별 접근 권한" 섹션 |
 | 상태(status) 종류·판정 조건 변경 | "3. 상태 판정 로직" 스윔레인의 상태 카드 |
+| 내용(descriptionOverride/ApiOperation/Description/컨트롤러주석) 판정 우선순위 변경 | "4. 내용 판정 플로우"의 카드 체인 |
 | 역할(관리자/사용자/배치) 업무 흐름 변경 | 해당 스윔레인 step 순서·내용 |
 | Quartz Job 종류·이름 변경 | "2. 자동 배치" 스윔레인 |
 | URL 1건 라이프사이클 단계 변경 | "5. URL 1건의 라이프사이클" 타임라인 |
@@ -227,9 +262,14 @@ workflow.html
 ├─ 1. 관리자 업무     (스윔레인: 소스추출→배치설정→레포매핑→상태확정)
 ├─ 2. 자동 배치       (스윔레인: GIT_PULL_EXTRACT→APM_DAILY/WEEKLY→상태재계산→DATA_BACKUP)
 ├─ 3. 상태 판정 로직  (5가지 상태 카드 그리드)
-├─ 4. 사용자·검토자   (스윔레인: 대시보드→URL현황→호출현황→현업검토)
-├─ 5. URL 라이프사이클 (6단계 타임라인)
-└─ 6. 페이지별 권한   (공개/관리자 카드 + 인증 방식)
+├─ 4. 내용 판정 플로우 (descriptionOverride→ApiOperation→Description→컨트롤러주석→빈값)
+├─ 5. 사용자·검토자   (스윔레인: 대시보드→URL현황→호출현황→현업검토)
+├─ 6. 차단 확정·배포·모니터링 전체 흐름
+├─ 7. URL 라이프사이클
+├─ 8. 페이지별 접근 권한
+├─ 9. URL 차단 여부 판정 기준
+├─ 10. 역할별 Use Case
+└─ 11. 테이블 / 컬럼 명세서
 ```
 
 ## 편집 원칙

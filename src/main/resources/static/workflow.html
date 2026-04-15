@@ -149,6 +149,82 @@
       user-select: none;
     }
 
+    /* 내용 판정 플로우차트 (우선순위 박스 체인) */
+    .content-flow {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      padding: 16px;
+      flex-wrap: wrap;
+    }
+    .content-flow .cf-card {
+      flex: 1 1 0;
+      min-width: 150px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #fff;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    .content-flow .cf-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+    }
+    .content-flow .cf-p1 { background: #eff6ff; }
+    .content-flow .cf-p1::before { background: #3b82f6; }
+    .content-flow .cf-p2 { background: #f5f3ff; }
+    .content-flow .cf-p2::before { background: #8b5cf6; }
+    .content-flow .cf-p3 { background: #ecfeff; }
+    .content-flow .cf-p3::before { background: #06b6d4; }
+    .content-flow .cf-p4 { background: #f0fdf4; }
+    .content-flow .cf-p4::before { background: #10b981; }
+    .content-flow .cf-p5 { background: #f8fafc; }
+    .content-flow .cf-p5::before { background: #94a3b8; }
+    .content-flow .cf-rank {
+      font-size: var(--fs-xs);
+      font-weight: 700;
+      color: var(--text-light);
+      letter-spacing: .05em;
+      padding-left: 8px;
+    }
+    .content-flow .cf-title {
+      font-size: var(--fs-md);
+      font-weight: 700;
+      color: var(--text);
+      padding-left: 8px;
+    }
+    .content-flow .cf-desc {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      line-height: 1.5;
+      padding-left: 8px;
+    }
+    .content-flow .cf-desc code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(15, 23, 42, .06);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+    .content-flow .cf-arrow {
+      display: flex;
+      align-items: center;
+      color: var(--border-dark);
+      font-size: 20px;
+      font-weight: 700;
+      user-select: none;
+    }
+    @media (max-width: 960px) {
+      .content-flow { flex-direction: column; }
+      .content-flow .cf-arrow { transform: rotate(90deg); align-self: center; }
+    }
+
     /* 상태 판정 그리드 (5가지 상태 카드) */
     .status-grid {
       display: grid;
@@ -424,7 +500,7 @@
     <div style="background:linear-gradient(90deg,#1e40af 0%,#1d4ed8 100%);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
       <span style="font-size:16px;">🏆</span>
       <span style="font-size:12px;color:#fff;line-height:1.6;font-weight:500;">
-        <strong style="color:#93c5fd;">IT카드개발팀(IT개발실)</strong>이 전체 프로세스를 주도하며,
+        <strong style="color:#93c5fd;">IT개발실/IT카드개발팀(백명선, 김수현, 박귀렬 등)</strong>이 전체 프로세스를 주도하며,
         분석 → 차단 확정 → 배포 → 모니터링까지 <strong style="color:#93c5fd;">책임감을 갖고</strong> 이끌어 갑니다.
         이 흐름은 <strong style="color:#bfdbfe;">1~3개월마다 반복</strong> 수행됩니다.
       </span>
@@ -1146,8 +1222,55 @@ flowchart TD
     </div>
   </div>
 
-  <!-- 섹션 11: 테이블/컬럼 명세서 -->
-  <div class="section-title">11. 테이블 / 컬럼 명세서</div>
+  <!-- 섹션 11: 내용(관련 메뉴/기능) 판정 플로우차트 (개발자 참고용) -->
+  <div class="section-title" style="margin-top:0;">
+    11. 내용(관련 메뉴/기능) 판정 플로우차트
+  </div>
+  <div class="card diagram-card">
+    <div class="diagram-note">
+      분석현황 <b>"내용"</b> 컬럼 및 상세화면 <b>"관련 메뉴(또는 기능)"</b>에 표시되는 값을 결정하는 우선순위 판정 흐름입니다.
+      <b>사용자 수정값(descriptionOverride)</b>이 최우선이며, 값이 없으면 소스 파싱값을 단계별로 내려가며 확인합니다.
+      가장 먼저 값이 존재하는 항목이 선택되고, 모두 비어 있으면 공란으로 표시됩니다.
+    </div>
+    <div class="mermaid">
+flowchart TD
+    START(["📝 내용 값 결정 시작"]) --> P1{"PRIORITY 1\ndescriptionOverride\n(사용자 수정값)\n존재?"}
+
+    P1 -->|"Yes — 직접 입력됨"| V1["🟣 descriptionOverride 사용\n(현황/상세 화면에서 입력한 값)"]
+    P1 -->|"No — 비어있음"| P2{"PRIORITY 2\n@ApiOperation(value=…)\n존재?"}
+
+    P2 -->|"Yes"| V2["🔵 @ApiOperation.value 사용\n(Swagger 어노테이션)"]
+    P2 -->|"No"| P3{"PRIORITY 3\n@Description 또는\n/** @description */\n존재?"}
+
+    P3 -->|"Yes"| V3["🟢 Description 주석 사용\n(메소드 위 어노테이션/태그)"]
+    P3 -->|"No"| P4{"PRIORITY 4\n컨트롤러 클래스\nJavaDoc 주석 존재?"}
+
+    P4 -->|"Yes"| V4["🟡 컨트롤러 주석 첫 문장 사용\n(클래스 최상단 /** … */)"]
+    P4 -->|"No"| V5["⚪ 빈 값(공란)\n— FALLBACK —"]
+
+    RESULT(["✅ 내용 값 확정\napi_record 조회 시 표시"])
+    V1 --> RESULT
+    V2 --> RESULT
+    V3 --> RESULT
+    V4 --> RESULT
+    V5 --> RESULT
+
+    NOTE["💡 descriptionOverride를 비우면\n다시 자동 파싱 우선순위(P2~P4)로 내려감\n※ 차단완료 상태는 수정 불가"]
+    RESULT -.-> NOTE
+
+    style START  fill:#dbeafe,stroke:#93c5fd,color:#1e40af
+    style RESULT fill:#dcfce7,stroke:#86efac,color:#166534
+    style V1 fill:#f3e8ff,stroke:#c4b5fd,color:#6b21a8
+    style V2 fill:#dbeafe,stroke:#93c5fd,color:#1e40af
+    style V3 fill:#dcfce7,stroke:#86efac,color:#166534
+    style V4 fill:#fef9c3,stroke:#fde047,color:#713f12
+    style V5 fill:#f1f5f9,stroke:#cbd5e1,color:#475569
+    style NOTE fill:#fff7ed,stroke:#fdba74,color:#9a3412
+    </div>
+  </div>
+
+  <!-- 섹션 12: 테이블/컬럼 명세서 -->
+  <div class="section-title">12. 테이블 / 컬럼 명세서</div>
 
   <!-- api_record -->
   <div class="card" style="margin-bottom:14px;">

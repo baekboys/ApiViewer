@@ -108,6 +108,10 @@ public class RepoConfig {
     @Column(name = "jennifer_oids", columnDefinition = "TEXT")
     private String jenniferOids;
 
+    /** SmartWay(Jira) Epic 이슈 키 — 레포당 1개. 최초 발행 시 자동 저장/재사용. */
+    @Column(name = "jira_epic_key", length = 50)
+    private String jiraEpicKey;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getRepoName() { return repoName; }
@@ -170,4 +174,6 @@ public class RepoConfig {
     public void setJenniferBearerToken(String jenniferBearerToken) { this.jenniferBearerToken = jenniferBearerToken; }
     public String getJenniferOids() { return jenniferOids; }
     public void setJenniferOids(String jenniferOids) { this.jenniferOids = jenniferOids; }
+    public String getJiraEpicKey() { return jiraEpicKey; }
+    public void setJiraEpicKey(String jiraEpicKey) { this.jiraEpicKey = jiraEpicKey; }
 }

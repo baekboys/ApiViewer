@@ -45,6 +45,9 @@ public class JiraService {
     /** Epic Name 필드 ID 캐시 (baseUrl → customfield_XXXXX). "" = 필드 없음/사용 불가. */
     private static final Map<String, String> EPIC_NAME_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Epic Link 필드 ID 캐시 (baseUrl → customfield_XXXXX 또는 "parent"). "" = 필드 없음 → 레이블 폴백. */
+    private static final Map<String, String> EPIC_LINK_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
     /** 차단근거 내 이슈 키 패턴: [CSR-123] 또는 단독 CSR-123 / OP-456 형태 */
     private static final java.util.regex.Pattern TICKET_KEY_PATTERN =
             java.util.regex.Pattern.compile("\\[((?:[A-Z][A-Z0-9]+-\\d+))\\]|\\b([A-Z][A-Z0-9]+-\\d+)\\b");
@@ -330,6 +333,52 @@ public class JiraService {
     }
 
     /**
+     * Epic Link 필드 ID 동적 조회.
+     * 구형(Classic): schema.custom == "com.pyxis.greenhopper.jira:gh-epic-link" → customfield_XXXXX
+     * 신형(Next-gen/Team-managed): "parent" 반환
+     * 미발견: "" 반환 (호출부는 레이블 폴백 사용)
+     */
+    @SuppressWarnings("unchecked")
+    private String resolveEpicLinkFieldId(RestTemplate rt, JiraConfig cfg) {
+        String baseUrl = cfg.getJiraBaseUrl();
+        String cached = EPIC_LINK_FIELD_CACHE.get(baseUrl);
+        if (cached != null) return cached;
+
+        String url = baseUrl + "/rest/api/2/field";
+        try {
+            List<Map<String, Object>> fields = rt.getForObject(url, List.class);
+            if (fields != null) {
+                for (Map<String, Object> f : fields) {
+                    Map<String, Object> schema = (Map<String, Object>) f.get("schema");
+                    String custom = schema != null ? (String) schema.get("custom") : null;
+                    if ("com.pyxis.greenhopper.jira:gh-epic-link".equals(custom)) {
+                        String id = (String) f.get("id");
+                        log.info("[Jira] Epic Link 필드 동적 해석: {} (name={})", id, f.get("name"));
+                        EPIC_LINK_FIELD_CACHE.put(baseUrl, id);
+                        return id;
+                    }
+                }
+                for (Map<String, Object> f : fields) {
+                    String name = (String) f.get("name");
+                    if ("Epic Link".equalsIgnoreCase(name)) {
+                        String id = (String) f.get("id");
+                        log.info("[Jira] Epic Link 필드 이름 매칭 해석: {}", id);
+                        EPIC_LINK_FIELD_CACHE.put(baseUrl, id);
+                        return id;
+                    }
+                }
+            }
+            log.info("[Jira] Epic Link 커스텀 필드 미발견 → Next-gen 가정하여 'parent' 사용");
+            EPIC_LINK_FIELD_CACHE.put(baseUrl, "parent");
+            return "parent";
+        } catch (Exception e) {
+            log.warn("[Jira] Epic Link 필드 메타 조회 실패: {} | url={}", e.getMessage(), url);
+        }
+        EPIC_LINK_FIELD_CACHE.put(baseUrl, "");
+        return "";
+    }
+
+    /**
      * Epic 검색 또는 생성
      */
     @SuppressWarnings("unchecked")
@@ -377,6 +426,131 @@ public class JiraService {
         }
         String epicKey = (String) created.get("key");
         log.info("[SmartWay] Epic 생성 완료: {} → {}", epicName, epicKey);
+        return epicKey;
+    }
+
+    /**
+     * Epic Link 필드 거부 시 반대 모드(parent ↔ customfield_XXXX)로 1회 재시도.
+     * 여전히 실패하면 레이블 폴백(epic-<레포명>)으로 최후 재시도.
+     */
+    @SuppressWarnings("unchecked")
+    private String retryOnEpicLinkError(RestTemplate rt, JiraConfig cfg, String issueKey,
+                                         Map<String, Object> fields, RuntimeException origEx, boolean isCreate) {
+        String msg = origEx.getMessage() == null ? "" : origEx.getMessage();
+        boolean epicLinkIssue = msg.contains("parent")
+                || msg.contains("Epic Link")
+                || msg.contains("customfield_10014")
+                || msg.contains("not on the appropriate screen")
+                || msg.contains("cannot be set");
+        if (!epicLinkIssue) {
+            throw origEx;
+        }
+
+        String currentField = fields.containsKey("parent") ? "parent"
+                : fields.keySet().stream().filter(k -> k.startsWith("customfield_")).findFirst().orElse(null);
+        Object currentVal = currentField != null ? fields.get(currentField) : null;
+        String epicKey = null;
+        if (currentVal instanceof Map<?, ?> m && m.get("key") instanceof String s) epicKey = s;
+        else if (currentVal instanceof String s) epicKey = s;
+
+        log.warn("[SmartWay] Epic Link 필드({}) 거부 → 반대 모드 재시도. 원인: {}", currentField, msg);
+        if (currentField != null) fields.remove(currentField);
+
+        // 반대 모드 시도
+        if ("parent".equals(currentField)) {
+            // parent 실패 → customfield(Epic Link) 시도
+            EPIC_LINK_FIELD_CACHE.remove(cfg.getJiraBaseUrl());
+            String alt = resolveEpicLinkFieldId(rt, cfg);
+            if (alt != null && !alt.isEmpty() && !"parent".equals(alt) && epicKey != null) {
+                fields.put(alt, epicKey);
+            }
+        } else if (currentField != null && epicKey != null) {
+            // customfield 실패 → parent 시도
+            fields.put("parent", Map.of("key", epicKey));
+            EPIC_LINK_FIELD_CACHE.put(cfg.getJiraBaseUrl(), "parent");
+        }
+
+        try {
+            if (isCreate) {
+                Map<String, Object> created = createIssue(rt, cfg, fields);
+                return (String) created.get("key");
+            } else {
+                updateIssue(rt, cfg, issueKey, fields);
+                return issueKey;
+            }
+        } catch (RuntimeException ex2) {
+            log.warn("[SmartWay] Epic Link 재시도 실패 → 레이블 폴백. 원인: {}", ex2.getMessage());
+            fields.remove("parent");
+            fields.keySet().removeIf(k -> k.startsWith("customfield_") && !k.equals("customfield_10011"));
+            List<String> labels = new ArrayList<>();
+            Object existingLabels = fields.get("labels");
+            if (existingLabels instanceof List<?> l) {
+                for (Object o : l) if (o instanceof String s) labels.add(s);
+            }
+            Object repoObj = fields.getOrDefault("project", Map.of());
+            // repositoryName 은 labels[0] 으로 이미 들어있음
+            if (!labels.isEmpty() && !labels.contains("epic-" + labels.get(0))) {
+                labels.add("epic-" + labels.get(0));
+            }
+            fields.put("labels", labels);
+            EPIC_LINK_FIELD_CACHE.put(cfg.getJiraBaseUrl(), "");
+            if (isCreate) {
+                Map<String, Object> created = createIssue(rt, cfg, fields);
+                return (String) created.get("key");
+            } else {
+                updateIssue(rt, cfg, issueKey, fields);
+                return issueKey;
+            }
+        }
+    }
+
+    /**
+     * 레포 단위 Epic 확보.
+     * 1) repoCfg.jiraEpicKey 가 유효하면 재사용 (JQL 스킵)
+     * 2) 아니면 정확 구문 JQL 검색으로 탐색
+     * 3) 없으면 신규 생성
+     * 결과 키는 repoCfg.jiraEpicKey 에 저장 후 커밋.
+     */
+    @SuppressWarnings("unchecked")
+    private String getOrCreateEpicForRepo(RestTemplate rt, JiraConfig cfg, RepoConfig repoCfg, String epicName) {
+        // 1) DB 캐시된 epicKey 검증
+        if (repoCfg != null) {
+            String cachedKey = repoCfg.getJiraEpicKey();
+            if (cachedKey != null && !cachedKey.isBlank()) {
+                String getUrl = cfg.getJiraBaseUrl() + "/rest/api/2/issue/" + cachedKey + "?fields=summary,issuetype";
+                try {
+                    Map<String, Object> issue = rt.getForObject(getUrl, Map.class);
+                    if (issue != null && issue.get("key") != null) {
+                        log.info("[SmartWay] Epic DB 재사용: repo={} → {}", repoCfg.getRepoName(), cachedKey);
+                        return cachedKey;
+                    }
+                } catch (Exception e) {
+                    log.warn("[SmartWay] Epic DB 캐시 무효({}): {} → 재탐색", cachedKey, e.getMessage());
+                }
+            }
+        }
+
+        // 2) 정확 구문 JQL 검색
+        String jql = "project = " + cfg.getProjectKey()
+                + " AND issuetype = Epic AND summary ~ \"\\\"" + epicName.replace("\"", "\\\"") + "\\\"\"";
+        log.info("[SmartWay] Epic 검색(레포단위): epicName={}", epicName);
+        List<Map<String, Object>> results = searchByJql(rt, cfg, jql, 1);
+        String epicKey;
+        if (!results.isEmpty()) {
+            epicKey = (String) results.get(0).get("key");
+            log.info("[SmartWay] Epic 기존 사용(검색): {} → {}", epicName, epicKey);
+        } else {
+            // 3) 신규 생성
+            epicKey = getOrCreateEpic(rt, cfg, epicName);
+        }
+
+        // DB 저장 (커밋은 호출부 @Transactional 에 의해 수행)
+        if (repoCfg != null) {
+            repoCfg.setJiraEpicKey(epicKey);
+            repoConfigRepo.save(repoCfg);
+            log.info("[SmartWay] repo_config.jira_epic_key 저장: repo={}, epicKey={}",
+                    repoCfg.getRepoName(), epicKey);
+        }
         return epicKey;
     }
 
@@ -449,10 +623,10 @@ public class JiraService {
 
         log.info("[SmartWay] 메타: businessName={}, appType={}", businessName, appType);
 
-        // 1. Epic 확보
-        String epicName = "[" + businessName + "] URL 차단 검토";
-        log.info("[SmartWay] Step1. Epic 확보: {}", epicName);
-        String epicKey = getOrCreateEpic(rt, cfg, epicName);
+        // 1. Epic 확보 (레포당 1개)
+        String epicName = "[" + businessName + "][" + record.getRepositoryName() + "] URL현황";
+        log.info("[SmartWay] Step1. Epic 확보(레포단위): {}", epicName);
+        String epicKey = getOrCreateEpicForRepo(rt, cfg, repoCfg, epicName);
         log.info("[SmartWay] Step1. Epic 완료: {}", epicKey);
 
         // 2. Component 확보
@@ -472,7 +646,7 @@ public class JiraService {
                 assignee);
 
         // 4. Story 필드 구성
-        Map<String, Object> fields = buildStoryFields(cfg, record, repoCfg, businessName,
+        Map<String, Object> fields = buildStoryFields(rt, cfg, record, repoCfg, businessName,
                 epicKey, component, assignee);
         log.info("[SmartWay] Step4. Story 필드: summary={}, priority={}",
                 fields.get("summary"), ((Map<?, ?>) fields.getOrDefault("priority", Map.of())).get("name"));
@@ -483,10 +657,18 @@ public class JiraService {
         log.info("[SmartWay] Step5. 발행 방식: {} (기존 issueKey={})", wasNew ? "CREATE" : "UPDATE", issueKey);
 
         if (!wasNew) {
-            updateIssue(rt, cfg, issueKey, fields);
+            try {
+                updateIssue(rt, cfg, issueKey, fields);
+            } catch (RuntimeException ex) {
+                issueKey = retryOnEpicLinkError(rt, cfg, issueKey, fields, ex, false);
+            }
         } else {
-            Map<String, Object> result = createIssue(rt, cfg, fields);
-            issueKey = (String) result.get("key");
+            try {
+                Map<String, Object> result = createIssue(rt, cfg, fields);
+                issueKey = (String) result.get("key");
+            } catch (RuntimeException ex) {
+                issueKey = retryOnEpicLinkError(rt, cfg, null, fields, ex, true);
+            }
         }
 
         // 6. 차단근거 티켓 이슈 연결 (CREATE 시에만 수행, UPDATE는 중복 방지)
@@ -523,6 +705,22 @@ public class JiraService {
                 .filter(this::isBlockCandidate)
                 .toList();
         log.info("[SmartWay] syncRepoToJira: repo={}, 대상={}건", repositoryName, targets.size());
+
+        // 루프 진입 전 Epic 선확보 (레포당 1개만 생성되도록 보장)
+        if (!targets.isEmpty()) {
+            try {
+                JiraConfig cfg = getConfig();
+                RestTemplate rt = buildRestTemplate(cfg);
+                RepoConfig repoCfg = repoConfigRepo.findByRepoName(repositoryName).orElse(null);
+                if (repoCfg != null) {
+                    String businessName = repoCfg.getBusinessName() != null ? repoCfg.getBusinessName() : repositoryName;
+                    String epicName = "[" + businessName + "][" + repositoryName + "] URL현황";
+                    getOrCreateEpicForRepo(rt, cfg, repoCfg, epicName);
+                }
+            } catch (Exception e) {
+                log.warn("[SmartWay] Epic 선확보 실패(계속 진행): repo={}, error={}", repositoryName, e.getMessage());
+            }
+        }
 
         int created = 0, updated = 0, failed = 0;
         for (ApiRecord r : targets) {
@@ -772,19 +970,10 @@ public class JiraService {
     /**
      * Story 필드 구성
      */
-    private Map<String, Object> buildStoryFields(JiraConfig cfg, ApiRecord record, RepoConfig repoCfg,
+    private Map<String, Object> buildStoryFields(RestTemplate rt, JiraConfig cfg, ApiRecord record, RepoConfig repoCfg,
                                                   String businessName, String epicKey,
                                                   Map<String, Object> component, String assigneeAccountId) {
-        String content = null;
-        if (record.getApiOperationValue() != null && !record.getApiOperationValue().isBlank()
-                && !"-".equals(record.getApiOperationValue())) {
-            content = record.getApiOperationValue().trim();
-        } else if (record.getDescriptionTag() != null && !record.getDescriptionTag().isBlank()
-                && !"-".equals(record.getDescriptionTag())) {
-            content = record.getDescriptionTag().trim();
-        }
-        String summary = "[" + businessName + "] " + record.getApiPath()
-                + (content != null ? " — " + content : "");
+        String summary = "[" + businessName + "][" + record.getRepositoryName() + "] " + record.getApiPath();
         if (summary.length() > 255) {
             summary = summary.substring(0, 252) + "...";
         }
@@ -803,7 +992,23 @@ public class JiraService {
         fields.put("summary", summary);
         fields.put("description", descText);
         fields.put("priority", Map.of("name", priority));
-        fields.put("labels", List.of(record.getRepositoryName()));
+
+        // Epic Link 필드 주입 (핵심): parent(신형) 또는 customfield_XXXX(구형).
+        // 미해석 시 레이블 폴백 (epic-<레포명>) 으로 최소한의 그룹화 보장.
+        List<String> labels = new ArrayList<>();
+        labels.add(record.getRepositoryName());
+        if (epicKey != null && !epicKey.isBlank()) {
+            String epicLinkFieldId = resolveEpicLinkFieldId(rt, cfg);
+            if ("parent".equals(epicLinkFieldId)) {
+                fields.put("parent", Map.of("key", epicKey));
+            } else if (epicLinkFieldId != null && !epicLinkFieldId.isEmpty()) {
+                fields.put(epicLinkFieldId, epicKey);
+            } else {
+                labels.add("epic-" + record.getRepositoryName());
+                log.warn("[SmartWay] Epic Link 필드 미해석 → 레이블 폴백: epic-{}", record.getRepositoryName());
+            }
+        }
+        fields.put("labels", labels);
 
         if (component != null && component.get("id") != null) {
             fields.put("components", List.of(Map.of("id", String.valueOf(component.get("id")))));

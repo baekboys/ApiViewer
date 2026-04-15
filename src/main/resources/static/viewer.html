@@ -2377,11 +2377,7 @@
           <div class="detail-label">차단대상기준 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value" style="white-space:normal;"><select id="df-blockCriteria" class="df-select" style="width:100%;" ${dis}>${buildCriteriaOptions(r.status, r.blockCriteria || '')}</select></div>
           <div class="detail-label">상태확정</div>
-          <div class="detail-value">
-            ${lk
-              ? `<span class="lock-btn lock-on" style="cursor:pointer;" onclick="toggleDetailLock(${r.id},false)">🔒 확정완료</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px;">클릭하여 해제</span>`
-              : `<span class="lock-btn lock-off" style="cursor:pointer;" onclick="toggleDetailLock(${r.id},true)">미확정</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px;">클릭하여 확정 (이후 수정불가)</span>`}
-          </div>
+          <div class="detail-value">${lk ? `<span class="lock-btn lock-on" style="cursor:pointer;" onclick="toggleDetailLock(${r.id},false)">🔒 확정완료</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px;">클릭하여 해제</span>` : `<span class="lock-btn lock-off" style="cursor:pointer;" onclick="toggleDetailLock(${r.id},true)">미확정</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px;">클릭하여 확정 (이후 수정불가)</span>`}</div>
           <div class="detail-label">1년 호출건</div><div class="detail-value">${detailCallCell(r, 'total', r.callCount)}</div>
           <div class="detail-label">최근 1달 호출건</div><div class="detail-value">${detailCallCell(r, 'month', r.callCountMonth)}</div>
           <div class="detail-label">최근 1주 호출건</div><div class="detail-value">${detailCallCell(r, 'week', r.callCountWeek)}</div>
@@ -2390,12 +2386,7 @@
           <div class="detail-label">차단근거 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value"><textarea id="df-blockedReason" class="df-textarea" rows="3" ${dis}>${esc(r.blockedReason || '')}</textarea></div>
           <div class="detail-label">Deprecated <span style="color:var(--primary);font-size:10px;">✎</span></div>
-          <div class="detail-value">
-            <select id="df-isDeprecated" class="df-select" style="width:auto;" ${dis}>
-              <option value="" ${!r.isDeprecated||r.isDeprecated==='N'?'selected':''}>아니오 (N)</option>
-              <option value="Y" ${r.isDeprecated==='Y'?'selected':''}>예 (Y)</option>
-            </select>
-          </div>
+          <div class="detail-value"><select id="df-isDeprecated" class="df-select" style="width:auto;" ${dis}><option value="" ${!r.isDeprecated||r.isDeprecated==='N'?'selected':''}>아니오 (N)</option><option value="Y" ${r.isDeprecated==='Y'?'selected':''}>예 (Y)</option></select></div>
           <div class="detail-label">비고 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value"><textarea id="df-memo" class="df-textarea" rows="2" ${dis}>${esc(r.memo || '')}</textarea></div>
         </div>

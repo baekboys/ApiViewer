@@ -45,6 +45,10 @@ public class JiraService {
     /** Epic Name 필드 ID 캐시 (baseUrl → customfield_XXXXX). "" = 필드 없음/사용 불가. */
     private static final Map<String, String> EPIC_NAME_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** 차단근거 내 이슈 키 패턴: [CSR-123] 또는 단독 CSR-123 / OP-456 형태 */
+    private static final java.util.regex.Pattern TICKET_KEY_PATTERN =
+            java.util.regex.Pattern.compile("\\[((?:[A-Z][A-Z0-9]+-\\d+))\\]|\\b([A-Z][A-Z0-9]+-\\d+)\\b");
+
     /** 내부 SmartWay 서버의 사설 인증서 수용용: 모든 인증서를 신뢰하는 SSLSocketFactory. */
     private static final SSLSocketFactory TRUST_ALL_SSL_FACTORY = buildTrustAllSslFactory();
     /** 내부망 호스트명 검증 우회 HostnameVerifier. */
@@ -207,6 +211,50 @@ public class JiraService {
         } catch (Exception e) {
             log.error("[SmartWay] 이슈 조회 실패 {}: {} | url={}", issueKey, e.getMessage(), url);
             throw new RuntimeException("Jira 이슈 조회 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * POST /rest/api/2/issueLink — 이슈 연결 (Relates)
+     * inwardIssue: 새로 생성한 이슈, outwardIssue: 차단근거 티켓
+     */
+    private void createIssueLink(RestTemplate rt, JiraConfig cfg, String newIssueKey, String linkedIssueKey) {
+        String url = cfg.getJiraBaseUrl() + "/rest/api/2/issueLink";
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("type", Map.of("name", "Relates"));
+        body.put("inwardIssue", Map.of("key", newIssueKey));
+        body.put("outwardIssue", Map.of("key", linkedIssueKey));
+        log.debug("[SmartWay] issueLink → {} ↔ {} | url={}", newIssueKey, linkedIssueKey, url);
+        try {
+            rt.postForObject(url, body, Map.class);
+            log.info("[SmartWay] 이슈 연결 완료: {} ↔ {}", newIssueKey, linkedIssueKey);
+        } catch (Exception e) {
+            log.warn("[SmartWay] 이슈 연결 실패 ({} ↔ {}): {} | url={}", newIssueKey, linkedIssueKey, e.getMessage(), url);
+        }
+    }
+
+    /**
+     * 차단근거(blockedReason)에서 이슈 키를 추출해 issueLink API로 연결.
+     * 링크 실패 시 WARN 로그 후 계속 진행 (이슈 생성 자체는 영향 없음).
+     */
+    private void linkBlockedReasonTickets(RestTemplate rt, JiraConfig cfg, String newIssueKey, String blockedReason) {
+        if (blockedReason == null || blockedReason.isBlank()) {
+            log.debug("[SmartWay] linkBlockedReasonTickets: 차단근거 없음 — 스킵");
+            return;
+        }
+        java.util.regex.Matcher m = TICKET_KEY_PATTERN.matcher(blockedReason);
+        List<String> keys = new ArrayList<>();
+        while (m.find()) {
+            String key = m.group(1) != null ? m.group(1) : m.group(2);
+            if (!keys.contains(key)) keys.add(key);
+        }
+        if (keys.isEmpty()) {
+            log.debug("[SmartWay] linkBlockedReasonTickets: 티켓 키 미발견 — 차단근거={}", blockedReason);
+            return;
+        }
+        log.info("[SmartWay] linkBlockedReasonTickets: {} → 연결 대상={}", newIssueKey, keys);
+        for (String linkedKey : keys) {
+            createIssueLink(rt, cfg, newIssueKey, linkedKey);
         }
     }
 
@@ -441,7 +489,16 @@ public class JiraService {
             issueKey = (String) result.get("key");
         }
 
-        // 6. ApiRecord 업데이트
+        // 6. 차단근거 티켓 이슈 연결 (CREATE 시에만 수행, UPDATE는 중복 방지)
+        if (wasNew) {
+            log.info("[SmartWay] Step6. 차단근거 이슈 연결 시작: issueKey={}, blockedReason={}",
+                    issueKey, record.getBlockedReason());
+            linkBlockedReasonTickets(rt, cfg, issueKey, record.getBlockedReason());
+        } else {
+            log.debug("[SmartWay] Step6. 이슈 연결 스킵 (UPDATE 모드): issueKey={}", issueKey);
+        }
+
+        // 7. ApiRecord 업데이트
         record.setJiraIssueKey(issueKey);
         record.setJiraIssueUrl(cfg.getJiraBaseUrl().replaceAll("/+$", "") + "/browse/" + issueKey);
         record.setJiraEpicKey(epicKey);
@@ -452,7 +509,7 @@ public class JiraService {
         recordRepo.save(record);
 
         String action = wasNew ? "created" : "updated";
-        log.info("[SmartWay] Step6. DB 갱신 완료: recordId={}, issueKey={}, action={}, reviewStage={}",
+        log.info("[SmartWay] Step7. DB 갱신 완료: recordId={}, issueKey={}, action={}, reviewStage={}",
                 recordId, issueKey, action, record.getReviewStage());
         return Map.of("issueKey", issueKey, "action", action);
     }
@@ -906,10 +963,8 @@ public class JiraService {
         if (baseUrl == null || baseUrl.isBlank()) return s;
 
         String trimmed = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        // 2) 그 다음 CSR-xxx / OP-xxx 패턴을 [KEY|URL] 링크로 치환 (이 '|' 는 wiki 링크 문법용)
-        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-                "\\[((?:CSR|OP)-\\d+)\\]|\\b((?:CSR|OP)-\\d+)\\b");
-        java.util.regex.Matcher m = p.matcher(s);
+        // 2) 그 다음 이슈 키 패턴을 [KEY|URL] 링크로 치환 (이 '|' 는 wiki 링크 문법용)
+        java.util.regex.Matcher m = TICKET_KEY_PATTERN.matcher(s);
         StringBuffer out = new StringBuffer();
         while (m.find()) {
             String key = m.group(1) != null ? m.group(1) : m.group(2);

@@ -59,44 +59,52 @@ class JiraServiceDescriptionTest {
     }
 
     @Test
-    @DisplayName("5개 표 타이틀이 모두 포함된다 (파란색+bold)")
-    void title_bluebold_forAllFiveTables() {
+    @DisplayName("4개 표 타이틀이 모두 ■ 접두사 + 파란색+bold 포함된다")
+    void title_bluebold_forAllFourTables() {
         String desc = svc.buildDescriptionTables(cfg, baseRecord(), "카드업무");
-        assertThat(desc).contains("h3. {color:#1e40af}*기본정보*{color}");
-        assertThat(desc).contains("h3. {color:#1e40af}*상세정보*{color}");
-        assertThat(desc).contains("h3. {color:#1e40af}*상태정보*{color}");
-        assertThat(desc).contains("h3. {color:#1e40af}*차단정보*{color}");
-        assertThat(desc).contains("h3. {color:#1e40af}*소스변경이력");
+        assertThat(desc).contains("h3. {color:#1e40af}*■ URL기본정보*{color}");
+        assertThat(desc).contains("h3. {color:#1e40af}*■ URL상태정보*{color}");
+        assertThat(desc).contains("h3. {color:#1e40af}*■ URL기타정보*{color}");
+        assertThat(desc).contains("h3. {color:#1e40af}*■ URL관련 소스변경이력");
+        // 이전 타이틀은 사라져야 한다
+        assertThat(desc).doesNotContain("*기본정보*{color}");
+        assertThat(desc).doesNotContain("*차단정보*{color}");
     }
 
     @Test
-    @DisplayName("기본정보 표에 레포/URL/메소드가 포함된다")
+    @DisplayName("URL기본정보 표에 핵심 필드와 관련메뉴가 포함되고 Controller/메소드는 없다")
     void basicInfo_containsCoreFields() {
         String desc = svc.buildDescriptionTables(cfg, baseRecord(), "카드업무");
-        assertThat(desc).contains("||항목||값||");
         assertThat(desc).contains("|업무명|카드업무|");
         assertThat(desc).contains("|레포지토리|card-core|");
         assertThat(desc).contains("|URL 경로|/api/card/v1/limit|");
-        assertThat(desc).contains("|HTTP Method|GET|");
+        assertThat(desc).contains("|관련메뉴|카드-한도-조회(사용자지정)|");
+        // Controller·메소드는 URL기타정보로 이동
+        assertThat(desc).contains("|Controller|CardLimitController|");
+        assertThat(desc).contains("|메소드|getLimit|");
     }
 
     @Test
-    @DisplayName("상세정보 표에 사용자지정(override)과 자동파싱 주석이 모두 포함된다")
-    void detail_containsOverrideAndParsedComments() {
+    @DisplayName("URL기타정보 표에 Controller/메소드(최상단), HTTP Method, Deprecated 포함된다")
+    void otherInfo_containsMovedFields() {
         String desc = svc.buildDescriptionTables(cfg, baseRecord(), "카드업무");
-        assertThat(desc).contains("|관련메뉴(사용자지정)|카드-한도-조회(사용자지정)|");
         assertThat(desc).contains("|ApiOperation|한도 조회|");
         assertThat(desc).contains("|Description 주석|카드 한도 조회 API|");
+        assertThat(desc).contains("|HTTP Method|GET|");
+        assertThat(desc).contains("|Deprecated|Y|");
+        // 이전 상세정보의 관련메뉴(사용자지정)은 더 이상 없다
+        assertThat(desc).doesNotContain("관련메뉴(사용자지정)");
     }
 
     @Test
-    @DisplayName("상태정보: 최우선 차단대상은 빨강(#991b1b) + bold 로 채색된다")
-    void status_topPriority_coloredRed() {
+    @DisplayName("URL상태정보: 최우선 차단대상은 빨강(#991b1b) + bold, 상태확정 행 없음, 4-열 헤더 포함")
+    void status_topPriority_coloredRed_and_4colHeader() {
         String desc = svc.buildDescriptionTables(cfg, baseRecord(), "카드업무");
         assertThat(desc).contains("{color:#991b1b}*최우선 차단대상*{color}");
-        assertThat(desc).contains("|상태확정|확정|");
-        assertThat(desc).contains("|1년 호출건|0건|");
-        assertThat(desc).contains("|Deprecated|Y|");
+        assertThat(desc).contains("||항목||값||항목||값||");
+        assertThat(desc).contains("1년 호출건");
+        // 상태확정 행은 제거됨
+        assertThat(desc).doesNotContain("|상태확정|");
     }
 
     @Test
@@ -132,12 +140,14 @@ class JiraServiceDescriptionTest {
     }
 
     @Test
-    @DisplayName("차단정보 표에 기준/일자/비고가 포함된다")
+    @DisplayName("URL상태정보 4-열에 차단기준/일자/비고(차단비고)가 포함된다")
     void block_containsCriteriaDateMemo() {
         String desc = svc.buildDescriptionTables(cfg, baseRecord(), "카드업무");
         assertThat(desc).contains("|차단기준|호출 0건 + 1년 경과|");
         assertThat(desc).contains("|차단일자|2026-04-10|");
-        assertThat(desc).contains("|비고|업무팀 합의 완료|");
+        assertThat(desc).contains("|차단비고|업무팀 합의 완료|");
+        // 이전 "비고" 컬럼명은 사라져야 한다
+        assertThat(desc).doesNotContain("|비고|");
     }
 
     @Test

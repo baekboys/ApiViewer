@@ -819,18 +819,17 @@ public class JiraService {
     }
 
     /**
-     * SmartWay(Jira) 이슈 description 을 5개 표로 구성한다.
+     * SmartWay(Jira) 이슈 description 을 4개 표로 구성한다.
      * - Jira wiki markup 사용: h3. 제목, ||헤더||, |셀|, {color:#xxx}text{color}
-     * - 타이틀: 파란색 + bold (h3. {color:#1e40af}*...*{color})
+     * - 타이틀: 파란색 + bold + ■ 접두사
      * - 상태값 셀은 viewer.html 배지 색상과 동일
-     * - 차단근거 셀: SmartWay 이슈 URL 링크
+     * - URL상태정보는 4-열(항목|값|항목|값) 표로 상태+차단 통합
      *
      * 표 구성:
-     *   1) 기본정보     — 업무명, 레포지토리, Controller, 메소드, URL경로, Full URL, HTTP Method
-     *   2) 상세정보     — ApiOperation, Description주석, 메소드주석, 컨트롤러주석, 관련메뉴(override)
-     *   3) 상태정보     — 상태(배지색), 상태확정, 1년/1달/1주 호출건, Deprecated
-     *   4) 차단정보     — 차단기준, 차단일자, 차단근거(SmartWay 링크), 비고
-     *   5) 소스변경이력 — gitHistory(JSON) → 최근 5건 (날짜/변경자/내용)
+     *   1) ■ URL기본정보   — 업무명, 레포지토리, URL경로, Full URL, 관련메뉴
+     *   2) ■ URL상태정보   — 상태/차단기준, 1년호출건/차단일자, 1달호출건/차단근거, -/차단비고 (4-열)
+     *   3) ■ URL기타정보   — Controller, 메소드, ApiOperation, Description주석, 메소드주석, 컨트롤러주석, HTTP Method, Deprecated
+     *   4) ■ URL관련 소스변경이력(최근 5건) — gitHistory(JSON)
      */
     String buildDescriptionTables(JiraConfig cfg, ApiRecord record, String businessName) {
         log.debug("[Jira] buildDescriptionTables 시작: recordId={}, repo={}, apiPath={}",
@@ -838,50 +837,44 @@ public class JiraService {
 
         StringBuilder sb = new StringBuilder();
 
-        // 1) 기본정보
-        appendTitle(sb, "기본정보");
+        // 1) URL기본정보
+        appendTitle(sb, "URL기본정보");
         sb.append("||항목||값||\n");
-        row(sb, "업무명",       businessName);
-        row(sb, "레포지토리",   record.getRepositoryName());
-        row(sb, "Controller",   record.getControllerName());
-        row(sb, "메소드",       record.getMethodName());
-        row(sb, "URL 경로",     record.getApiPath());
-        row(sb, "Full URL",     record.getFullUrl());
-        row(sb, "HTTP Method",  record.getHttpMethod());
+        row(sb, "업무명",     businessName);
+        row(sb, "레포지토리", record.getRepositoryName());
+        row(sb, "URL 경로",   record.getApiPath());
+        row(sb, "Full URL",   record.getFullUrl());
+        row(sb, "관련메뉴",   safe(record.getDescriptionOverride()));
         sb.append("\n");
 
-        // 2) 상세정보
-        appendTitle(sb, "상세정보");
-        sb.append("||항목||값||\n");
-        row(sb, "관련메뉴(사용자지정)", safe(record.getDescriptionOverride()));
-        row(sb, "ApiOperation",          safe(record.getApiOperationValue()));
-        row(sb, "Description 주석",      safe(record.getDescriptionTag()));
-        row(sb, "메소드 주석",           safe(record.getFullComment()));
-        row(sb, "컨트롤러 주석",         safe(record.getControllerComment()));
+        // 2) URL상태정보 (4-열: 상태 + 차단 통합)
+        appendTitle(sb, "URL상태정보");
+        sb.append("||항목||값||항목||값||\n");
+        row4(sb,    "상태",        colorizeStatus(record.getStatus()),
+                    "차단기준",    safe(record.getBlockCriteria()));
+        row4(sb,    "1년 호출건",  nn(record.getCallCount()) + "건",
+                    "차단일자",    record.getBlockedDate() != null ? record.getBlockedDate().toString() : "-");
+        row4Raw(sb, "1달 호출건",  nn(record.getCallCountMonth()) + "건",
+                    "차단근거",    linkifyBlockedReason(cfg, record.getBlockedReason()));
+        row4(sb,    "-",           "-",
+                    "차단비고",    safe(record.getMemo()));
         sb.append("\n");
 
-        // 3) 상태정보
-        appendTitle(sb, "상태정보");
+        // 3) URL기타정보 (Controller·메소드 최상단, HTTP Method·Deprecated 기존 표에서 이동)
+        appendTitle(sb, "URL기타정보");
         sb.append("||항목||값||\n");
-        row(sb, "상태",          colorizeStatus(record.getStatus()));
-        row(sb, "상태확정",      record.isStatusOverridden() ? "확정" : "미확정");
-        row(sb, "1년 호출건",    nn(record.getCallCount()) + "건");
-        row(sb, "1달 호출건",    nn(record.getCallCountMonth()) + "건");
-        row(sb, "1주 호출건",    nn(record.getCallCountWeek()) + "건");
-        row(sb, "Deprecated",    "Y".equals(record.getIsDeprecated()) ? "Y" : "N");
+        row(sb, "Controller",      safe(record.getControllerName()));
+        row(sb, "메소드",           safe(record.getMethodName()));
+        row(sb, "ApiOperation",     safe(record.getApiOperationValue()));
+        row(sb, "Description 주석", safe(record.getDescriptionTag()));
+        row(sb, "메소드 주석",       safe(record.getFullComment()));
+        row(sb, "컨트롤러 주석",     safe(record.getControllerComment()));
+        row(sb, "HTTP Method",       safe(record.getHttpMethod()));
+        row(sb, "Deprecated",        "Y".equals(record.getIsDeprecated()) ? "Y" : "N");
         sb.append("\n");
 
-        // 4) 차단정보
-        appendTitle(sb, "차단정보");
-        sb.append("||항목||값||\n");
-        row(sb, "차단기준",  safe(record.getBlockCriteria()));
-        row(sb, "차단일자",  record.getBlockedDate() != null ? record.getBlockedDate().toString() : "-");
-        rowRaw(sb, "차단근거", linkifyBlockedReason(cfg, record.getBlockedReason()));
-        row(sb, "비고",      safe(record.getMemo()));
-        sb.append("\n");
-
-        // 5) 소스변경이력
-        appendTitle(sb, "소스변경이력 (최근 5건)");
+        // 4) URL관련 소스변경이력
+        appendTitle(sb, "URL관련 소스변경이력 (최근 5건)");
         sb.append("||#||날짜||변경자||내용||\n");
         List<String[]> commits = parseGitHistory(record.getGitHistory());
         if (commits.isEmpty()) {
@@ -901,9 +894,9 @@ public class JiraService {
         return sb.toString();
     }
 
-    /** 표 타이틀: 파란색 + bold (Jira wiki markup) */
+    /** 표 타이틀: 파란색 + bold + ■ 접두사 (Jira wiki markup) */
     private void appendTitle(StringBuilder sb, String title) {
-        sb.append("h3. {color:#1e40af}*").append(title).append("*{color}\n");
+        sb.append("h3. {color:#1e40af}*■ ").append(title).append("*{color}\n");
     }
 
     /** 일반 2열 행 (값을 cell() 로 정제) */
@@ -914,6 +907,19 @@ public class JiraService {
     /** 값이 이미 안전하게 정제된 상태(예: linkifyBlockedReason) 일 때 사용 */
     private void rowRaw(StringBuilder sb, String k, String v) {
         sb.append("|").append(k).append("|").append(v == null || v.isBlank() ? "-" : v).append("|\n");
+    }
+
+    /** 4-열 행: v1·v2 모두 cell() 정제 */
+    private void row4(StringBuilder sb, String k1, String v1, String k2, String v2) {
+        sb.append("|").append(k1).append("|").append(cell(v1))
+          .append("|").append(k2).append("|").append(cell(v2)).append("|\n");
+    }
+
+    /** 4-열 행: v1은 cell() 정제, rawV2는 이미 정제된 값(linkifyBlockedReason 결과 등) */
+    private void row4Raw(StringBuilder sb, String k1, String v1, String k2, String rawV2) {
+        sb.append("|").append(k1).append("|").append(cell(v1))
+          .append("|").append(k2).append("|")
+          .append(rawV2 == null || rawV2.isBlank() ? "-" : rawV2).append("|\n");
     }
 
     /** 셀 값 정제: null/빈값 → '-', Jira wiki 예약문자 중 표 구분자 '|' 를 전각으로 치환, 개행은 \\\\ 로 */

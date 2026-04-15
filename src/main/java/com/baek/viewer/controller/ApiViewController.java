@@ -448,6 +448,9 @@ public class ApiViewController {
         m.put("requestPropertyValue",           r.getRequestPropertyValue());
         m.put("controllerRequestPropertyValue", r.getControllerRequestPropertyValue());
         m.put("controllerFilePath", r.getControllerFilePath());
+        m.put("jiraIssueKey",       r.getJiraIssueKey());
+        m.put("jiraIssueUrl",       r.getJiraIssueUrl());
+        m.put("jiraSyncedAt",       r.getJiraSyncedAt());
         return m;
     }
 

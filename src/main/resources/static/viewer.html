@@ -2659,13 +2659,27 @@
     } catch(e) { showToast('변경 실패: ' + e.message, 'error'); }
   }
 
+  /** 단건 row 갱신: /api/db/record/{id} 조회 후 in-memory 리스트 항목 교체 + 현재 페이지 재렌더.
+   *  조회조건·정렬·페이지를 변경하지 않아 사용자 체감 리셋이 없다. */
+  async function refreshRow(id) {
+    try {
+      const r = await fetch(`/api/db/record/${id}`);
+      if (!r.ok) return;
+      const rec = await r.json();
+      const update = (arr) => { const i = arr.findIndex(x => x.id === rec.id); if (i >= 0) arr[i] = Object.assign({}, arr[i], rec); };
+      update(allApis);
+      update(filteredApis);
+      renderRows(filteredApis, vCurrentPage * vPageSize);
+    } catch(e) { /* 실패 시 무시 — 상위 호출에서 toast 처리 */ }
+  }
+
   async function syncSingleToJira(id) {
     try {
       const res = await adminFetch(`/api/jira/sync/record/${id}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '발행 실패');
       showToast(`SmartWay 발행 완료: ${data.issueKey || ''}`, 'success');
-      await refreshAll();
+      await refreshRow(id);
       openDetail(id);
     } catch(e) { showToast('발행 실패: ' + e.message, 'error'); }
   }
@@ -2675,6 +2689,7 @@
       const res = await adminFetch(`/api/jira/pull/record/${id}`, { method: 'POST' });
       if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || '동기화 실패'); }
       showToast('역방향 동기화 완료', 'success');
+      await refreshRow(id);
       openDetail(id);
     } catch(e) { showToast('동기화 실패: ' + e.message, 'error'); }
   }

@@ -443,7 +443,7 @@ public class JiraService {
 
         // 6. ApiRecord 업데이트
         record.setJiraIssueKey(issueKey);
-        record.setJiraIssueUrl(cfg.getJiraBaseUrl() + "/browse/" + issueKey);
+        record.setJiraIssueUrl(cfg.getJiraBaseUrl().replaceAll("/+$", "") + "/browse/" + issueKey);
         record.setJiraEpicKey(epicKey);
         record.setJiraSyncedAt(LocalDateTime.now());
         if (record.getReviewStage() == null || record.getReviewStage().isBlank()) {

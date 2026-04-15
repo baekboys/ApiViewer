@@ -284,7 +284,7 @@ workflow.html
 
 | 항목 | 내용 |
 |------|------|
-| 제외 대상 | `target/`, `.git/`, `.idea/`, `.claude/`, `data/`, `logs/`, `.sh`, `.bat`, `mvnw`, `*.jar` (lib/*.jar 포함), `application.properties` |
+| 제외 대상 | `target/`, `.git/`, `.idea/`, `.claude/`, `data/`, `logs/`, `.sh`, `.bat`, `mvnw`, `*.jar` (lib/*.jar 포함), `application.properties`, `repos-config.yml` |
 | 출력 경로 | `/Users/baegmyeongseon/Downloads/ApiViewer.zip` (절대 경로 사용) |
 | 실행 위치 | `cd /Users/baegmyeongseon/LP_DEV` 후 `zip -r 출력경로 ApiViewer --exclude "ApiViewer/..."` |
 | 기존 파일 | 기존 zip 존재 시 반드시 먼저 삭제 후 재생성 (업데이트 모드 방지) |
@@ -294,3 +294,10 @@ workflow.html
 - **기본: 제외** — `application.properties`는 DB URL, 포트, 비밀번호 등 환경별 설정이 달라 기본 제외
 - **변경 시: 사용자에게 먼저 확인** — 압축 직전 `git diff`로 변경 여부를 체크하고, 변경이 있으면 포함 여부를 사용자에게 물어본 후 결정
 - 확인 메시지 예시: "`application.properties`가 변경되었습니다. 압축에 포함할까요? (포함 시 DB 접속 정보 등이 노출될 수 있습니다.)"
+
+## repos-config.yml 위치 및 압축 규칙
+
+- **위치**: 프로젝트 루트 (`ApiViewer/repos-config.yml`) — `src/main/resources/` 하위에 두지 않는다
+  - 이유: 소스 일괄 복사 시 리소스 디렉토리 내 파일이 실수로 덮어씌워지는 것을 방지
+  - 앱 기동 시 `StartupConfigLoader`가 `./repos-config.yml`(프로젝트 루트)을 우선 로드하고, 없으면 classpath 폴백
+- **압축 시: 항상 제외** — `application.properties`와 동일하게 취급. 환경별 레포 설정·토큰 등이 포함되므로 압축에 절대 포함하지 않는다

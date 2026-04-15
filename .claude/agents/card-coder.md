@@ -85,3 +85,14 @@ log.info("[기능태그] 배치 완료: 총={}, 성공={}, 실패={}", total, ok
 - 네이티브 SQL 작성 시 H2·PostgreSQL 양쪽 동작하는 문법 선택
 - `GenerationType.IDENTITY`, `Pageable`, `CONCAT('%',:q,'%')` 패턴 사용 (양쪽 호환)
 - DDL: 개발은 `ddl-auto=update` 자동생성, 운영은 별도 스크립트 적용
+
+## 설정 파일 위치 규칙
+
+| 파일 | 위치 | 이유 |
+|------|------|------|
+| `repos-config.yml` | **프로젝트 루트** (`ApiViewer/repos-config.yml`) | 소스 일괄 복사 시 리소스 덮어쓰기 방지 |
+| `application.properties` | `src/main/resources/` (Spring 표준) | — |
+
+- `repos-config.yml`을 `src/main/resources/` 하위에 두지 않는다
+- `StartupConfigLoader`가 기동 시 `./repos-config.yml`(루트)을 먼저 로드하고, 없으면 classpath 폴백
+- 압축 반입 시 `repos-config.yml`은 `application.properties`와 동일하게 **항상 제외**

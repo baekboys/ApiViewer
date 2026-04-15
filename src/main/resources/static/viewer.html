@@ -263,6 +263,10 @@
     .toast.success { background:var(--success); }
     .toast.info    { background:var(--purple); }
 
+    /* SmartWay 티켓 버튼 */
+    .jira-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:5px; background:var(--purple); color:#fff; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap; transition:opacity .15s; }
+    .jira-badge:hover { opacity:.85; color:#fff; }
+
     /* ─── 다크모드 오버라이드 ─── */
     :root[data-theme="dark"]{
       --bg:#0f172a; --card:#1e293b;
@@ -1468,7 +1472,7 @@
         <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;memo&apos;)')}" title="${locked?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.memo || '')}</td>
         <td>${reviewResultBadge(a.reviewResult)}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:140px;">${esc(a.reviewOpinion || '')}</td>
-        <td>${a.jiraIssueKey ? `<a href="${esc(a.jiraIssueUrl)}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">${esc(a.jiraIssueKey)}</a>` : '<span style="color:#cbd5e1;font-size:11px;">-</span>'}</td>
+        <td>${a.jiraIssueKey ? `<a href="${esc(a.jiraIssueUrl)}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">🔗 ${esc(a.jiraIssueKey)}</a>` : '<span style="color:#cbd5e1;font-size:11px;">-</span>'}</td>
         <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;cboScheduledDate&apos;)')}" title="${locked?'수정불가':'클릭하여 날짜 선택'}" style="font-size:11px;white-space:nowrap;">${esc(a.cboScheduledDate || '')}</td>
         <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;deployScheduledDate&apos;)')}" title="${locked?'수정불가':'클릭하여 날짜 선택'}" style="font-size:11px;white-space:nowrap;">${esc(a.deployScheduledDate || '')}</td>
         <td class="${locked?'':'memo-editable'}" onclick="${locked?'':('editField(this,'+a.id+',&apos;deployCsr&apos;)')}" title="${locked?'수정불가':'클릭하여 입력'}" style="font-size:11px;">${esc(a.deployCsr || '')}</td>
@@ -2176,7 +2180,7 @@
     const escaped = esc(text);
     if (!jiraBaseUrl) return escaped;
     const linkFn = t =>
-      `<a href="${esc(jiraBaseUrl)}/browse/${t}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">${t}</a>`;
+      `<a href="${esc(jiraBaseUrl)}/browse/${t}" target="_blank" class="jira-badge" title="SmartWay 티켓 바로가기">🔗 ${t}</a>`;
     // [CSR-12345] / [OP-12345] 먼저 처리, 그 다음 대괄호 없는 CSR-12345 / OP-12345
     return escaped.replace(/\[((?:CSR|OP)-\d+)\]|\b((?:CSR|OP)-\d+)\b/g, (_, t1, t2) => linkFn(t1 || t2));
   }
@@ -2480,7 +2484,7 @@
           <div class="detail-label">차단일자 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value"><input id="df-blockedDate" type="date" class="df-input" value="${esc(r.blockedDate || '')}" ${dis}></div>
           <div class="detail-label">차단근거 <span style="color:var(--primary);font-size:10px;">✎</span></div>
-          <div class="detail-value"><textarea id="df-blockedReason" class="df-textarea" rows="3" ${dis}>${esc(r.blockedReason || '')}</textarea></div>
+          <div class="detail-value">${dis ? `<div style="font-size:11px;line-height:1.8;">${renderBlockedReason(r.blockedReason || '')}</div>` : `<textarea id="df-blockedReason" class="df-textarea" rows="3">${esc(r.blockedReason || '')}</textarea>${r.blockedReason ? `<div style="margin-top:4px;font-size:11px;display:flex;flex-wrap:wrap;gap:4px;">${renderBlockedReason(r.blockedReason)}</div>` : ''}`}</div>
           <div class="detail-label">Deprecated <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value"><select id="df-isDeprecated" class="df-select" style="width:auto;" ${dis}><option value="" ${!r.isDeprecated||r.isDeprecated==='N'?'selected':''}>아니오 (N)</option><option value="Y" ${r.isDeprecated==='Y'?'selected':''}>예 (Y)</option></select></div>
           <div class="detail-label">비고 <span style="color:var(--primary);font-size:10px;">✎</span></div>
@@ -2501,9 +2505,7 @@
         <div class="detail-section-title">🔗 SmartWay 연동</div>
         <div class="detail-grid">
           <div class="detail-label">SmartWay 티켓번호</div>
-          <div class="detail-value">${r.jiraIssueKey
-            ? `<a href="${esc(r.jiraIssueUrl)}" target="_blank" class="jira-badge">${esc(r.jiraIssueKey)}</a>`
-            : '<span style="color:#94a3b8;">미발행</span>'}</div>
+          <div class="detail-value">${r.jiraIssueKey ? `<a href="${esc(r.jiraIssueUrl)}" target="_blank" class="jira-badge">🔗 ${esc(r.jiraIssueKey)}</a>` : '<span style="color:#94a3b8;">미발행</span>'}</div>
           <div class="detail-label">검토 단계</div>
           <div class="detail-value">${reviewStageBadge(r.reviewStage)}</div>
           <div class="detail-label">마지막 동기화</div>
@@ -2663,6 +2665,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '발행 실패');
       showToast(`SmartWay 발행 완료: ${data.issueKey || ''}`, 'success');
+      await refreshAll();
       openDetail(id);
     } catch(e) { showToast('발행 실패: ' + e.message, 'error'); }
   }

@@ -60,7 +60,7 @@
     .lane-admin  .lane-label { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); }
     .lane-batch  .lane-label { background: linear-gradient(135deg, var(--purple) 0%, var(--purple-hover) 100%); }
     .lane-status .lane-label { background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%); }
-    .lane-user   .lane-label { background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%); }
+    .lane-dev    .lane-label { background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%); }
 
     /* 스텝 플로우 (가로 플로우차트) */
     .steps {
@@ -112,7 +112,7 @@
     }
     .lane-batch  .step-num { background: var(--purple); }
     .lane-status .step-num { background: var(--warning); }
-    .lane-user   .step-num { background: var(--success); }
+    .lane-dev    .step-num { background: #2563eb; }
 
     .step-desc {
       font-size: var(--fs-sm);
@@ -587,8 +587,41 @@
     </div>
   </div>
 
-  <!-- 스윔레인 3: 상태 판정 로직 -->
-  <div class="section-title">3. 상태 판정 기준 (5가지 상태)</div>
+  <!-- 스윔레인 3: IT개발실 업무 (구 섹션 4) -->
+  <div class="section-title">3. IT개발실 업무</div>
+  <div class="swimlane lane-dev">
+    <div class="lane-label">
+      IT개발실
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-head"><span class="step-num">1</span>대시보드 확인</div>
+        <div class="step-desc">상태별 전체 통계, 최근 변동 현황, 시스템별 요약을 한눈에 확인합니다.</div>
+        <a href="/" class="step-tag">📊 대시보드</a>
+      </div>
+      <div class="arrow">›</div>
+      <div class="step">
+        <div class="step-head"><span class="step-num">2</span>URL 분석현황 조회</div>
+        <div class="step-desc">전체 URL 목록 조회·필터·엑셀 다운로드. 차단 이력 및 변경 내역을 확인합니다.</div>
+        <a href="/viewer.html" class="step-tag">📋 URL 분석현황</a>
+      </div>
+      <div class="arrow">›</div>
+      <div class="step">
+        <div class="step-head"><span class="step-num">3</span>호출현황 분석</div>
+        <div class="step-desc">일/주 단위 사용량 추이 차트. 급감·정체 패턴으로 차단 후보를 식별합니다.</div>
+        <a href="/call-stats.html" class="step-tag">📈 URL 호출현황</a>
+      </div>
+      <div class="arrow">›</div>
+      <div class="step">
+        <div class="step-head"><span class="step-num">4</span>현업 검토결과 업로드</div>
+        <div class="step-desc">메일로 부터 전달받은 검토결과(<b>차단대상 제외 / 차단확정 / 판단불가</b>)와 의견을 업로드.</div>
+        <a href="/review.html" class="step-tag">📝 현업 검토</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스윔레인 4: 상태 판정 로직 (구 섹션 3) -->
+  <div class="section-title">4. 상태 판정 기준 (5가지 상태)</div>
   <div class="swimlane lane-status">
     <div class="lane-label">
       상태 판정
@@ -644,39 +677,6 @@
           위 조건에 해당하지 않는 <b>기본값</b>. 정상 운영 중으로 판정.
         </div>
         <div class="status-card-meta">기본값</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 스윔레인 4: 사용자 -->
-  <div class="section-title">4. 사용자</div>
-  <div class="swimlane lane-user">
-    <div class="lane-label">
-      IT담당자 / 현업
-    </div>
-    <div class="steps">
-      <div class="step">
-        <div class="step-head"><span class="step-num">1</span>대시보드 확인</div>
-        <div class="step-desc">상태별 전체 통계, 최근 변동 현황, 시스템별 요약을 한눈에 확인합니다.</div>
-        <a href="/" class="step-tag">📊 대시보드</a>
-      </div>
-      <div class="arrow">›</div>
-      <div class="step">
-        <div class="step-head"><span class="step-num">2</span>URL 분석현황 조회</div>
-        <div class="step-desc">전체 URL 목록 조회·필터·엑셀 다운로드. 차단 이력 및 변경 내역을 확인합니다.</div>
-        <a href="/viewer.html" class="step-tag">📋 URL 분석현황</a>
-      </div>
-      <div class="arrow">›</div>
-      <div class="step">
-        <div class="step-head"><span class="step-num">3</span>호출현황 분석</div>
-        <div class="step-desc">일/주 단위 사용량 추이 차트. 급감·정체 패턴으로 차단 후보를 식별합니다.</div>
-        <a href="/call-stats.html" class="step-tag">📈 URL 호출현황</a>
-      </div>
-      <div class="arrow">›</div>
-      <div class="step">
-        <div class="step-head"><span class="step-num">4</span>현업 검토 입력</div>
-        <div class="step-desc">차단대상 URL만 표시. 검토결과(<b>차단대상 제외 / 차단확정 / 판단불가</b>)와 의견을 작성합니다.</div>
-        <a href="/review.html" class="step-tag">📝 현업 검토</a>
       </div>
     </div>
   </div>
@@ -812,8 +812,8 @@
       <div style="display:flex;flex-direction:column;flex:1 1 0;min-width:140px;gap:6px;">
         <div class="lc-step" style="flex:none;min-width:0;border-color:#bfdbfe;background:#f0f9ff;">
           <div class="lc-num" style="background:#2563eb;">3</div>
-          <span class="lc-title">사용 현황 반영</span>
-          <span class="lc-desc">전체·1개월·1주 기준</span>
+          <span class="lc-title">IT개발실 검토</span>
+          <span class="lc-desc">차단 대상 검토</span>
         </div>
         <div style="text-align:center;font-size:10px;font-weight:700;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;">IT개발실</div>
       </div>

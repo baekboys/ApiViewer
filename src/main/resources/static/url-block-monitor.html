@@ -154,16 +154,13 @@
   <div class="card">
     <div class="card-title"><span class="dot dot-blue"></span>조회 조건</div>
 
+    <!-- Row 1: 레포지토리 | OkindName | 봇 표시 -->
     <div class="filter-grid">
-      <label class="field">레포지토리
+      <div class="field">레포지토리
         <select id="fRepo" onchange="onRepoChange()">
           <option value="">(전체 활성 레포)</option>
         </select>
-      </label>
-
-      <label class="field">URL 경로 (부분일치)
-        <input id="fService" type="text" placeholder="/api/...">
-      </label>
+      </div>
 
       <div class="field">
         OkindName (서비스 그룹) — 다중 선택 (전체 미선택 시 전체)
@@ -171,26 +168,8 @@
           <span class="okind-empty">레포 선택 시 표시</span>
         </div>
       </div>
-    </div>
 
-    <div class="filter-grid" style="margin-top:12px;">
-      <div class="field" style="grid-column:span 1;">
-        기간
-        <div style="display:flex;gap:6px;align-items:center;">
-          <input id="fFrom" type="date" style="width:140px;">
-          <span style="color:var(--text-muted);">~</span>
-          <input id="fTo" type="date" style="width:140px;">
-        </div>
-      </div>
-      <div class="field" style="grid-column:span 1;">
-        빠른 선택
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-ghost active" onclick="setRange(1,this)">전일</button>
-          <button class="btn btn-ghost" onclick="setRange(3,this)">3일</button>
-          <button class="btn btn-ghost" onclick="setRange(7,this)">7일</button>
-        </div>
-      </div>
-      <div class="field" style="grid-column:span 1;">
+      <div class="field">
         봇 표시
         <div class="toggle-group">
           <button id="btnExcludeBot" class="on" onclick="setExcludeBot(true)">봇 제외</button>
@@ -199,22 +178,44 @@
       </div>
     </div>
 
-    <div class="filter-grid" style="margin-top:12px;grid-template-columns:3fr 1fr 1fr;">
-      <div class="field">봇 또는 제외대상 키워드 (대소문자 구분)
-        <div id="monBotKeywordsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;min-height:28px;"></div>
+    <!-- Row 2: 기간 | 빠른선택 -->
+    <div style="display:flex;gap:12px;margin-top:12px;">
+      <div class="field">
+        기간
         <div style="display:flex;gap:6px;align-items:center;">
-          <input type="text" id="newMonBotKeywordInput" placeholder="키워드 입력 후 Enter"
-                 style="flex:1;max-width:300px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addMonBotKeyword();}">
-          <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addMonBotKeyword()">+ 추가</button>
+          <input id="fFrom" type="date" style="width:140px;">
+          <span style="color:var(--text-muted);">~</span>
+          <input id="fTo" type="date" style="width:140px;">
         </div>
       </div>
-      <div class="field">&nbsp;
-        <button class="btn btn-blue" onclick="doSearch()" id="searchBtn">🔍 조회</button>
+      <div class="field">
+        빠른 선택
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost active" onclick="setRange(1,this)">전일</button>
+          <button class="btn btn-ghost" onclick="setRange(3,this)">3일</button>
+          <button class="btn btn-ghost" onclick="setRange(7,this)">7일</button>
+        </div>
       </div>
-      <div class="field">&nbsp;
-        <button class="btn btn-green" onclick="downloadExcel()" id="excelBtn" disabled>⬇ 엑셀 다운로드</button>
+    </div>
+
+    <!-- Row 3: 봇 키워드 (전체 너비) -->
+    <div class="field" style="margin-top:12px;">봇 또는 제외대상 키워드 (대소문자 구분)
+      <div id="monBotKeywordsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;min-height:28px;"></div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="text" id="newMonBotKeywordInput" placeholder="키워드 입력 후 Enter"
+               style="flex:1;max-width:300px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addMonBotKeyword();}">
+        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addMonBotKeyword()">+ 추가</button>
       </div>
+    </div>
+
+    <!-- Row 4: URL 경로 + 조회/엑셀 버튼 -->
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;">
+      <div class="field" style="flex:1;">URL 경로 (부분일치)
+        <input id="fService" type="text" placeholder="/api/...">
+      </div>
+      <button class="btn btn-blue" onclick="doSearch()" id="searchBtn" style="height:36px;">🔍 조회</button>
+      <button class="btn btn-green" onclick="downloadExcel()" id="excelBtn" disabled style="height:36px;">⬇ 엑셀 다운로드</button>
     </div>
 
     <div id="progressArea" style="margin-top:10px;font-size:11px;color:var(--text-muted);display:none;">

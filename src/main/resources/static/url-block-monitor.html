@@ -280,9 +280,11 @@
   function fmt(n){ return Number(n||0).toLocaleString(); }
 
   function setRange(days, btn){
-    document.querySelectorAll('.toggle-group button, .filter-grid .btn-ghost').forEach(b => {});
-    document.querySelectorAll('.filter-grid .btn-ghost').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    // 빠른선택 버튼 그룹 내에서만 active 토글 (부모 형제 기준 — 레이아웃 클래스에 비의존)
+    if (btn && btn.parentElement) {
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
     const today = new Date();
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
     const from = new Date(yesterday); from.setDate(yesterday.getDate() - (days - 1));
@@ -488,7 +490,7 @@
   }
 
   // 초기화
-  setRange(1, document.querySelector('.filter-grid .btn-ghost.active'));
+  setRange(1, document.querySelector('button.btn-ghost.active'));
   loadRepos();
   // 글로벌 봇 키워드를 태그로 기본 세팅 (사용자가 직접 조정 가능)
   fetch('/api/url-block-monitor/bot-keywords')

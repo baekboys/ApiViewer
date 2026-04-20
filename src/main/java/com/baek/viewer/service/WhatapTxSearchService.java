@@ -355,7 +355,8 @@ public class WhatapTxSearchService {
             row.setErrMessage(text(n, "errMessage"));
             row.setIpAddr(text(n, "ipAddr"));
             row.setUserAgent(text(n, "userAgent"));
-            long endMs = n.path("endtime").asLong(0);
+            // 와탭 응답 필드명 후보: endtime / endTime / end_time / etime / time / startTime
+            long endMs = firstLong(n, "endtime", "endTime", "end_time", "etime", "time", "startTime");
             if (endMs > 0) {
                 row.setEndtime(TS_FMT.format(Instant.ofEpochMilli(endMs)));
             }
@@ -369,6 +370,19 @@ public class WhatapTxSearchService {
         if (v.isMissingNode() || v.isNull()) return null;
         String s = v.asText("");
         return s.isEmpty() ? null : s;
+    }
+
+    /** 여러 필드명 후보 중 첫 번째로 발견되는 숫자 값 반환. 없으면 0 */
+    private static long firstLong(JsonNode n, String... fields) {
+        for (String f : fields) {
+            JsonNode v = n.path(f);
+            if (v.isMissingNode() || v.isNull()) continue;
+            if (v.isNumber()) return v.asLong();
+            if (v.isTextual()) {
+                try { return Long.parseLong(v.asText().trim()); } catch (NumberFormatException ignored) {}
+            }
+        }
+        return 0L;
     }
 
     private static String firstNonBlank(String... vs) {

@@ -252,6 +252,7 @@ function updateAdminBadge(valid) {
     <a href="/"             class="nav-link">📊 대시보드</a>
     <a href="/viewer.html"  class="nav-link">📋 URL분석현황</a>
     <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
+    <a href="/url-block-monitor.html" class="nav-link">🚧 차단 모니터링</a>
     <a href="/review.html" class="nav-link">📝 현업 검토</a>
     <a href="/workflow.html" class="nav-link">🗺️ 업무 흐름</a>
 
@@ -310,6 +311,19 @@ function updateAdminBadge(valid) {
       <label class="field">와탭 psize
         <input id="gWhatapPsize" type="number" min="1" style="width:80px;">
         <span class="field-hint">한 페이지 건수 (기본 10000)</span>
+      </label>
+    </div>
+
+    <!-- URL 차단 모니터링 -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">URL 차단 모니터링 (와탭 트랜잭션 검색)</div>
+    <div class="field-row col2" style="margin-bottom:14px;">
+      <label class="field">와탭 트랜잭션 검색 Base URL
+        <input id="gWhatapTxsearchBaseUrl" type="text" placeholder="https://service.whatap-browser-agent.io" style="width:100%;max-width:420px;">
+        <span class="field-hint">/v2/txsearch 호출용. 각 레포의 pcode로 구분</span>
+      </label>
+      <label class="field">봇 키워드 (콤마 구분)
+        <input id="gBotKeywords" type="text" placeholder="Googlebot,AdsBot,bingbot,..." style="width:100%;max-width:520px;">
+        <span class="field-hint">userAgent / clientType 부분일치로 봇 제외</span>
       </label>
     </div>
 
@@ -1009,6 +1023,8 @@ function updateAdminBadge(valid) {
       document.getElementById('gApmLogLevel').value     = g.apmLogLevel || 'INFO';
       document.getElementById('gWhatapPtotal').value   = g.whatapPtotal ?? 100;
       document.getElementById('gWhatapPsize').value    = g.whatapPsize ?? 10000;
+      document.getElementById('gWhatapTxsearchBaseUrl').value = g.whatapTxsearchBaseUrl || '';
+      document.getElementById('gBotKeywords').value    = g.botKeywords || 'Googlebot,AdsBot,bingbot,YandexBot,DuckDuckBot,facebookexternalhit,Slackbot,Twitterbot,LinkedInBot,crawler,spider';
       // 로그 tail 줄수 — 공통설정 + 로그조회 화면 모두 세팅
       const tailVal = g.logTailLines ?? 1000;
       document.getElementById('gLogTailLines').value   = tailVal;
@@ -1084,6 +1100,8 @@ function updateAdminBadge(valid) {
       cur.logTailLines = parseInt(document.getElementById('gLogTailLines').value) || 1000;
       cur.whatapPtotal = parseInt(document.getElementById('gWhatapPtotal').value) || 100;
       cur.whatapPsize = parseInt(document.getElementById('gWhatapPsize').value) || 10000;
+      cur.whatapTxsearchBaseUrl = document.getElementById('gWhatapTxsearchBaseUrl').value.trim() || null;
+      cur.botKeywords = document.getElementById('gBotKeywords').value.trim() || null;
       cur.teams = (() => { const t = collectTeams(); return t.length ? JSON.stringify(t) : null; })();
       cur.whatapProfiles = wpList.length ? JSON.stringify(wpList) : null;
       cur.jenniferProfiles = jpList.length ? JSON.stringify(jpList) : null;

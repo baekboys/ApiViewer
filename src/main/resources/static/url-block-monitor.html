@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Viewer — URL차단 모니터링</title>
+  <style>
+    :root {
+      --bg:#f4f6f9; --card:#fff; --primary:#3b82f6; --primary-hover:#2563eb;
+      --danger:#ef4444; --success:#22c55e; --purple:#8b5cf6; --warning:#f59e0b;
+      --text:#1e293b; --text-muted:#64748b; --border:#e2e8f0;
+      --shadow:0 1px 4px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
+    .header{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
+    .header h1{font-size:18px;font-weight:700;color:var(--primary);}
+    .header a:has(h1){color:inherit;text-decoration:none;}
+    .header a:has(h1):hover h1{opacity:.75;}
+    .header a:has(h1) h1{transition:opacity .15s;}
+    .header-sub{font-size:12px;color:var(--text-muted);background:#f1f5f9;padding:3px 10px;border-radius:4px;font-weight:600;}
+    .header-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .nav-link{font-size:12px;color:var(--text-muted);font-weight:600;text-decoration:none;padding:6px 12px;border:1px solid var(--border);border-radius:6px;}
+    .nav-link:hover{background:#f1f5f9;}
+    .nav-active{color:var(--primary)!important;border-color:var(--primary)!important;}
+    .dark-toggle{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:600;}
+
+    .main{max-width:1600px;margin:0 auto;padding:20px 24px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
+    .card-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+    .dot{width:8px;height:8px;border-radius:50%;}
+    .dot-blue{background:var(--primary);} .dot-red{background:var(--danger);} .dot-purple{background:var(--purple);} .dot-orange{background:var(--warning);}
+
+    /* 필터 바 */
+    .filter-grid{display:grid;grid-template-columns:1.2fr 1.5fr 2fr;gap:10px 14px;align-items:end;}
+    .field{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+    .field input, .field select{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);color:var(--text);width:100%;}
+    .field input:focus, .field select:focus{border-color:var(--primary);box-shadow:0 0 0 2px #3b82f620;}
+    .btn{padding:7px 16px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;height:32px;}
+    .btn-blue{background:var(--primary);color:#fff;} .btn-blue:hover{background:var(--primary-hover);}
+    .btn-green{background:var(--success);color:#fff;} .btn-green:hover{background:#16a34a;}
+    .btn-ghost{background:#f1f5f9;color:var(--text-muted);border:1px solid var(--border);} .btn-ghost:hover{background:#e2e8f0;}
+    .btn-ghost.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+    /* 봇 토글 */
+    .toggle-group{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+    .toggle-group button{padding:6px 12px;background:var(--card);color:var(--text-muted);border:none;font-size:12px;font-weight:600;cursor:pointer;}
+    .toggle-group button.on{background:var(--primary);color:#fff;}
+
+    /* okind 체크박스 그룹 */
+    .okind-box{display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow:auto;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--card);}
+    .okind-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:#f1f5f9;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-muted);}
+    .okind-chip input{margin:0;cursor:pointer;}
+    .okind-chip.on{background:#dbeafe;color:#1e40af;}
+    .okind-empty{font-size:11px;color:var(--text-muted);padding:4px;}
+
+    /* 요약 카드 */
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+    .sum-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+    .sum-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:10px 0 0 10px;background:var(--primary);}
+    .sum-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+    .sum-value{font-size:22px;font-weight:800;color:var(--text);line-height:1;}
+    .sum-sub{font-size:10px;color:var(--text-muted);margin-top:6px;}
+    .sum-card.c-block::before{background:#dc2626;} .sum-card.c-block .sum-value{color:#dc2626;}
+    .sum-card.c-bot::before{background:#94a3b8;} .sum-card.c-bot .sum-value{color:#475569;}
+    .sum-card.c-svc::before{background:#8b5cf6;} .sum-card.c-svc .sum-value{color:#7c3aed;}
+    .sum-card.c-okd::before{background:#f59e0b;} .sum-card.c-okd .sum-value{color:#d97706;}
+
+    /* 테이블 */
+    .table-wrap{overflow:auto;max-height:65vh;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+    table{width:100%;border-collapse:collapse;font-size:11.5px;}
+    thead th{position:sticky;top:0;z-index:1;background:#f1f5f9;padding:7px 8px;text-align:left;font-weight:700;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap;}
+    tbody td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+    tbody tr:hover{background:#f8fafc;}
+    tbody tr.bot-row{background:#fff7ed;}
+    tbody tr.bot-row:hover{background:#ffedd5;}
+    .col-svc{font-family:'Consolas',monospace;font-size:11px;color:#1e40af;max-width:280px;overflow:hidden;text-overflow:ellipsis;}
+    .col-err{color:#b91c1c;font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
+    .col-ua{max-width:200px;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;color:var(--text-muted);}
+    .col-time{font-variant-numeric:tabular-nums;color:var(--text-muted);}
+    .badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;}
+    .badge-method{background:#dbeafe;color:#1e40af;}
+    .badge-bot{background:#fed7aa;color:#9a3412;margin-left:4px;}
+    .badge-repo{background:#ede9fe;color:#6d28d9;}
+    .badge-okd{background:#dcfce7;color:#166534;}
+
+    /* 페이징 */
+    .pagination{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:10px;font-size:12px;}
+    .page-btn{padding:5px 10px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;font-size:11px;color:var(--text);min-width:32px;}
+    .page-btn:hover{background:#f1f5f9;}
+    .page-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+    .page-btn:disabled{opacity:.5;cursor:not-allowed;}
+    .page-info{color:var(--text-muted);font-size:11px;}
+
+    .empty{text-align:center;padding:40px;color:var(--text-muted);font-size:12px;}
+    .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;color:#fff;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;background:var(--text);}
+    .toast.show{opacity:1;}
+    .toast.error{background:var(--danger);} .toast.success{background:var(--success);}
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* 다크모드 */
+    :root[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--primary:#60a5fa;--primary-hover:#3b82f6;--shadow:0 1px 4px rgba(0,0,0,.4);}
+    [data-theme="dark"] body{background:var(--bg);color:var(--text);}
+    [data-theme="dark"] .header{background:var(--card);border-color:var(--border);}
+    [data-theme="dark"] .header-sub{background:#293548!important;}
+    [data-theme="dark"] .nav-link{color:var(--text-muted);border-color:var(--border);}
+    [data-theme="dark"] .nav-link:hover{background:#293548!important;}
+    [data-theme="dark"] .nav-active{color:#93c5fd!important;border-color:#60a5fa!important;background:#1e3a5f!important;}
+    [data-theme="dark"] .card,[data-theme="dark"] .table-wrap{background:var(--card)!important;border-color:var(--border)!important;}
+    [data-theme="dark"] input,[data-theme="dark"] select{background:#0f172a!important;color:var(--text)!important;border-color:var(--border)!important;}
+    [data-theme="dark"] thead th{background:#293548!important;}
+    [data-theme="dark"] tbody tr:hover{background:#293548!important;}
+    [data-theme="dark"] tbody tr.bot-row{background:#2d1b0a!important;}
+    [data-theme="dark"] tbody tr.bot-row:hover{background:#3a2410!important;}
+    [data-theme="dark"] .btn-ghost{background:#293548;color:var(--text-muted);border-color:var(--border);}
+    [data-theme="dark"] .btn-ghost:hover{background:#334155;}
+    [data-theme="dark"] .toggle-group button{background:var(--card);color:var(--text-muted);}
+    [data-theme="dark"] .okind-box{background:#0f172a;}
+    [data-theme="dark"] .okind-chip{background:#293548;color:var(--text-muted);}
+    [data-theme="dark"] .okind-chip.on{background:#1e3a5f;color:#93c5fd;}
+    [data-theme="dark"] .col-svc{color:#93c5fd;}
+    [data-theme="dark"] .col-err{color:#fca5a5;}
+    [data-theme="dark"] .badge-method{background:#1e3a5f;color:#93c5fd;}
+    [data-theme="dark"] .badge-bot{background:#3a2410;color:#fdba74;}
+    [data-theme="dark"] .badge-repo{background:#3b2a5e;color:#c4b5fd;}
+    [data-theme="dark"] .badge-okd{background:#1c3a26;color:#86efac;}
+  </style>
+  <script src="/exceljs.min.js"></script>
+  <script src="/js/dialog.js"></script>
+  <script src="/js/darkmode.js"></script>
+</head>
+<body>
+<div class="header">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+  </svg>
+  <a href="/" style="text-decoration:none;"><h1>URL Viewer</h1></a>
+  <span class="header-sub">URL차단 모니터링</span>
+  <div class="header-right">
+    <button class="dark-toggle" onclick="toggleDarkMode()">🌙 다크모드</button>
+    <a href="/"                       class="nav-link">📊 대시보드</a>
+    <a href="/viewer.html"            class="nav-link">📋 URL분석현황</a>
+    <a href="/call-stats.html"        class="nav-link">📈 URL호출현황</a>
+    <a href="/url-block-monitor.html" class="nav-link nav-active">🚧 차단 모니터링</a>
+    <a href="/review.html"            class="nav-link">📝 현업 검토</a>
+    <a href="/workflow.html"          class="nav-link">🗺️ 업무 흐름</a>
+    <a href="/settings.html"          class="nav-link">⚙️ 설정</a>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-blue"></span>조회 조건</div>
+
+    <div class="filter-grid">
+      <label class="field">레포지토리
+        <select id="fRepo" onchange="onRepoChange()">
+          <option value="">(전체 활성 레포)</option>
+        </select>
+      </label>
+
+      <label class="field">서비스 (URL) — 부분일치
+        <input id="fService" type="text" placeholder="/api/...">
+      </label>
+
+      <div class="field">
+        OkindName (서비스 그룹) — 다중 선택 (전체 미선택 시 전체)
+        <div id="okindBox" class="okind-box">
+          <span class="okind-empty">레포 선택 시 표시</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-grid" style="margin-top:12px;">
+      <div class="field" style="grid-column:span 1;">
+        기간 (최대 7일)
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input id="fFrom" type="date" style="width:140px;">
+          <span style="color:var(--text-muted);">~</span>
+          <input id="fTo" type="date" style="width:140px;">
+        </div>
+      </div>
+      <div class="field" style="grid-column:span 1;">
+        빠른 선택
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost active" onclick="setRange(1,this)">전일</button>
+          <button class="btn btn-ghost" onclick="setRange(3,this)">3일</button>
+          <button class="btn btn-ghost" onclick="setRange(7,this)">7일</button>
+        </div>
+      </div>
+      <div class="field" style="grid-column:span 1;">
+        봇 표시
+        <div class="toggle-group">
+          <button id="btnExcludeBot" class="on" onclick="setExcludeBot(true)">봇 제외</button>
+          <button id="btnIncludeBot" onclick="setExcludeBot(false)">전체 보기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-grid" style="margin-top:12px;grid-template-columns:3fr 1fr 1fr;">
+      <label class="field">추가 봇 키워드 (콤마 구분, GlobalConfig 기본값에 합산)
+        <input id="fExtraBot" type="text" placeholder="예: customBot, mybot">
+      </label>
+      <div class="field">&nbsp;
+        <button class="btn btn-blue" onclick="doSearch()" id="searchBtn">🔍 조회</button>
+      </div>
+      <div class="field">&nbsp;
+        <button class="btn btn-green" onclick="downloadExcel()" id="excelBtn" disabled>⬇ 엑셀 다운로드</button>
+      </div>
+    </div>
+
+    <div id="progressArea" style="margin-top:10px;font-size:11px;color:var(--text-muted);display:none;">
+      <span class="spinner"></span><span id="progressText">조회 중...</span>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sum-card c-block">
+      <div class="sum-label">총 인입 건수</div>
+      <div class="sum-value" id="sumTotal">-</div>
+      <div class="sum-sub" id="sumTotalSub">조회 후 표시</div>
+    </div>
+    <div class="sum-card c-bot">
+      <div class="sum-label">봇 매칭 건수</div>
+      <div class="sum-value" id="sumBot">-</div>
+      <div class="sum-sub" id="sumBotSub">'전체 보기' 모드일 때 의미</div>
+    </div>
+    <div class="sum-card c-svc">
+      <div class="sum-label">영향 service 수</div>
+      <div class="sum-value" id="sumSvc">-</div>
+      <div class="sum-sub">distinct service</div>
+    </div>
+    <div class="sum-card c-okd">
+      <div class="sum-label">영향 okindName 수</div>
+      <div class="sum-value" id="sumOkd">-</div>
+      <div class="sum-sub">distinct okindName</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;">
+    <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <div class="card-title" style="margin:0;"><span class="dot dot-red"></span>차단 인입 트랜잭션</div>
+      <span id="resultMeta" style="font-size:11px;color:var(--text-muted);"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>endtime</th>
+            <th>레포</th>
+            <th>okindName</th>
+            <th>service</th>
+            <th>method</th>
+            <th>domain</th>
+            <th>podName</th>
+            <th>country</th>
+            <th>clientType</th>
+            <th>clientName</th>
+            <th>clientOs</th>
+            <th>oName</th>
+            <th>errClass</th>
+            <th>errMessage</th>
+            <th>ipAddr</th>
+            <th>userAgent</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="17" class="empty">조건 입력 후 조회 버튼을 눌러주세요.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination" style="padding:10px 16px;"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const PAGE_SIZE = 50;
+  let allRows = [];
+  let currentPage = 0;
+  let excludeBot = true;
+  let reposCache = [];
+  let selectedRepo = '';
+
+  function esc(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function showToast(msg, type){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    setTimeout(() => t.className = 'toast', 2400);
+  }
+
+  function fmt(n){ return Number(n||0).toLocaleString(); }
+
+  function setRange(days, btn){
+    document.querySelectorAll('.toggle-group button, .filter-grid .btn-ghost').forEach(b => {});
+    document.querySelectorAll('.filter-grid .btn-ghost').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const from = new Date(yesterday); from.setDate(yesterday.getDate() - (days - 1));
+    document.getElementById('fFrom').value = from.toLocaleDateString('sv-SE');
+    document.getElementById('fTo').value = yesterday.toLocaleDateString('sv-SE');
+  }
+
+  function setExcludeBot(v){
+    excludeBot = v;
+    document.getElementById('btnExcludeBot').classList.toggle('on', v);
+    document.getElementById('btnIncludeBot').classList.toggle('on', !v);
+  }
+
+  async function loadRepos(){
+    try {
+      const res = await fetch('/api/url-block-monitor/repos');
+      if (!res.ok) throw new Error('레포 목록 로드 실패');
+      reposCache = await res.json();
+      const sel = document.getElementById('fRepo');
+      reposCache.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.repoName;
+        opt.textContent = r.repoName + ' (pcode=' + r.pcode + ')';
+        sel.appendChild(opt);
+      });
+      onRepoChange();
+    } catch(e) {
+      showToast('레포 목록 로드 실패: ' + e.message, 'error');
+    }
+  }
+
+  function onRepoChange(){
+    selectedRepo = document.getElementById('fRepo').value;
+    const box = document.getElementById('okindBox');
+    box.innerHTML = '';
+    let okinds = [];
+    if (selectedRepo) {
+      const r = reposCache.find(x => x.repoName === selectedRepo);
+      okinds = r ? r.okinds : [];
+    } else {
+      // 전체 레포의 okindName distinct
+      const seen = new Set();
+      reposCache.forEach(r => (r.okinds||[]).forEach(o => {
+        if (!seen.has(o.name)) { seen.add(o.name); okinds.push(o); }
+      }));
+    }
+    if (!okinds.length) {
+      box.innerHTML = '<span class="okind-empty">설정된 okind 없음</span>';
+      return;
+    }
+    okinds.forEach(o => {
+      const lbl = document.createElement('label');
+      lbl.className = 'okind-chip';
+      lbl.innerHTML = `<input type="checkbox" value="${esc(o.name)}" onchange="this.parentElement.classList.toggle('on', this.checked)"><span>${esc(o.name)}</span>`;
+      box.appendChild(lbl);
+    });
+  }
+
+  function collectOkindNames(){
+    return Array.from(document.querySelectorAll('#okindBox input:checked')).map(i => i.value);
+  }
+
+  async function doSearch(){
+    const from = document.getElementById('fFrom').value;
+    const to = document.getElementById('fTo').value;
+    if (!from || !to) { showToast('기간을 입력하세요', 'error'); return; }
+    const okindNames = collectOkindNames();
+    const serviceLike = document.getElementById('fService').value.trim();
+    const extraBot = document.getElementById('fExtraBot').value.split(',').map(s => s.trim()).filter(Boolean);
+
+    document.getElementById('searchBtn').disabled = true;
+    document.getElementById('excelBtn').disabled = true;
+    document.getElementById('progressArea').style.display = 'block';
+    document.getElementById('progressText').textContent = `와탭 호출 중... (${from} ~ ${to})`;
+
+    try {
+      const res = await fetch('/api/url-block-monitor/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoName: selectedRepo || null,
+          okindNames: okindNames.length ? okindNames : null,
+          serviceLike: serviceLike || null,
+          from, to,
+          excludeBot,
+          extraBotKeywords: extraBot.length ? extraBot : null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || '조회 실패', 'error');
+        allRows = [];
+      } else {
+        allRows = data.rows || [];
+        showToast(`${fmt(data.total)}건 조회 완료`, 'success');
+      }
+    } catch(e) {
+      showToast('조회 오류: ' + e.message, 'error');
+      allRows = [];
+    } finally {
+      document.getElementById('searchBtn').disabled = false;
+      document.getElementById('excelBtn').disabled = allRows.length === 0;
+      document.getElementById('progressArea').style.display = 'none';
+    }
+    currentPage = 0;
+    renderSummary();
+    renderTable();
+  }
+
+  function renderSummary(){
+    const total = allRows.length;
+    const bots = allRows.filter(r => r.bot).length;
+    const svcSet = new Set(allRows.map(r => r.service).filter(Boolean));
+    const okdSet = new Set(allRows.map(r => r.okindName).filter(Boolean));
+    document.getElementById('sumTotal').textContent = fmt(total);
+    document.getElementById('sumBot').textContent = fmt(bots);
+    document.getElementById('sumSvc').textContent = fmt(svcSet.size);
+    document.getElementById('sumOkd').textContent = fmt(okdSet.size);
+    document.getElementById('sumTotalSub').textContent = excludeBot ? '(봇 제외 결과)' : '(봇 포함 전체)';
+  }
+
+  function renderTable(){
+    const tbody = document.getElementById('tbody');
+    if (!allRows.length) {
+      tbody.innerHTML = '<tr><td colspan="17" class="empty">조회된 차단 인입 트랜잭션이 없습니다.</td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      document.getElementById('resultMeta').textContent = '';
+      return;
+    }
+    const totalPages = Math.ceil(allRows.length / PAGE_SIZE);
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+    const start = currentPage * PAGE_SIZE;
+    const slice = allRows.slice(start, start + PAGE_SIZE);
+    tbody.innerHTML = slice.map((r, i) => `
+      <tr class="${r.bot ? 'bot-row' : ''}">
+        <td>${start + i + 1}</td>
+        <td class="col-time">${esc(r.endtime)}</td>
+        <td><span class="badge badge-repo">${esc(r.repoName)}</span></td>
+        <td>${r.okindName ? `<span class="badge badge-okd">${esc(r.okindName)}</span>` : ''}</td>
+        <td class="col-svc" title="${esc(r.service)}">${esc(r.service)}</td>
+        <td>${r.method ? `<span class="badge badge-method">${esc(r.method)}</span>` : ''}</td>
+        <td>${esc(r.domain)}</td>
+        <td>${esc(r.podName)}</td>
+        <td>${esc(r.country)}</td>
+        <td>${esc(r.clientType)}${r.bot ? '<span class="badge badge-bot">BOT</span>' : ''}</td>
+        <td>${esc(r.clientName)}</td>
+        <td>${esc(r.clientOs)}</td>
+        <td>${esc(r.oName)}</td>
+        <td>${esc(r.errClass)}</td>
+        <td class="col-err" title="${esc(r.errMessage)}">${esc(r.errMessage)}</td>
+        <td>${esc(r.ipAddr)}</td>
+        <td class="col-ua" title="${esc(r.userAgent)}">${esc(r.userAgent)}</td>
+      </tr>
+    `).join('');
+    document.getElementById('resultMeta').textContent =
+      `총 ${fmt(allRows.length)}건 · ${start + 1}~${Math.min(start + PAGE_SIZE, allRows.length)} 표시`;
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages){
+    const pg = document.getElementById('pagination');
+    if (totalPages <= 1) { pg.innerHTML = ''; return; }
+    let html = '';
+    html += `<button class="page-btn" ${currentPage===0?'disabled':''} onclick="gotoPage(${currentPage-1})">‹</button>`;
+    const navSize = 10;
+    const start = Math.floor(currentPage / navSize) * navSize;
+    const end = Math.min(start + navSize, totalPages);
+    for (let p = start; p < end; p++) {
+      html += `<button class="page-btn ${p===currentPage?'active':''}" onclick="gotoPage(${p})">${p+1}</button>`;
+    }
+    html += `<button class="page-btn" ${currentPage>=totalPages-1?'disabled':''} onclick="gotoPage(${currentPage+1})">›</button>`;
+    html += `<span class="page-info">${currentPage+1} / ${totalPages}</span>`;
+    pg.innerHTML = html;
+  }
+
+  function gotoPage(p){ currentPage = p; renderTable(); window.scrollTo({top: document.querySelector('.table-wrap').offsetTop - 60, behavior: 'smooth'}); }
+
+  async function downloadExcel(){
+    if (!allRows.length) { showToast('내보낼 데이터가 없습니다', 'error'); return; }
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('URL차단인입');
+    const headers = ['No.','endtime','레포','okindName','service','method','domain','podName',
+      'country','clientType','clientName','clientOs','oName','errClass','errMessage','ipAddr','userAgent','BOT여부'];
+    ws.addRow(headers);
+    ws.getRow(1).eachCell(c => {
+      c.font = { bold: true, color: { argb: 'FF1E293B' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      c.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      c.alignment = { vertical: 'middle' };
+    });
+    allRows.forEach((r, i) => {
+      ws.addRow([i+1, r.endtime, r.repoName, r.okindName, r.service, r.method, r.domain, r.podName,
+        r.country, r.clientType, r.clientName, r.clientOs, r.oName, r.errClass, r.errMessage, r.ipAddr, r.userAgent,
+        r.bot ? 'Y' : 'N']);
+    });
+    [6, 8, 12, 12, 32, 8, 18, 22, 8, 14, 14, 14, 14, 22, 32, 14, 36, 8].forEach((w, i) => ws.getColumn(i+1).width = w);
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const ts = new Date().toISOString().replace(/[:T]/g,'-').slice(0,19);
+    a.download = `url-block-monitor-${ts}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // 초기화
+  setRange(1, document.querySelector('.filter-grid .btn-ghost.active'));
+  loadRepos();
+</script>
+</body>
+</html>

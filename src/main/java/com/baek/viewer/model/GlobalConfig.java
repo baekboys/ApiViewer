@@ -119,6 +119,14 @@ public class GlobalConfig {
     @Column(name = "git_bash_path", length = 1000)
     private String gitBashPath;
 
+    /** 와탭 트랜잭션 검색 Base URL (예: https://service.whatap-browser-agent.io). 각 레포는 RepoConfig.whatapPcode 로 구분 */
+    @Column(name = "whatap_txsearch_base_url", columnDefinition = "TEXT")
+    private String whatapTxsearchBaseUrl;
+
+    /** URL 차단 모니터링에서 제외할 봇 키워드 (콤마 구분). userAgent / clientType 부분일치 */
+    @Column(name = "bot_keywords", columnDefinition = "TEXT")
+    private String botKeywords;
+
 
     public Long getId() { return id; }
     public String getStartDate() { return startDate; }
@@ -183,4 +191,11 @@ public class GlobalConfig {
     public void setCloneLocalPath(String v) { this.cloneLocalPath = v; }
     public String getGitBashPath() { return gitBashPath; }
     public void setGitBashPath(String v) { this.gitBashPath = v; }
+    public String getWhatapTxsearchBaseUrl() { return whatapTxsearchBaseUrl; }
+    public void setWhatapTxsearchBaseUrl(String v) { this.whatapTxsearchBaseUrl = v; }
+    public String getBotKeywords() {
+        return botKeywords != null && !botKeywords.isBlank() ? botKeywords
+               : "Googlebot,AdsBot,bingbot,YandexBot,DuckDuckBot,facebookexternalhit,Slackbot,Twitterbot,LinkedInBot,crawler,spider";
+    }
+    public void setBotKeywords(String v) { this.botKeywords = v; }
 }

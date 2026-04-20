@@ -88,6 +88,7 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | `/viewer.html` | 이력 조회 | 공개 |
 | `/review.html` | 현업 검토 (차단대상만) | 공개 |
 | `/call-stats.html` | URL 호출현황 차트 | 공개 |
+| `/url-block-monitor.html` | URL차단 모니터링 (와탭 /v2/txsearch 실시간 조회 — 봇 제외) | 공개 |
 | `/workflow.html` | 업무 플로우 (스윔레인 다이어그램) | 공개 |
 | `/settings.html` | 설정·로그·배치·데이터관리 | 관리자 전용 |
 | `/h2-console` | H2 DB 콘솔 (sa / 빈 패스워드) | 관리자 전용 |
@@ -143,6 +144,20 @@ Spring Boot 기반 웹 애플리케이션. Controller 소스를 파싱하여 URL
 | `blocked_date` / `blocked_reason` | 차단일자/차단근거 (fullComment에서 파싱) |
 | `review_result` / `review_opinion` | 현업검토결과/의견 |
 | `git_history` | JSON 배열 (최근 5개 커밋) |
+
+## 주요 DB 컬럼 (global_config) — URL 차단 모니터링
+
+| 컬럼 | 설명 |
+|------|------|
+| `whatap_txsearch_base_url` | 와탭 트랜잭션 검색 Base URL (예: `https://service.whatap-browser-agent.io`). 각 레포는 `repo_config.whatap_pcode`로 구분 |
+| `bot_keywords` | 봇 제외 키워드 콤마 리스트. userAgent / clientType / clientName 부분일치 (대소문자 무시) |
+
+## 주요 DB 컬럼 (repo_config) — okind 매핑
+
+| 컬럼 | 설명 |
+|------|------|
+| `whatap_okinds` | 와탭 okind ID 리스트 (콤마 또는 JSON 배열). 예: "1,2,3" |
+| `whatap_okinds_name` | 위 ID와 **인덱스 매칭**되는 okind 표시명 (콤마). 예: "서비스A,서비스B,서비스C" |
 
 ---
 

@@ -25,15 +25,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * URL 차단 모니터링 — 와탭 /v2/txsearch (트랜잭션 검색) 호출 전용 서비스.
+ * URL 차단 모니터링 — 와탭 트랜잭션 검색 호출 전용 서비스.
  *
  * 요청 패턴 (POST JSON, 사용자 캡쳐 페이로드 기반):
- * URL : {GlobalConfig.whatapTxsearchBaseUrl}/v2/txsearch?stime=...&max=200&okinds=...&...
+ * URL : {baseUrl}/v2/project/apm/{pcode}/new/tx_profile?stime=...&max=200&okinds=...&...
  * Body:
- *   { type:"profiles", path:"/v2/txsearch", pcode:"<pcode>",
+ *   { type:"profiles", path:"/v2/project/apm/{pcode}/new/tx_profile", pcode:"<pcode>",
  *     params:{ okinds:0, stime:<ms>, etime:<ms>, option:"forward",
  *              ptotal:100, filter:{ error:"차단" } } }
  *
+ * pcode는 레포별 설정(RepoConfig.whatapPcode)에서 가져와 URL 경로에 포함.
  * DB 저장 X — 매 조회마다 실시간 fetch.
  */
 @Service
@@ -200,15 +201,18 @@ public class WhatapTxSearchService {
         filter.put("error", BLOCK_PREFIX);
         params.put("filter", filter);
 
+        int pcode = repo.getWhatapPcode();
+        String txPath = "/v2/project/apm/" + pcode + "/new/tx_profile";
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("type", "profiles");
-        body.put("path", "/v2/txsearch");
-        body.put("pcode", String.valueOf(repo.getWhatapPcode()));
+        body.put("path", txPath);
+        body.put("pcode", String.valueOf(pcode));
         body.put("params", params);
 
         String reqBody = om.writeValueAsString(body);
 
-        String url = buildUrl(baseUrl, stime, etime, okinds, ptotal);
+        String url = buildUrl(baseUrl, pcode, stime, etime, okinds, ptotal);
 
         if (debug) {
             log.debug("[WHATAP-TX-REQ] POST {} | body={}", url, reqBody);
@@ -235,10 +239,10 @@ public class WhatapTxSearchService {
         return parseRows(resp.body(), repo.getRepoName());
     }
 
-    private String buildUrl(String baseUrl, long stime, long etime, List<Integer> okinds, int ptotal) {
+    private String buildUrl(String baseUrl, int pcode, long stime, long etime, List<Integer> okinds, int ptotal) {
         StringBuilder sb = new StringBuilder();
         sb.append(baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length()-1) : baseUrl);
-        sb.append("/v2/txsearch?");
+        sb.append("/v2/project/apm/").append(pcode).append("/new/tx_profile?");
         sb.append("interval=3600");
         sb.append("&max=200");
         sb.append("&skip=0");

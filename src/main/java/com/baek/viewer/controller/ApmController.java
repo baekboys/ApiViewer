@@ -20,13 +20,30 @@ public class ApmController {
     private final ApmCollectionService apmCollectionService;
     private final RepoConfigRepository repoConfigRepository;
     private final com.baek.viewer.service.ApmArchiveService apmArchiveService;
+    private final com.baek.viewer.service.WhatapTxSearchService whatapTxSearchService;
 
     public ApmController(ApmCollectionService apmCollectionService,
                          RepoConfigRepository repoConfigRepository,
-                         com.baek.viewer.service.ApmArchiveService apmArchiveService) {
+                         com.baek.viewer.service.ApmArchiveService apmArchiveService,
+                         com.baek.viewer.service.WhatapTxSearchService whatapTxSearchService) {
         this.apmCollectionService = apmCollectionService;
         this.repoConfigRepository = repoConfigRepository;
         this.apmArchiveService = apmArchiveService;
+        this.whatapTxSearchService = whatapTxSearchService;
+    }
+
+    /**
+     * 와탭 연결 테스트 (keepalive).
+     * 가벼운 payload로 {base}/yard/api/flush POST — HTTP 200 유지 여부만 확인.
+     * body: {repoName}
+     */
+    @PostMapping("/whatap-test-connection")
+    public ResponseEntity<?> whatapTestConnection(@RequestBody Map<String, Object> body) {
+        String repoName = body == null ? null : (String) body.get("repoName");
+        if (repoName == null || repoName.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "repoName 필수"));
+        }
+        return ResponseEntity.ok(whatapTxSearchService.testConnection(repoName));
     }
 
     /** 1년 이상 지난 호출이력 CSV 백업 + 원본 삭제 */

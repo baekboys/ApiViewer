@@ -30,10 +30,13 @@ import java.util.*;
  *
  * 요청 패턴 (POST JSON):
  *   URL     : {base}/yard/api/flush                                       — {base}는 RepoConfig.whatapUrl 에서 scheme+host+port 추출
- *   Referer : {base}{GlobalConfig.blockMonitorWhatapReferer, {pcode}치환}  — 기본 "/v2/project/apm/{pcode}/new/tx_profile"
- *   Body    : { type:"profiles", path:"<referer 경로와 동일>", pcode:"<pcode>",
+ *   Referer : {base}{GlobalConfig.blockMonitorWhatapReferer, {pcode}치환}  — 기본 "/v2/project/apm/{pcode}/new/tx_profile" (화면 URL)
+ *   Body    : { type:"profiles", path:"/v2/txsearch", pcode:"<pcode>",
  *               params:{ okinds:0, stime:<ms>, etime:<ms>, option:"forward",
  *                        ptotal:100, filter:{ error:"차단" } } }
+ *
+ * 와탭 flush는 body의 {type}+{pcode}+{path} 를 합쳐 "/profiles/pcode/{pcode}/v2/txsearch" 로 내부 라우팅하므로
+ * path는 화면 URL이 아니라 실제 API 경로("/v2/txsearch")여야 한다.
  *
  * Cookie는 RepoConfig.whatapCookie (프로필 폴백값) 사용.
  * DB 저장 X — 매 조회마다 실시간 fetch.
@@ -46,6 +49,8 @@ public class WhatapTxSearchService {
     private static final DateTimeFormatter TS_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(KST);
     private static final String BLOCK_PREFIX = "차단";
+    /** 와탭 flush body.path — 트랜잭션 검색 API 경로 (화면 URL과 다름). type+pcode와 합쳐 /profiles/pcode/{pcode}/v2/txsearch 로 라우팅 */
+    private static final String TX_SEARCH_API_PATH = "/v2/txsearch";
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -88,6 +93,93 @@ public class WhatapTxSearchService {
     public List<String> defaultBotKeywords() {
         GlobalConfig gc = globalRepo.findById(1L).orElse(new GlobalConfig());
         return splitCsv(gc.getBotKeywords());
+    }
+
+    /**
+     * 와탭 연결 테스트 (keepalive 목적).
+     * 가장 가벼운 payload(어제 10분 범위, filter 없음, ptotal=1)로 {base}/yard/api/flush 에 POST.
+     * 조회 결과는 중요하지 않고 HTTP 200 응답 유지 여부만 판단 — 쿠키 세션 살아있는지 확인하는 용도.
+     *
+     * @return {ok, status, httpCode, timeMs, bodyLength, url, message}
+     */
+    public Map<String, Object> testConnection(String repoName) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("repoName", repoName);
+        RepoConfig repo = repoRepo.findByRepoName(repoName).orElse(null);
+        if (repo == null || !"Y".equalsIgnoreCase(repo.getWhatapEnabled()) || repo.getWhatapPcode() == null) {
+            out.put("ok", false);
+            out.put("message", "활성 와탭 레포 아님 (whatapEnabled/whatapPcode 확인)");
+            return out;
+        }
+        String base = extractBase(repo.getWhatapUrl());
+        if (base == null) {
+            out.put("ok", false);
+            out.put("message", "RepoConfig.whatapUrl 미설정/파싱 실패");
+            return out;
+        }
+        GlobalConfig gc = globalRepo.findById(1L).orElse(new GlobalConfig());
+        String refererPath = gc.getBlockMonitorWhatapReferer().replace("{pcode}", String.valueOf(repo.getWhatapPcode()));
+        String url = base + "/yard/api/flush";
+        String referer = base + refererPath;
+
+        // 가벼운 payload: 어제 10분 구간, filter 없음, ptotal=1
+        long etime = java.time.LocalDate.now(KST).atStartOfDay(KST).toInstant().toEpochMilli();
+        long stime = etime - 10 * 60 * 1000L;
+
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("okinds", 0);
+        params.put("stime", stime);
+        params.put("etime", etime);
+        params.put("option", "forward");
+        params.put("ptotal", 1);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("type", "profiles");
+        body.put("path", TX_SEARCH_API_PATH);
+        body.put("pcode", String.valueOf(repo.getWhatapPcode()));
+        body.put("params", params);
+
+        long t0 = System.currentTimeMillis();
+        try {
+            String reqBody = om.writeValueAsString(body);
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json, text/plain, */*")
+                    .header("Referer", referer)
+                    .POST(HttpRequest.BodyPublishers.ofString(reqBody));
+            if (repo.getWhatapCookie() != null && !repo.getWhatapCookie().isBlank()) {
+                builder.header("Cookie", repo.getWhatapCookie());
+            }
+            HttpResponse<String> resp = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            long ms = System.currentTimeMillis() - t0;
+            int code = resp.statusCode();
+            boolean ok = (code == 200);
+            out.put("ok", ok);
+            out.put("httpCode", code);
+            out.put("timeMs", ms);
+            out.put("bodyLength", resp.body() != null ? resp.body().length() : 0);
+            out.put("url", url);
+            out.put("referer", referer);
+            if (ok) {
+                out.put("message", "연결 OK — 쿠키 세션 유효");
+            } else if (code == 401 || code == 403) {
+                out.put("message", "인증 실패 (" + code + ") — 쿠키 만료/무효. 재발급 필요");
+            } else {
+                String snippet = resp.body() == null ? "" : resp.body().substring(0, Math.min(200, resp.body().length()));
+                out.put("message", "HTTP " + code + " — " + snippet);
+            }
+            log.info("[URL차단모니터] 연결 테스트 repo={} code={} ms={} ok={}", repoName, code, ms, ok);
+        } catch (Exception e) {
+            long ms = System.currentTimeMillis() - t0;
+            out.put("ok", false);
+            out.put("timeMs", ms);
+            out.put("url", url);
+            out.put("message", "요청 실패: " + e.getClass().getSimpleName() + " — " + e.getMessage());
+            log.warn("[URL차단모니터] 연결 테스트 실패 repo={} err={}", repoName, e.getMessage());
+        }
+        return out;
     }
 
     /**
@@ -204,7 +296,7 @@ public class WhatapTxSearchService {
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("type", "profiles");
-        body.put("path", refererPath);
+        body.put("path", TX_SEARCH_API_PATH);
         body.put("pcode", String.valueOf(repo.getWhatapPcode()));
         body.put("params", params);
 

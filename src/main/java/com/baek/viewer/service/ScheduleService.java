@@ -1,6 +1,7 @@
 package com.baek.viewer.service;
 
 import com.baek.viewer.job.ApmCollectJob;
+import com.baek.viewer.job.WhatapKeepaliveJob;
 import com.baek.viewer.job.DataBackupJob;
 import com.baek.viewer.job.DbSnapshotJob;
 import com.baek.viewer.job.GitPullExtractJob;
@@ -70,6 +71,22 @@ public class ScheduleService {
         createIfAbsent("APM_COLLECT", "APM 호출건수 수집 (와탭/제니퍼)", "DAILY", "06:00", "7");
         createIfAbsent("DATA_BACKUP", "분석데이터·호출이력 자동 백업", "DAILY", "02:30", null);
         createIfAbsent("JIRA_SYNC", "Jira 동기화 (정방향+역방향)", "HOURLY", "00:00", null);
+        createIfAbsentCustomCron("WHATAP_KEEPALIVE",
+                "와탭 쿠키 세션 keepalive (활성 레포 대상 flush 호출)",
+                "0 0/10 * * * ?");
+    }
+
+    /** CUSTOM cron 기반 기본 배치 생성 (분 단위 등 표준 DAILY/HOURLY로 표현 어려운 경우) */
+    private void createIfAbsentCustomCron(String jobType, String desc, String cron) {
+        if (repository.findByJobType(jobType).isEmpty()) {
+            ScheduleConfig c = new ScheduleConfig();
+            c.setJobType(jobType);
+            c.setDescription(desc);
+            c.setScheduleType("CUSTOM");
+            c.setCronExpression(cron);
+            c.setEnabled(false);
+            repository.save(c);
+        }
     }
 
     private void createIfAbsent(String jobType, String desc, String scheduleType, String runTime, String jobParam) {
@@ -154,6 +171,7 @@ public class ScheduleService {
             case "DB_SNAPSHOT" -> DbSnapshotJob.class;
             case "DATA_BACKUP" -> DataBackupJob.class;
             case "JIRA_SYNC" -> JiraSyncJob.class;
+            case "WHATAP_KEEPALIVE" -> WhatapKeepaliveJob.class;
             default -> null;
         };
     }

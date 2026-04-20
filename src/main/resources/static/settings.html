@@ -331,6 +331,20 @@ function updateAdminBadge(valid) {
         </div>
         <span class="field-hint">clientType / clientName / userAgent 부분일치 제외 (대소문자 구분)</span>
       </label>
+
+      <!-- 와탭 연결 테스트 (쿠키 세션 keepalive 검증용) -->
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);">
+        <label class="field" style="display:block;">와탭 연결 테스트 (쿠키 세션 검증)
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <select id="whatapTestRepo" style="min-width:200px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+              <option value="">(레포 선택)</option>
+            </select>
+            <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="testWhatapConnection()">🔌 연결 테스트</button>
+            <span id="whatapTestResult" style="font-size:11px;color:var(--text-muted);"></span>
+          </div>
+          <span class="field-hint">{base}/yard/api/flush 에 가벼운 payload(ptotal=1, filter 없음) POST — HTTP 200 여부만 확인. 향후 keepalive 배치의 단위 동작</span>
+        </label>
+      </div>
     </div>
 
     <!-- 시스템 설정 -->
@@ -1228,7 +1242,41 @@ function updateAdminBadge(valid) {
       const res = await fetch('/api/config/repos');
       const repos = await res.json();
       renderRepos(repos);
+      fillWhatapTestRepoSelect(repos);
     } catch(e) { showToast('레포 목록 조회 실패', 'error'); }
+  }
+
+  function fillWhatapTestRepoSelect(repos) {
+    const sel = document.getElementById('whatapTestRepo');
+    if (!sel) return;
+    const active = (repos || []).filter(r => r.whatapEnabled === 'Y' && r.whatapPcode != null);
+    sel.innerHTML = '<option value="">(레포 선택)</option>'
+      + active.map(r => `<option value="${esc(r.repoName)}">${esc(r.repoName)}</option>`).join('');
+  }
+
+  async function testWhatapConnection() {
+    const repoName = document.getElementById('whatapTestRepo').value;
+    const resultEl = document.getElementById('whatapTestResult');
+    if (!repoName) { resultEl.textContent = '⚠ 레포를 선택하세요'; resultEl.style.color = '#dc2626'; return; }
+    resultEl.textContent = '⏳ 호출 중...';
+    resultEl.style.color = 'var(--text-muted)';
+    try {
+      const res = await adminFetch('/api/apm/whatap-test-connection', {
+        method: 'POST',
+        body: JSON.stringify({ repoName })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        resultEl.textContent = `✅ ${d.httpCode} OK (${d.timeMs}ms, ${d.bodyLength}B)`;
+        resultEl.style.color = '#16a34a';
+      } else {
+        resultEl.textContent = `❌ ${d.message || '실패'}`;
+        resultEl.style.color = '#dc2626';
+      }
+    } catch(e) {
+      resultEl.textContent = `❌ 요청 오류: ${e.message}`;
+      resultEl.style.color = '#dc2626';
+    }
   }
 
   function renderRepos(repos) {

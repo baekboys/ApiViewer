@@ -244,27 +244,6 @@ public class YamlConfigService {
                     }
                     rc.setJenniferUrl(jUrl);
                     rc.setJenniferBearerToken(jToken);
-
-                    // OID 목록 → JSON 저장
-                    if (j.getOids() != null && !j.getOids().isEmpty()) {
-                        try {
-                            List<Map<String, Object>> oidItems = new ArrayList<>();
-                            for (ReposYamlConfig.OidEntry o : j.getOids()) {
-                                if (o.getOid() == null) continue;
-                                Map<String, Object> m = new java.util.LinkedHashMap<>();
-                                m.put("oid", o.getOid());
-                                m.put("shortName", o.getShortName() != null ? o.getShortName() : "");
-                                oidItems.add(m);
-                            }
-                            rc.setJenniferOids(oidItems.isEmpty() ? null
-                                    : new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(oidItems));
-                        } catch (Exception e) {
-                            log.warn("[jenniferOids 직렬화 실패] {}", e.getMessage());
-                            rc.setJenniferOids(null);
-                        }
-                    } else {
-                        rc.setJenniferOids(null);
-                    }
                 }
 
                 repoRepo.save(rc);

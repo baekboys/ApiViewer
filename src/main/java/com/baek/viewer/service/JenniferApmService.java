@@ -26,8 +26,13 @@ import java.util.*;
  * Jennifer APM 연동 서비스 — 실제 API 호출 전용 (최대 30일).
  * Mock 데이터가 필요하면 source=MOCK 사용 (ApmCollectionService.doGenerate).
  *
- * 요청 형식 (GET):
- * {url}?domain_id={sid}&instance_id={oid1,oid2,...}&start_time={epochMs}&end_time={epochMs}
+ * 인스턴스 조회 (GET):
+ * {baseUrl}/api/instance?domain_id={sid}
+ * 응답: { result:[{ instanceId:"", name:"" }] }
+ * → name에 repoName이 포함된 instanceId를 instance_id 파라미터로 사용
+ *
+ * 데이터 조회 (GET):
+ * {url}?domain_id={sid}&instance_id={id1,id2,...}&start_time={epochMs}&end_time={epochMs}
  *
  * 응답 형식:
  * { result:[{ name:"apiPath", calls:N, badResponses:N, failures:N }] }
@@ -65,10 +70,17 @@ public class JenniferApmService {
                     "레포 설정에서 Jennifer URL을 입력하거나, Mock 데이터가 필요하면 source=MOCK을 사용하세요.");
         }
 
-        String instanceId = buildInstanceId(repo.getJenniferOids());
+        String instanceId;
+        try {
+            instanceId = fetchInstanceIds(repo);
+            log.debug("[JENNIFER] 인스턴스 조회 완료: repoName={}, instanceId={}", repo.getRepoName(), instanceId);
+        } catch (Exception e) {
+            log.warn("[JENNIFER] 인스턴스 조회 실패, instance_id 없이 진행: {}", e.getMessage());
+            instanceId = "";
+        }
 
-        emit(logCallback, "INFO", String.format("JENNIFER(실제API) 일별 수집 시작 — 응답 전체 적재, sid=%s",
-                repo.getJenniferSid()));
+        emit(logCallback, "INFO", String.format("JENNIFER(실제API) 일별 수집 시작 — 응답 전체 적재, sid=%s instanceId=%s",
+                repo.getJenniferSid(), instanceId));
 
         int generated = 0;
         int dayCount = 0;
@@ -190,20 +202,51 @@ public class JenniferApmService {
         return result;
     }
 
-    /** jennifer_oids JSON ([{"oid":10021,"shortName":"..."},...]) → "10021,10022" */
-    private String buildInstanceId(String jenniferOids) {
-        if (jenniferOids == null || jenniferOids.isBlank()) return "";
-        try {
-            StringJoiner sj = new StringJoiner(",");
-            for (JsonNode node : objectMapper.readTree(jenniferOids)) {
-                String oid = node.path("oid").asText(null);
-                if (oid != null) sj.add(oid);
-            }
-            return sj.toString();
-        } catch (Exception e) {
-            log.warn("[JENNIFER] OID 파싱 실패: {}", e.getMessage());
-            return "";
+    /**
+     * Jennifer /api/instance?domain_id={sid} 호출 → repoName을 포함하는 instanceId 목록을 콤마 구분 문자열로 반환.
+     * 응답: { "result": [ { "instanceId": "...", "name": "..." } ] }
+     */
+    private String fetchInstanceIds(RepoConfig repo) throws Exception {
+        boolean debug = globalConfigRepo.findById(1L).map(GlobalConfig::isApmDebug).orElse(false);
+
+        URI base = URI.create(repo.getJenniferUrl());
+        String baseUrl = base.getScheme() + "://" + base.getHost()
+                + (base.getPort() != -1 ? ":" + base.getPort() : "");
+        String url = baseUrl + "/api/instance?domain_id=" + repo.getJenniferSid();
+
+        log.debug("[JENNIFER] 인스턴스 목록 조회: {}", url);
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .GET();
+        if (repo.getJenniferBearerToken() != null && !repo.getJenniferBearerToken().isBlank()) {
+            builder.header("Authorization", "Bearer " + repo.getJenniferBearerToken());
         }
+
+        HttpResponse<String> resp = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+
+        if (debug) {
+            log.debug("[JENNIFER-INSTANCE-RES] HTTP {} | body={}", resp.statusCode(), resp.body());
+        }
+        if (resp.statusCode() != 200) {
+            throw new RuntimeException("인스턴스 조회 실패: HTTP " + resp.statusCode());
+        }
+
+        StringJoiner sj = new StringJoiner(",");
+        JsonNode root = objectMapper.readTree(resp.body());
+        JsonNode result = root.path("result");
+        if (result.isArray()) {
+            String repoNameLower = repo.getRepoName().toLowerCase();
+            for (JsonNode item : result) {
+                String name = item.path("name").asText("");
+                if (name.toLowerCase().contains(repoNameLower)) {
+                    String id = item.path("instanceId").asText(null);
+                    if (id != null && !id.isBlank()) sj.add(id);
+                }
+            }
+        }
+        return sj.toString();
     }
 
     private ApmCallData buildEntry(String repoName, String apiPath, String className,

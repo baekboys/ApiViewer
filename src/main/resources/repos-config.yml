@@ -116,11 +116,6 @@ repositories:
       profileName: "운영"
       sid: 1001
       filter: ""
-      oids:
-        - oid: 10011
-          shortName: petclinic-api-1
-        - oid: 10012
-          shortName: petclinic-api-2
 
   - repoName: mall-tiny
     domain: https://api.mall-tiny.com
@@ -150,13 +145,6 @@ repositories:
       profileName: "운영"
       sid: 1002
       filter: ""
-      oids:
-        - oid: 10021
-          shortName: mall-tiny-api-1
-        - oid: 10022
-          shortName: mall-tiny-api-2
-        - oid: 10023
-          shortName: mall-tiny-batch
 
   - repoName: mall-admin
     domain: https://admin.mall.com
@@ -179,11 +167,6 @@ repositories:
       profileName: "운영"
       sid: 1003
       filter: ""
-      oids:
-        - oid: 10031
-          shortName: mall-admin-api-1
-        - oid: 10032
-          shortName: mall-admin-api-2
 
   - repoName: mall-portal
     domain: https://portal.mall.com
@@ -206,13 +189,6 @@ repositories:
       profileName: "운영"
       sid: 1004
       filter: ""
-      oids:
-        - oid: 10041
-          shortName: mall-portal-api-1
-        - oid: 10042
-          shortName: mall-portal-api-2
-        - oid: 10043
-          shortName: mall-portal-front
 
   - repoName: mall-search
     domain: https://search.mall.com
@@ -235,11 +211,6 @@ repositories:
       profileName: "개발"
       sid: 1005
       filter: ""
-      oids:
-        - oid: 10051
-          shortName: mall-search-api-1
-        - oid: 10052
-          shortName: mall-search-indexer
 
   - repoName: spring-mvc-showcase
     domain: https://mvc.example.com
@@ -262,11 +233,6 @@ repositories:
       profileName: "개발"
       sid: 1006
       filter: ""
-      oids:
-        - oid: 10061
-          shortName: mvc-showcase-api-1
-        - oid: 10062
-          shortName: mvc-showcase-api-2
 
 # Jira 연동 설정
 # 이 섹션을 채운 후 settings 화면에서 [YAML 가져오기]를 클릭하면 Jira 설정 탭의 빈 값이 자동으로 채워집니다.

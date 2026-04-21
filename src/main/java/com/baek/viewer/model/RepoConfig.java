@@ -104,10 +104,6 @@ public class RepoConfig {
     @Column(name = "jennifer_bearer_token", columnDefinition = "TEXT")
     private String jenniferBearerToken;
 
-    /** 제니퍼 OID 목록 JSON — [{"oid":10021,"shortName":"mall-tiny-api-1"}, ...] */
-    @Column(name = "jennifer_oids", columnDefinition = "TEXT")
-    private String jenniferOids;
-
     /** SmartWay(Jira) Epic 이슈 키 — 레포당 1개. 최초 발행 시 자동 저장/재사용. */
     @Column(name = "jira_epic_key", length = 50)
     private String jiraEpicKey;
@@ -172,8 +168,6 @@ public class RepoConfig {
     public void setJenniferFilter(String jenniferFilter) { this.jenniferFilter = jenniferFilter; }
     public String getJenniferBearerToken() { return jenniferBearerToken; }
     public void setJenniferBearerToken(String jenniferBearerToken) { this.jenniferBearerToken = jenniferBearerToken; }
-    public String getJenniferOids() { return jenniferOids; }
-    public void setJenniferOids(String jenniferOids) { this.jenniferOids = jenniferOids; }
     public String getJiraEpicKey() { return jiraEpicKey; }
     public void setJiraEpicKey(String jiraEpicKey) { this.jiraEpicKey = jiraEpicKey; }
 }

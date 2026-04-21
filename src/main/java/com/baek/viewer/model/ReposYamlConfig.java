@@ -274,7 +274,6 @@ public class ReposYamlConfig {
         private Integer sid;
         private String filter;
         private String bearerToken;
-        private List<OidEntry> oids;
 
         public String getEnabled() { return enabled; }
         public void setEnabled(String enabled) { this.enabled = enabled; }
@@ -288,18 +287,5 @@ public class ReposYamlConfig {
         public void setFilter(String filter) { this.filter = filter; }
         public String getBearerToken() { return bearerToken; }
         public void setBearerToken(String bearerToken) { this.bearerToken = bearerToken; }
-        public List<OidEntry> getOids() { return oids; }
-        public void setOids(List<OidEntry> oids) { this.oids = oids; }
-    }
-
-    /** 제니퍼 OID (sid 하위 인스턴스 단위) */
-    public static class OidEntry {
-        private Integer oid;
-        private String shortName;
-
-        public Integer getOid() { return oid; }
-        public void setOid(Integer oid) { this.oid = oid; }
-        public String getShortName() { return shortName; }
-        public void setShortName(String shortName) { this.shortName = shortName; }
     }
 }

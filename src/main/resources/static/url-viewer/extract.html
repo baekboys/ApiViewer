@@ -254,21 +254,19 @@
   <div class="card">
     <div class="card-title">
       <span class="dot dot-blue"></span>URL 분석 추출
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:11px;color:var(--text-muted);font-weight:400;">레포지토리 선택 (다건 가능)</span>
-        <select id="repoConfigSelect" multiple size="5" onchange="onRepoSelect()"
-                style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);min-width:260px;max-height:140px;">
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--text-muted);font-weight:400;">레포지토리 선택</span>
+        <select id="repoConfigSelect" onchange="onRepoSelect()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);min-width:180px;">
+          <option value="">-- 선택 --</option>
+          <option value="all">🔄 전체 레포 추출</option>
         </select>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="selectAllRepos()" title="모든 레포 선택">모두</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="clearRepoSelection()" title="선택 해제">해제</button>
-        <span id="repoSelCount" style="font-size:11px;color:var(--text-muted);">선택: 0개</span>
       </div>
     </div>
 
-    <!-- 다중 추출 안내 -->
+    <!-- 전체 추출 안내 -->
     <div id="allRepoInfo" style="display:none;" class="all-repo-info">
-      <strong>선택한 레포지토리 순차 추출</strong>
-      선택한 레포지토리들을 위에서 아래 순서로 추출하며, pull · 분석 · 저장이 한 묶음으로 진행됩니다.
+      <strong>전체 레포지토리 순차 추출</strong>
+      설정된 모든 레포지토리를 순서대로 추출합니다. pull · 분석 · 저장이 한 묶음으로 진행됩니다.
     </div>
 
     <!-- 개별 레포 입력 폼 -->
@@ -950,29 +948,13 @@
     }
   }
 
-  function getSelectedRepoIds() {
-    return Array.from(document.getElementById('repoConfigSelect').selectedOptions).map(o => o.value);
-  }
-  function selectAllRepos() {
-    const sel = document.getElementById('repoConfigSelect');
-    for (const opt of sel.options) opt.selected = true;
-    onRepoSelect();
-  }
-  function clearRepoSelection() {
-    const sel = document.getElementById('repoConfigSelect');
-    for (const opt of sel.options) opt.selected = false;
-    onRepoSelect();
-  }
   function onRepoSelect() {
-    const ids = getSelectedRepoIds();
-    const count = ids.length;
-    document.getElementById('repoSelCount').textContent = `선택: ${count}개`;
-    const multi  = count >= 2;
-    const single = count === 1;
-    document.getElementById('allRepoInfo').style.display   = multi ? 'block' : 'none';
-    document.getElementById('singleRepoForm').style.display = single ? 'block' : 'none';
-    document.getElementById('allRepoBtn').style.display    = multi ? 'block' : 'none';
-    if (single) loadRepoConfig(ids[0]);
+    const val = document.getElementById('repoConfigSelect').value;
+    const isAll = val === 'all';
+    document.getElementById('allRepoInfo').style.display   = isAll ? 'block' : 'none';
+    document.getElementById('singleRepoForm').style.display = isAll ? 'none' : 'block';
+    document.getElementById('allRepoBtn').style.display    = isAll ? 'block' : 'none';
+    if (!isAll && val) loadRepoConfig(val);
   }
 
   function loadRepoConfig(id) {
@@ -994,7 +976,7 @@
   let progressTimer = null;
 
   async function doExtract() {
-    const selIds = getSelectedRepoIds();
+    const selVal = document.getElementById('repoConfigSelect').value;
 
     // 초기화
     lastLogCount = 0;
@@ -1003,15 +985,9 @@
     clearLogs();
     hideResult();
 
-    if (selIds.length === 0) {
-      showToast('레포지토리를 한 개 이상 선택하세요.', 'error');
-      return;
-    }
-
-    // 다중 선택: 2개 이상 → 순차 추출 (pull · 분석 한 묶음)
-    if (selIds.length >= 2) {
-      const repos = allRepos.filter(r => selIds.includes(String(r.id)) && r.rootPath);
-      if (repos.length === 0) { showToast('선택된 레포에 추출할 설정이 없습니다.', 'error'); return; }
+    if (selVal === 'all') {
+      const repos = allRepos.filter(r => r.rootPath);
+      if (repos.length === 0) { showToast('추출할 레포지토리가 없습니다.', 'error'); return; }
 
       setExtracting(true);
       addLocalLog('INFO', `전체 추출 시작 — ${repos.length}개 레포지토리`);
@@ -1041,11 +1017,11 @@
       setExtracting(false);
       setRepoLabel('');
       if (errorCount > 0) {
-        showResult('fail', `추출 완료 — 성공 ${repos.length - errorCount}개, 실패 ${errorCount}개, 총 ${totalSaved}개 저장`);
+        showResult('fail', `전체 추출 완료 — 성공 ${repos.length - errorCount}개, 실패 ${errorCount}개, 총 ${totalSaved}개 저장`);
       } else {
-        showResult('ok', `추출 완료 — ${repos.length}개 레포, 총 ${totalSaved}개 URL 저장`);
+        showResult('ok', `전체 추출 완료 — ${repos.length}개 레포, 총 ${totalSaved}개 URL 저장`);
       }
-      addLocalLog('INFO', `다중 추출 종료`);
+      addLocalLog('INFO', `전체 추출 종료`);
 
     } else {
       const rootPath = document.getElementById('rootPath').value.trim();
@@ -1279,8 +1255,8 @@
     // 조회 링크
     const actions = document.getElementById('resultActions');
     const repoName = document.getElementById('repositoryName').value.trim();
-    const multiSelect = getSelectedRepoIds().length >= 2;
-    const viewerUrl = (multiSelect || !repoName)
+    const selVal = document.getElementById('repoConfigSelect').value;
+    const viewerUrl = (selVal === 'all' || !repoName)
       ? '/url-viewer/viewer.html'
       : `/url-viewer/viewer.html?repo=${encodeURIComponent(repoName)}`;
     actions.innerHTML = `<a class="link-viewer" href="${viewerUrl}">URL분석현황 →</a>`;

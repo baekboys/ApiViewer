@@ -639,57 +639,57 @@ public class ApiExtractorService {
     // ======================================================
 
     /**
-     * JavaParser: 메소드 본문 첫 statement가 UnsupportedOperationException throw인지 판단.
-     * if(true) throw new UnsupportedOperationException("..."); 패턴 포함.
+     * JavaParser: 메서드 본문 **어디든** UnsupportedOperationException 을 throw 하면서
+     * 첫 번째 인자(메시지 문자열 리터럴)에 "차단" 이 포함되면 true.
+     *
+     * (이전에는 메서드 첫 실행 문장만 검사했으나, 개발자 관행상 선행 로직 뒤
+     *  차단 throw 를 두는 경우도 있어 위치 제약을 제거하고 메시지 "차단" 키워드로 의미를 한정함.)
      */
     private boolean detectUrlBlock(MethodDeclaration method) {
         if (method.getBody().isEmpty()) return false;
-        var stmts = method.getBody().get().getStatements();
-        if (stmts.isEmpty()) return false;
-        String first = stmts.get(0).toString();
-        return first.contains("UnsupportedOperationException");
+        return method.getBody().get()
+                .findAll(com.github.javaparser.ast.expr.ObjectCreationExpr.class).stream()
+                .anyMatch(oc -> {
+                    if (!"UnsupportedOperationException".equals(oc.getType().getNameAsString())) return false;
+                    // 첫 번째 인자가 문자열 리터럴이고 "차단" 포함
+                    var args = oc.getArguments();
+                    if (args.isEmpty()) return false;
+                    var first = args.get(0);
+                    if (first.isStringLiteralExpr()) {
+                        return first.asStringLiteralExpr().getValue().contains("차단");
+                    }
+                    // 복잡한 표현식(상수·변수) 은 소스 문자열로 fallback 매칭
+                    return first.toString().contains("차단");
+                });
     }
 
-    /** Regex 폴백: 메소드 본문 초반에서 UnsupportedOperationException throw 패턴 검색 */
+    /**
+     * Regex 폴백: 메서드 본문 어디든 `new UnsupportedOperationException("...차단...")` 패턴이면 true.
+     * throw 키워드 없이 생성만 하는 변칙 케이스도 허용(의미 동일).
+     */
     private boolean detectUrlBlockRegex(String methodBodySnippet) {
         if (methodBodySnippet == null) return false;
-        return Pattern.compile("throw\\s+new\\s+UnsupportedOperationException", Pattern.CASE_INSENSITIVE)
-                .matcher(methodBodySnippet).find();
+        return Pattern.compile(
+                "new\\s+UnsupportedOperationException\\s*\\(\\s*\"[^\"]*차단[^\"]*\"",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+        ).matcher(methodBodySnippet).find();
     }
 
-    /** JavaParser 경로 — 이름 일관성을 위한 alias. detectUrlBlock 이 이미 첫 statement 체크이므로 그대로 위임 */
+    /** 차단 판정 — 위치 무관 "차단" 메시지 포함 여부로 동일 판정. (이전 이름 유지 — 호출부 호환) */
     private boolean isFirstStmtUrlBlock(MethodDeclaration method) { return detectUrlBlock(method); }
 
-    /**
-     * Regex 폴백 — 메서드 본문 **첫 실행 문장** 이 UnsupportedOperationException throw 인지 판정.
-     * 입력 snippet 은 메서드 시그니처 직후 500자 범위. {} 여는 괄호 뒤 공백/주석 스킵 후
-     *   `throw new Unsupported...` 또는 `if (...) throw new Unsupported...` 로 시작하면 true.
-     */
+    /** Regex 경로 — 위치 무관 판정으로 통일. */
     private boolean isFirstStmtUrlBlockRegex(String methodBodySnippet) {
-        if (methodBodySnippet == null) return false;
-        int openBrace = methodBodySnippet.indexOf('{');
-        if (openBrace < 0) return false;
-        String s = methodBodySnippet.substring(openBrace + 1);
-        // 공백 + // 라인주석 + /* ... */ 블록주석 반복 스킵
-        while (true) {
-            String stripped = s
-                    .replaceFirst("^\\s+", "")
-                    .replaceFirst("^//[^\\n]*\\n", "")
-                    .replaceFirst("(?s)^/\\*.*?\\*/", "");
-            if (stripped.equals(s)) break;
-            s = stripped;
-        }
-        return Pattern.compile("^(if\\s*\\([^)]*\\)\\s*\\{?\\s*)?throw\\s+new\\s+UnsupportedOperationException",
-                Pattern.DOTALL).matcher(s).find();
+        return detectUrlBlockRegex(methodBodySnippet);
     }
 
     /**
-     * 표기 미흡 플래그 계산.
-     * 실질 차단(첫 실행 문장이 throw new UnsupportedOperationException)이면서
+     * 차단처리미흡 플래그 계산.
+     * 실질 차단(UnsupportedOperationException throw + 메시지 "차단" 포함) 이면서
      * @Deprecated 또는 [URL차단작업] 주석 중 하나라도 누락되면 true.
      */
-    private boolean computeBlockMarkingIncomplete(boolean firstStmtBlocks, String isDeprecated, String fullComment) {
-        if (!firstStmtBlocks) return false;
+    private boolean computeBlockMarkingIncomplete(boolean urlBlockDetected, String isDeprecated, String fullComment) {
+        if (!urlBlockDetected) return false;
         boolean deprecatedOk = "Y".equals(isDeprecated);
         boolean commentOk = fullComment != null && fullComment.contains("[URL차단작업]");
         return !(deprecatedOk && commentOk);

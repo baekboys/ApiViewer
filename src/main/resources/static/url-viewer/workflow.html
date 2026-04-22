@@ -626,9 +626,9 @@
           <span class="status-badge st-done">차단완료</span>
         </div>
         <div class="status-card-rule">
-          메서드의 <b>첫 실행 문장</b>이
-          <code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;font-size:11px;">throw new UnsupportedOperationException(...)</code>
-          이면 <b>차단완료</b>로 자동 판정.
+          메서드 본문 어디든
+          <code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;font-size:11px;">throw new UnsupportedOperationException("…차단…")</code>
+          — 메시지에 "차단" 포함 — 이면 <b>차단완료</b>로 자동 판정 (위치 무관).
           <div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;font-size:11px;line-height:1.55;color:#7c2d12;">
             <span style="display:inline-block;background:#fed7aa;color:#9a3412;padding:1px 6px;border-radius:999px;font-weight:700;font-size:10px;margin-right:4px;">📝 차단처리미흡</span>
             <code style="font-size:10.5px;">@Deprecated</code> /
@@ -971,7 +971,7 @@
         <div style="flex:1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;">
           <div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:6px;">STEP 6 · 개발 및 테스트</div>
           <div style="font-size:12px;color:#334155;line-height:1.7;">
-            차단 확정된 URL은 <b>메서드 첫 실행 문장에 차단 throw 를 배치</b>하고, 폐기 표시·근거 주석을 함께 반영합니다.<br>
+            차단 확정된 URL은 <b>메서드 본문에 차단 throw 를 배치</b>하고 (위치 무관, 메시지에 "차단" 포함), 폐기 표시·근거 주석을 함께 반영합니다.<br>
             <div style="margin:6px 0 8px 0;display:flex;flex-direction:column;gap:3px;">
               <span style="padding:3px 10px;background:#dbeafe;border-radius:5px;font-size:11px;color:#1d4ed8;font-weight:700;">
                 ① UnsupportedOperationException throw <span style="background:#fee2e2;color:#991b1b;padding:0 5px;border-radius:3px;font-size:10px;margin-left:4px;">필수 · 차단완료 판정 기준</span>
@@ -1155,7 +1155,7 @@
         <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;">
           <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:4px;">🔴 차단완료</div>
           <div style="font-size:11px;color:#334155;line-height:1.6;">
-            메서드 <b>첫 실행 문장</b>이 <code style="background:#fecaca;padding:0 3px;border-radius:2px;">UnsupportedOperationException</code> throw.<br>
+            메서드 본문에 <code style="background:#fecaca;padding:0 3px;border-radius:2px;">UnsupportedOperationException</code> throw + 메시지 "차단" 포함 (위치 무관).<br>
             <span style="display:inline-block;margin-top:3px;padding:1px 6px;background:#fed7aa;color:#9a3412;border-radius:999px;font-weight:700;">📝 차단처리미흡</span>
             <span style="color:#475569;"> · <code>@Deprecated</code> / <code>[URL차단작업]</code> 주석 중 일부 누락 시 부가 표기</span>
           </div>
@@ -1215,7 +1215,7 @@ flowchart TD
     CHK_RVW -->|"No"| CALC["자동 상태 계산\napi_record 조건 평가"]
     CREATE --> CALC
 
-    CALC --> R1{"메서드 첫 실행 문장\n= throw UnsupportedOperationException?\n(hasUrlBlock = Y)"}
+    CALC --> R1{"메서드 본문에\nthrow new UnsupportedOperationException(\"…차단…\")?\n(hasUrlBlock = Y)"}
     R1 -->|"Yes"| ST_DONE["🔴 차단완료\n(@Deprecated·[URL차단작업] 주석 중\n일부 누락 시 blockMarkingIncomplete=true\n→ 📝 차단처리미흡 부가 표기)"]
     R1 -->|"No"| R2{"callCount = 0\n+ 최근커밋 1년 경과?"}
     R2 -->|"Yes"| ST_TOP["🟠 최우선 차단대상"]

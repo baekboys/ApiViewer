@@ -302,8 +302,8 @@ class ApiExtractorServiceTest {
     }
 
     @Test
-    @DisplayName("표기미흡 — 첫 문장이 throw 가 아니면 false: 선행 로직 뒤 throw 는 실질 차단으로 보지 않음")
-    void markingIncomplete_whenThrowNotFirstStatement(@TempDir Path tmp) throws Exception {
+    @DisplayName("차단완료 아님 — throw 는 있으나 메시지에 '차단' 키워드 없음 → hasUrlBlock=N")
+    void urlBlock_falseWhenMessageHasNoBlockKeyword(@TempDir Path tmp) throws Exception {
         when(globalConfigRepository.findById(1L)).thenReturn(Optional.empty());
         Path f = tmp.resolve("FooController.java");
         Files.writeString(f, """
@@ -324,7 +324,40 @@ class ApiExtractorServiceTest {
         List<ApiInfo> result = service.extract(req);
         assertThat(result).hasSize(1);
         ApiInfo info = result.get(0);
-        // 첫 문장은 int x=1; 이므로 UnsupportedOperationException 이 첫 실행 문장이 아님 → markingIncomplete=false
+        // 메시지가 "조건부" 이고 "차단" 키워드 미포함 → 실질 차단 아님
+        assertThat(info.getHasUrlBlock()).isEqualTo("N");
+        assertThat(info.isBlockMarkingIncomplete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("차단완료 — throw 가 본문 중간에 있어도 메시지 '차단' 포함 시 hasUrlBlock=Y")
+    void urlBlock_trueWhenThrowInMiddleWithBlockMessage(@TempDir Path tmp) throws Exception {
+        when(globalConfigRepository.findById(1L)).thenReturn(Optional.empty());
+        Path f = tmp.resolve("FooController.java");
+        // throw 가 메서드 첫 실행문이 아니라 선행 로직 뒤에 있는 변칙 스타일
+        Files.writeString(f, """
+                package test;
+                import org.springframework.web.bind.annotation.*;
+                @RestController
+                public class FooController {
+                    /** @deprecated [URL차단작업][2026-04-09][OP-1] */
+                    @Deprecated
+                    @RequestMapping("/foo/d")
+                    public String d() {
+                        int x = 1;
+                        System.out.println("선행 로직 " + x);
+                        throw new UnsupportedOperationException("차단된 URL 입니다.");
+                    }
+                }
+                """);
+        ExtractRequest req = new ExtractRequest();
+        req.setRootPath(tmp.toString()); req.setDomain("");
+        List<ApiInfo> result = service.extract(req);
+        assertThat(result).hasSize(1);
+        ApiInfo info = result.get(0);
+        // 선행 로직이 있어도 throw + 메시지 "차단" 포함 → 실질 차단
+        assertThat(info.getHasUrlBlock()).isEqualTo("Y");
+        // @Deprecated + [URL차단작업] 주석 모두 존재 → 차단처리미흡=false (완전 표기)
         assertThat(info.isBlockMarkingIncomplete()).isFalse();
     }
 }

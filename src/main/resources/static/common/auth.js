@@ -126,9 +126,14 @@
     'X-Admin-Token': getToken()
   }, extra);
 
-  /** 관리자 비밀번호 모달 — 기존 prompt() 대체. 성공 시 true 반환 */
+  /** 관리자 비밀번호 모달 — customPrompt(마스킹) 우선, 없으면 기본 prompt 폴백. 성공 시 true 반환 */
   window.adminLogin = async function () {
-    const pw = prompt('관리자 비밀번호를 입력하세요:');
+    let pw;
+    if (typeof window.customPrompt === 'function') {
+      pw = await window.customPrompt('관리자 비밀번호를 입력하세요:', { type: 'password', title: '🔑 관리자 인증' });
+    } else {
+      pw = prompt('관리자 비밀번호를 입력하세요:');
+    }
     if (!pw) return false;
     try {
       const res = await fetch('/api/auth/verify', {

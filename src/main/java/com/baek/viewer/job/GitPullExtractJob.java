@@ -11,8 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,38 +43,31 @@ public class GitPullExtractJob implements Job {
             }
 
             try {
-                // 1. Git Checkout + Pull
+                // 1. Git 강제 동기화 (fetch + reset --hard + clean)
                 String gitBin = (repo.getGitBinPath() != null && !repo.getGitBinPath().isBlank())
                         ? repo.getGitBinPath() : "git";
                 String rootPath = repo.getRootPath();
                 java.io.File gitDir = new java.io.File(rootPath);
-
-                // 브랜치 checkout (설정된 경우)
                 String branch = repo.getGitBranch();
-                boolean checkoutOk = true;
-                if (branch != null && !branch.isBlank()) {
-                    log.info("[배치] {} — git fetch + checkout {} 실행", repo.getRepoName(), branch);
-                    try {
-                        runBatchGit(gitDir, gitBin, "fetch", "origin");
-                        runBatchGit(gitDir, gitBin, "checkout", branch);
-                        log.info("[배치] {} — checkout {} 완료", repo.getRepoName(), branch);
-                    } catch (Exception coEx) {
-                        checkoutOk = false;
-                        log.error("[배치] {} — checkout 실패 ({}): {}", repo.getRepoName(), branch, coEx.getMessage());
-                        resultMsg.append(repo.getRepoName()).append(":checkout실패(").append(branch).append(") ");
-                    }
-                }
 
-                // Pull (checkout 성공 시에만)
-                if (checkoutOk) {
-                    log.info("[배치] {} — git pull 실행 (dir={})", repo.getRepoName(), rootPath);
-                    String pullResult = runBatchGit(gitDir, gitBin, "pull");
-                    log.info("[배치] {} — git pull 완료: {}", repo.getRepoName(), pullResult);
-                } else {
-                    log.warn("[배치] {} — git pull 건너뜀 (checkout 실패)", repo.getRepoName());
+                String syncStatus;
+                String syncMessage;
+                try {
+                    log.info("[배치] {} — Git 강제 동기화 실행 (dir={}, branch={})",
+                            repo.getRepoName(), rootPath, (branch == null || branch.isBlank()) ? "(HEAD)" : branch);
+                    String syncResult = extractorService.hardSyncToOrigin(gitDir, gitBin, branch);
+                    syncStatus = "OK";
+                    syncMessage = syncResult;
+                    log.info("[배치] {} — Git 동기화 완료: {}", repo.getRepoName(), syncResult);
+                } catch (Exception syncEx) {
+                    syncStatus = "FAIL";
+                    syncMessage = syncEx.getMessage();
+                    log.error("[배치] {} — Git 동기화 실패: {}", repo.getRepoName(), syncEx.getMessage());
+                    resultMsg.append(repo.getRepoName()).append(":sync실패 ");
                 }
+                updateRepoSyncStatus(repo.getRepoName(), syncStatus, syncMessage);
 
-                // 2. 추출 (checkout 실패해도 현재 브랜치 기준으로 진행)
+                // 2. 추출 (동기화 실패해도 현재 파일 기준으로 분석 진행)
                 ExtractRequest req = new ExtractRequest();
                 req.setRootPath(rootPath);
                 req.setRepositoryName(repo.getRepoName());
@@ -103,21 +94,24 @@ public class GitPullExtractJob implements Job {
         updateResult(result);
     }
 
-    private String runBatchGit(java.io.File dir, String gitBin, String... args) throws Exception {
-        java.util.List<String> cmd = new java.util.ArrayList<>();
-        cmd.add(gitBin);
-        cmd.addAll(java.util.Arrays.asList(args));
-        ProcessBuilder pb = new ProcessBuilder(cmd);
-        pb.directory(dir);
-        pb.redirectErrorStream(true);
-        Process proc = pb.start();
-        StringBuilder output = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-            String line; while ((line = br.readLine()) != null) output.append(line).append(" ");
+    /** 레포별 마지막 sync 결과를 repo_config 에 기록한다. 조회 화면 배너에서 참조.
+     *  Quartz Job 이라 Spring AOP 기반 @Transactional 이 안정적이지 않으므로 생략.
+     *  repoConfigRepo.save 는 Spring Data CrudRepository 가 이미 트랜잭션을 래핑한다. */
+    protected void updateRepoSyncStatus(String repoName, String status, String message) {
+        try {
+            repoConfigRepo.findByRepoName(repoName).ifPresent(rc -> {
+                rc.setLastSyncStatus(status);
+                rc.setLastSyncAt(LocalDateTime.now());
+                String trimmed = message;
+                if (trimmed != null && trimmed.length() > 1000) {
+                    trimmed = trimmed.substring(0, 1000) + "... (truncated)";
+                }
+                rc.setLastSyncMessage(trimmed);
+                repoConfigRepo.save(rc);
+            });
+        } catch (Exception e) {
+            log.warn("[배치] sync 상태 저장 실패 repo={}: {}", repoName, e.getMessage());
         }
-        int exitCode = proc.waitFor();
-        if (exitCode != 0) throw new RuntimeException("exit=" + exitCode + " " + output.toString().trim());
-        return output.toString().trim();
     }
 
     private void updateResult(String result) {

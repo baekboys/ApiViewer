@@ -134,32 +134,12 @@ public class ApiExtractorService {
                 }
             }
             if (doPull) {
-                boolean checkoutOk = true;
-                // 브랜치 checkout (설정된 경우)
-                if (gitBranch != null && !gitBranch.isBlank()) {
-                    try {
-                        addLog("INFO", "Git fetch origin 실행 중...");
-                        runGitCommand(root.toFile(), gitBin, "fetch", "origin");
-
-                        addLog("INFO", "Git checkout → " + gitBranch);
-                        String coOutput = runGitCommand(root.toFile(), gitBin, "checkout", gitBranch);
-                        addLog("OK", "Git checkout 완료 → " + gitBranch + " " + coOutput);
-                    } catch (Exception coEx) {
-                        checkoutOk = false;
-                        addLog("ERROR", "Git checkout 실패 — '" + gitBranch + "' 전환 불가: " + coEx.getMessage() + ". 현재 브랜치로 분석 진행");
-                    }
-                }
-                // Pull (checkout 성공 시에만)
-                if (checkoutOk) {
-                    try {
-                        addLog("INFO", "Git Pull 실행 중...");
-                        String pullOutput = runGitCommand(root.toFile(), gitBin, "pull");
-                        addLog("OK", "Git Pull 완료 — " + pullOutput);
-                    } catch (Exception gitEx) {
-                        addLog("WARN", "Git Pull 실패 (분석은 계속): " + gitEx.getMessage());
-                    }
-                } else {
-                    addLog("WARN", "Git Pull 건너뜀 (checkout 실패)");
+                try {
+                    addLog("INFO", "Git 강제 동기화 (fetch + reset --hard + clean) 실행 중...");
+                    String syncResult = hardSyncToOrigin(root.toFile(), gitBin, gitBranch);
+                    addLog("OK", "Git 동기화 완료 — " + syncResult);
+                } catch (Exception syncEx) {
+                    addLog("WARN", "Git 동기화 실패 (분석은 계속): " + syncEx.getMessage());
                 }
             }
 
@@ -736,6 +716,58 @@ public class ApiExtractorService {
             p.waitFor();
         } catch (Exception ignored) {}
         return h;
+    }
+
+    /**
+     * 대상 레포 working tree 를 origin/{branch} 기준으로 강제 정렬한다.
+     * 로컬 변경·divergent history·detached HEAD 어느 상태에서도 최신 원격 커밋으로 맞춘다.
+     *
+     * 순서:
+     *   1) git fetch origin --prune
+     *   2) target branch 결정 (인자 비면 현재 HEAD)
+     *   3) git reset --hard origin/{branch}
+     *   4) git clean -fd (.gitignore 대상은 보존)
+     *
+     * 서버의 레포 디렉토리는 읽기 전용 분석 미러이므로 로컬 변경은 폐기가 안전하다.
+     * 분석 전용이 아닌 곳에서는 호출하지 말 것.
+     */
+    public String hardSyncToOrigin(java.io.File repoDir, String gitBin, String branch) throws Exception {
+        StringBuilder out = new StringBuilder();
+        log.debug("[hardSync] 시작 — repo={}, branch={}", repoDir.getAbsolutePath(), branch);
+
+        log.debug("[hardSync] Step1. git fetch origin --prune");
+        String fetchOut = runGitCommand(repoDir, gitBin, "fetch", "origin", "--prune");
+        log.debug("[hardSync] fetch 결과: {}", fetchOut);
+        out.append("fetch: ").append(fetchOut).append(" / ");
+
+        String targetBranch;
+        if (branch != null && !branch.isBlank()) {
+            targetBranch = branch.trim();
+            log.debug("[hardSync] Step2. 대상 브랜치 = 설정값 '{}'", targetBranch);
+        } else {
+            String headRef = runGitCommand(repoDir, gitBin, "rev-parse", "--abbrev-ref", "HEAD").trim();
+            targetBranch = headRef.isEmpty() || "HEAD".equals(headRef) ? "HEAD" : headRef;
+            log.debug("[hardSync] Step2. 대상 브랜치 = 현재 HEAD '{}' (설정 미지정)", targetBranch);
+        }
+
+        log.debug("[hardSync] Step3. git reset --hard origin/{}", targetBranch);
+        String resetOut = runGitCommand(repoDir, gitBin, "reset", "--hard", "origin/" + targetBranch);
+        log.debug("[hardSync] reset 결과: {}", resetOut);
+        out.append("reset: ").append(resetOut).append(" / ");
+
+        log.debug("[hardSync] Step4. git clean -fd");
+        String cleanOut = runGitCommand(repoDir, gitBin, "clean", "-fd");
+        log.debug("[hardSync] clean 결과: {}", cleanOut);
+        out.append("clean: ").append(cleanOut.isEmpty() ? "(no untracked)" : cleanOut);
+
+        // HEAD 해시 기록 (INFO 로그용)
+        try {
+            String head = runGitCommand(repoDir, gitBin, "rev-parse", "--short", "HEAD").trim();
+            log.info("[hardSync] 완료 — repo={} branch={} HEAD={}", repoDir.getName(), targetBranch, head);
+            out.append(" / HEAD=").append(head);
+        } catch (Exception ignore) {}
+
+        return out.toString();
     }
 
     /** Git 명령 실행 헬퍼 — 출력 문자열 반환, 실패 시 예외 */

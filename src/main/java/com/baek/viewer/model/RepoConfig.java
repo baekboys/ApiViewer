@@ -2,6 +2,8 @@ package com.baek.viewer.model;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "repo_config")
 public class RepoConfig {
@@ -112,6 +114,18 @@ public class RepoConfig {
     @Column(name = "jira_epic_key", length = 50)
     private String jiraEpicKey;
 
+    /** 배치 Git 동기화 마지막 상태 — "OK" / "FAIL" / null(미수행) */
+    @Column(name = "last_sync_status", length = 10)
+    private String lastSyncStatus;
+
+    /** 배치 Git 동기화 마지막 수행 시각 */
+    @Column(name = "last_sync_at")
+    private LocalDateTime lastSyncAt;
+
+    /** 배치 Git 동기화 마지막 결과 메시지 (성공 시 요약, 실패 시 에러) */
+    @Column(name = "last_sync_message", columnDefinition = "TEXT")
+    private String lastSyncMessage;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getRepoName() { return repoName; }
@@ -176,4 +190,10 @@ public class RepoConfig {
     public void setJenniferOids(String jenniferOids) { this.jenniferOids = jenniferOids; }
     public String getJiraEpicKey() { return jiraEpicKey; }
     public void setJiraEpicKey(String jiraEpicKey) { this.jiraEpicKey = jiraEpicKey; }
+    public String getLastSyncStatus() { return lastSyncStatus; }
+    public void setLastSyncStatus(String lastSyncStatus) { this.lastSyncStatus = lastSyncStatus; }
+    public LocalDateTime getLastSyncAt() { return lastSyncAt; }
+    public void setLastSyncAt(LocalDateTime lastSyncAt) { this.lastSyncAt = lastSyncAt; }
+    public String getLastSyncMessage() { return lastSyncMessage; }
+    public void setLastSyncMessage(String lastSyncMessage) { this.lastSyncMessage = lastSyncMessage; }
 }

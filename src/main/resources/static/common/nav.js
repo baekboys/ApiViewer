@@ -125,9 +125,69 @@
       ${top}
       <div class="app-nav-segments">${segs}</div>
       ${hasSubPages ? `<div class="app-nav-pages">${pages}</div>` : ''}
+      <div id="sync-warning-container"></div>
     `;
 
     renderAdminSlot();
+  }
+
+  // ─── 배치 Git 동기화 실패 경고 배너 ──────────────────────
+  function fmtSyncTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function renderSyncWarnings(list) {
+    const slot = document.getElementById('sync-warning-container');
+    if (!slot) return;
+    if (!Array.isArray(list) || list.length === 0) {
+      slot.innerHTML = '';
+      return;
+    }
+    const items = list.map(w => `
+      <li>
+        <strong>${esc(w.repoName)}</strong>
+        <span class="sync-warning-time">(${esc(fmtSyncTime(w.lastSyncAt))})</span>
+        <span class="sync-warning-msg">— ${esc(w.message || '사유 미상')}</span>
+      </li>`).join('');
+    slot.innerHTML = `
+      <div class="sync-warning-banner" role="alert">
+        <div class="sync-warning-summary">
+          <span class="sync-warning-icon" aria-hidden="true">⚠</span>
+          <span class="sync-warning-text">
+            최근 배치 Git 동기화 실패: 레포 <strong>${list.length}개</strong> — 최신 소스 미반영 가능
+          </span>
+          <button type="button" class="sync-warning-toggle" aria-expanded="false">자세히 ▼</button>
+        </div>
+        <ul class="sync-warning-details" hidden>${items}</ul>
+      </div>`;
+
+    const btn = slot.querySelector('.sync-warning-toggle');
+    const details = slot.querySelector('.sync-warning-details');
+    if (btn && details) {
+      btn.addEventListener('click', () => {
+        const open = !details.hasAttribute('hidden');
+        if (open) {
+          details.setAttribute('hidden', '');
+          btn.setAttribute('aria-expanded', 'false');
+          btn.textContent = '자세히 ▼';
+        } else {
+          details.removeAttribute('hidden');
+          btn.setAttribute('aria-expanded', 'true');
+          btn.textContent = '접기 ▲';
+        }
+      });
+    }
+  }
+
+  function loadSyncWarnings() {
+    fetch('/api/config/repos/sync-warnings', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => renderSyncWarnings(list))
+      .catch(() => {});
   }
 
   // ─── 관리자 인디케이터/버튼 렌더 ─────────────────────────
@@ -159,6 +219,7 @@
   function boot() {
     render();
     applyAdminVisibility();
+    loadSyncWarnings();
     window.addEventListener('auth:change', () => {
       renderAdminSlot();
       applyAdminVisibility();
@@ -171,5 +232,5 @@
   }
 
   // 전역 노출 (필요 시 페이지가 재렌더 호출 가능)
-  window.AppNav = { SEGMENTS, render, renderAdminSlot };
+  window.AppNav = { SEGMENTS, render, renderAdminSlot, loadSyncWarnings, renderSyncWarnings };
 })();

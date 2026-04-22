@@ -147,15 +147,83 @@
   background: var(--primary-light);
 }
 
+/* ── 배치 Git 동기화 실패 경고 배너 ───────────────────────── */
+.sync-warning-banner {
+  background: #fef3c7;
+  border-top: 1px solid #fcd34d;
+  border-bottom: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: var(--fs-base);
+  line-height: 1.4;
+}
+.sync-warning-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  flex-wrap: wrap;
+}
+.sync-warning-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+.sync-warning-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sync-warning-text strong { color: #78350f; font-weight: 700; }
+.sync-warning-toggle {
+  background: #fde68a;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-sm);
+  color: #92400e;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  padding: 3px 10px;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s;
+}
+.sync-warning-toggle:hover { background: #fcd34d; border-color: #f59e0b; }
+.sync-warning-toggle:focus-visible { outline: 2px solid #b45309; outline-offset: 1px; }
+.sync-warning-details {
+  list-style: none;
+  margin: 0;
+  padding: 4px 24px 10px 52px;
+  border-top: 1px dashed #fcd34d;
+  background: #fffbeb;
+}
+.sync-warning-details li {
+  padding: 3px 0;
+  font-size: var(--fs-sm);
+  color: #78350f;
+  word-break: break-word;
+}
+.sync-warning-details li strong { color: #7c2d12; font-weight: 700; }
+.sync-warning-details .sync-warning-time {
+  color: #b45309;
+  margin-left: 4px;
+}
+.sync-warning-details .sync-warning-msg {
+  color: #92400e;
+  margin-left: 2px;
+}
+
 /* ── 반응형 ──────────────────────────────────────────────── */
 @media (max-width: 1200px) {
   .app-nav-top, .app-nav-segments, .app-nav-pages { padding-left: 16px; padding-right: 16px; }
   .nav-page-link { padding: 4px 9px; font-size: var(--fs-sm); }
+  .sync-warning-summary { padding-left: 16px; padding-right: 16px; }
+  .sync-warning-details { padding-left: 40px; padding-right: 16px; }
 }
 @media (max-width: 900px) {
   .app-nav-top { gap: 8px; flex-wrap: wrap; }
   .app-nav-top .brand h1 { font-size: 16px; }
   .nav-segment { padding: 8px 12px; font-size: var(--fs-base); }
+  .sync-warning-summary { padding: 6px 12px; font-size: var(--fs-sm); gap: 6px; }
+  .sync-warning-details { padding: 4px 12px 8px 28px; font-size: 12px; }
+  .sync-warning-toggle { padding: 2px 8px; font-size: 12px; }
 }
 
 /* ── 다크모드 ────────────────────────────────────────────── */
@@ -167,3 +235,26 @@
 [data-theme="dark"] .nav-page-link:hover { background: #293548; }
 [data-theme="dark"] .nav-page-link.active { color: #93c5fd !important; border-color: #60a5fa !important; background: #1e3a5f; }
 [data-theme="dark"] .admin-indicator { background: #1e3a5f; color: #93c5fd; border-color: #1d4ed8; }
+
+/* 다크모드 — 경고 배너는 가독성을 위해 채도를 낮춘 호박색 톤 */
+[data-theme="dark"] .sync-warning-banner {
+  background: #3a2a12;
+  border-top-color: #78350f;
+  border-bottom-color: #78350f;
+  color: #fde68a;
+}
+[data-theme="dark"] .sync-warning-text strong { color: #fef3c7; }
+[data-theme="dark"] .sync-warning-toggle {
+  background: #78350f;
+  border-color: #92400e;
+  color: #fef3c7;
+}
+[data-theme="dark"] .sync-warning-toggle:hover { background: #92400e; border-color: #b45309; }
+[data-theme="dark"] .sync-warning-details {
+  background: #2a1e0d;
+  border-top-color: #78350f;
+}
+[data-theme="dark"] .sync-warning-details li { color: #fde68a; }
+[data-theme="dark"] .sync-warning-details li strong { color: #fef3c7; }
+[data-theme="dark"] .sync-warning-details .sync-warning-time { color: #fcd34d; }
+[data-theme="dark"] .sync-warning-details .sync-warning-msg { color: #fde68a; }

@@ -88,6 +88,12 @@ public class ApiExtractorService {
         savedCount = -1;
         statusRevertedCount = 0;
         extractLogs.clear();
+        // 이전 추출의 잔여 진행률 초기화 — pull 단계 초반에 이전 값(예: 100%)이 잠깐 보이는 현상 방지.
+        // 프론트는 `currentFile` 로 Git 동기화 단계임을 표시하고, 분석 단계에서 processedFiles/totalFiles 로 실제 진행률을 채움.
+        totalFiles = 0;
+        processedFiles = 0;
+        currentFile = "Git 동기화 준비 중...";
+        lastError = null;
         new Thread(() -> extract(req)).start();
     }
 
@@ -135,6 +141,7 @@ public class ApiExtractorService {
             }
             if (doPull) {
                 try {
+                    currentFile = "Git 동기화 실행 중...";
                     addLog("INFO", "Git 강제 동기화 (fetch + reset --hard + clean) 실행 중...");
                     String syncResult = hardSyncToOrigin(root.toFile(), gitBin, gitBranch);
                     addLog("OK", "Git 동기화 완료 — " + syncResult);
@@ -143,6 +150,7 @@ public class ApiExtractorService {
                 }
             }
 
+            currentFile = "Controller 파일 탐색 중...";
             List<Path> controllerFiles = Files.walk(root)
                     .filter(p -> p.toString().endsWith(".java") &&
                             (p.toString().contains("Controller") || p.toString().contains("Conrtoller")))
@@ -150,6 +158,7 @@ public class ApiExtractorService {
 
             totalFiles = controllerFiles.size();
             processedFiles = 0;
+            currentFile = "";  // 파일 개별 처리로 진입 — 개별 파일명이 채워짐
             addLog("INFO", "Controller 파일 " + totalFiles + "개 발견");
 
             controllerFiles.parallelStream().forEach(file -> {

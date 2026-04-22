@@ -82,6 +82,7 @@ public class WhatapTxSearchService {
             }
             Map<String, Object> repo = new LinkedHashMap<>();
             repo.put("repoName", r.getRepoName());
+            repo.put("source", "WHATAP");
             repo.put("pcode", r.getWhatapPcode());
             repo.put("okinds", okindList);
             out.add(repo);
@@ -364,6 +365,7 @@ public class WhatapTxSearchService {
         if (arr == null || !arr.isArray()) return out;
         for (JsonNode n : arr) {
             BlockedTxRow row = new BlockedTxRow();
+            row.setSource("WHATAP");
             String okindName = text(n, "okindName");
             row.setOkindName(okindName);
             // (pcode, okindName) 매칭되는 레포만 라벨링 — 매칭 실패면 null (화면 레포 공란)

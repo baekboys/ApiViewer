@@ -215,6 +215,10 @@ public class WhatapTxSearchService {
         log.info("[URL차단모니터] 검색 시작 repos={} days={} excludeBot={} botSize={} serviceLike='{}'",
                 repos.size(), days, excludeBot, botSet.size(), svc);
 
+        // (pcode|okindName) → repoName 맵 — Whatap 응답의 okindName 이 어느 레포 설정에 속하는지 판정.
+        // 매칭 안 되면 row.repoName 은 null (화면 레포 컬럼 공란) — "okind 와 레포가 안 맞는데 레포명 태그됨" 이슈 해결.
+        Map<String, String> repoByPcodeOkind = buildRepoByPcodeOkindMap();
+
         List<BlockedTxRow> result = new ArrayList<>();
         for (RepoConfig r : repos) {
             String base = extractBase(r.getWhatapUrl());
@@ -228,7 +232,7 @@ public class WhatapTxSearchService {
                 long stime = cursor.atStartOfDay(KST).toInstant().toEpochMilli();
                 long etime = cursor.plusDays(1).atStartOfDay(KST).toInstant().toEpochMilli() - 1;
                 try {
-                    List<BlockedTxRow> day = fetchOneDay(base, refererPath, r, stime, etime, ptotal);
+                    List<BlockedTxRow> day = fetchOneDay(base, refererPath, r, stime, etime, ptotal, repoByPcodeOkind);
                     log.debug("[URL차단모니터] {} {} 응답={}건", r.getRepoName(), cursor, day.size());
                     for (BlockedTxRow row : day) {
                         if (row.getErrMessage() == null || !row.getErrMessage().startsWith(BLOCK_PREFIX)) continue;
@@ -279,8 +283,23 @@ public class WhatapTxSearchService {
         }
     }
 
+    /** 모든 활성 와탭 레포를 훑어 (pcode|okindName) → repoName 맵 구성 */
+    private Map<String, String> buildRepoByPcodeOkindMap() {
+        Map<String, String> out = new HashMap<>();
+        for (RepoConfig r : repoRepo.findAllByOrderByRepoNameAsc()) {
+            if (!"Y".equalsIgnoreCase(r.getWhatapEnabled())) continue;
+            if (r.getWhatapPcode() == null) continue;
+            String pcode = String.valueOf(r.getWhatapPcode());
+            for (String name : splitCsv(r.getWhatapOkindsName())) {
+                out.put(pcode + "|" + name, r.getRepoName());
+            }
+        }
+        return out;
+    }
+
     private List<BlockedTxRow> fetchOneDay(String base, String refererPath, RepoConfig repo,
-                                            long stime, long etime, int ptotal) throws Exception {
+                                            long stime, long etime, int ptotal,
+                                            Map<String, String> repoByPcodeOkind) throws Exception {
         boolean debug = globalRepo.findById(1L).map(GlobalConfig::isApmDebug).orElse(false);
 
         // 페이로드: 사용자 캡쳐 형식 그대로
@@ -329,10 +348,15 @@ public class WhatapTxSearchService {
         if (resp.statusCode() != 200) {
             throw new RuntimeException("HTTP " + resp.statusCode() + " — " + resp.body());
         }
-        return parseRows(resp.body(), repo.getRepoName());
+        return parseRows(resp.body(), String.valueOf(repo.getWhatapPcode()), repoByPcodeOkind);
     }
 
-    private List<BlockedTxRow> parseRows(String body, String repoName) throws Exception {
+    /**
+     * Whatap 응답을 BlockedTxRow 로 파싱.
+     * repoName 은 (pcode|okindName) 매칭으로 결정 — 매칭 실패 시 null.
+     * "okinds:0" 으로 전체 okind 를 한 번에 받으므로, 선택한 레포 외 okind row 도 섞여 들어옴 → 레포 컬럼을 신뢰 가능한 라벨로 맞춰줌.
+     */
+    private List<BlockedTxRow> parseRows(String body, String pcode, Map<String, String> repoByPcodeOkind) throws Exception {
         List<BlockedTxRow> out = new ArrayList<>();
         JsonNode root = om.readTree(body);
         JsonNode arr = root.isArray() ? root : root.path("data").isArray() ? root.path("data") :
@@ -340,8 +364,11 @@ public class WhatapTxSearchService {
         if (arr == null || !arr.isArray()) return out;
         for (JsonNode n : arr) {
             BlockedTxRow row = new BlockedTxRow();
-            row.setRepoName(repoName);
-            row.setOkindName(text(n, "okindName"));
+            String okindName = text(n, "okindName");
+            row.setOkindName(okindName);
+            // (pcode, okindName) 매칭되는 레포만 라벨링 — 매칭 실패면 null (화면 레포 공란)
+            String matchedRepo = okindName == null ? null : repoByPcodeOkind.get(pcode + "|" + okindName);
+            row.setRepoName(matchedRepo);
             row.setService(text(n, "service"));
             row.setMethod(text(n, "method"));
             row.setDomain(text(n, "domain"));

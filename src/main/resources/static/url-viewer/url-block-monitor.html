@@ -243,12 +243,23 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const PAGE_SIZE = 50;
+  // 공통설정의 pageSize 를 초기값으로 사용. /api/config/global 응답 후 갱신됨 (아래 loadPageSize)
+  let PAGE_SIZE = 50;
   let allRows = [];
   let currentPage = 0;
   let excludeBot = true;
   let reposCache = [];
   let selectedRepo = '';
+
+  async function loadPageSize(){
+    try {
+      const res = await fetch('/api/config/global');
+      if (!res.ok) return;
+      const cfg = await res.json();
+      const n = Number(cfg.pageSize);
+      if (n && n > 0) PAGE_SIZE = n;
+    } catch(e) { /* 실패 시 초기값 유지 */ }
+  }
 
   function esc(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function showToast(msg, type){
@@ -505,6 +516,7 @@
 
   // 초기화
   setRange(1, document.querySelector('button.btn-ghost.active'));
+  loadPageSize();
   loadRepos();
   // 글로벌 봇 키워드를 태그로 기본 세팅 (사용자가 직접 조정 가능)
   fetch('/api/url-block-monitor/bot-keywords')

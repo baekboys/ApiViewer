@@ -14,7 +14,7 @@
   const SEGMENTS = [
     {
       id: 'url-viewer',
-      label: 'URL Viewer',
+      label: 'URL현황관리 — URLViewer',
       icon: '🔗',
       home: '/url-viewer/',
       pages: [
@@ -29,7 +29,7 @@
     },
     {
       id: 'encrypt-viewer',
-      label: '암복호화 현황',
+      label: '암복호화 모듈 현황관리 — Encrypt Viewer',
       icon: '🔐',
       home: '/encrypt-viewer/',
       pages: [
@@ -89,7 +89,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
         </svg>
-        <a class="brand" href="/url-viewer/"><h1>URL Viewer</h1></a>
+        <a class="brand" href="/url-viewer/"><h1>IT소스 관리포털 <small>— IT Source Management Portal</small></h1></a>
         <span class="brand-sub">${esc(brandSub)}</span>
         <div class="utils">
           <button class="dark-toggle" onclick="toggleDarkMode && toggleDarkMode()">🌙 다크모드</button>

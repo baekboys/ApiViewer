@@ -14,7 +14,7 @@
   const SEGMENTS = [
     {
       id: 'url-viewer',
-      label: 'URL현황관리 — URLViewer',
+      label: 'URL현황관리',
       icon: '🔗',
       home: '/url-viewer/',
       pages: [
@@ -29,7 +29,7 @@
     },
     {
       id: 'encrypt-viewer',
-      label: '암복호화 모듈 현황관리 — Encrypt Viewer',
+      label: '암복호화 모듈 현황관리',
       icon: '🔐',
       home: '/encrypt-viewer/',
       pages: [

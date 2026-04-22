@@ -25,12 +25,12 @@
       icon: '🔗',
       home: '/url-viewer/viewer.html',
       pages: [
+        { id: 'workflow',      label: '🗺️ 업무 흐름',       href: '/url-viewer/workflow.html' },
         { id: 'viewer',        label: '📋 URL분석현황',     href: '/url-viewer/viewer.html' },
         { id: 'call-stats',    label: '📈 URL호출현황',     href: '/url-viewer/call-stats.html' },
         { id: 'block-monitor', label: '🚧 차단 모니터링',   href: '/url-viewer/url-block-monitor.html' },
         { id: 'review',        label: '📝 현업 검토',        href: '/url-viewer/review.html' },
-        { id: 'extract',       label: '🔍 URL 분석',         href: '/url-viewer/extract.html', adminOnly: true },
-        { id: 'workflow',      label: '🗺️ 업무 흐름',       href: '/url-viewer/workflow.html' }
+        { id: 'extract',       label: '🔍 URL 분석',         href: '/url-viewer/extract.html', adminOnly: true }
       ]
     },
     {

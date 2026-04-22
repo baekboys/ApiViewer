@@ -14,7 +14,7 @@
   const SEGMENTS = [
     {
       id: 'url-viewer',
-      label: 'URL현황관리',
+      label: 'URL 현황관리',
       icon: '🔗',
       home: '/url-viewer/',
       pages: [

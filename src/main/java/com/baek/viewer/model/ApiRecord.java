@@ -218,6 +218,14 @@ public class ApiRecord {
     @Column(name = "manager_override", length = 100)
     private String managerOverride;
 
+    /**
+     * 담당자 수동 지정 플래그.
+     * true = 사용자가 UI에서 직접 수정 → 추출 시 programId 매핑이 덮어쓰지 않음
+     * false = 매핑에 의한 자동 설정이거나 미지정 → 추출 시 매핑으로 재갱신됨
+     */
+    @Column(name = "manager_overridden")
+    private boolean managerOverridden = false;
+
     /** 내용(관련 메뉴/기능) 오버라이드 — 자동 파싱값(ApiOperation/DescriptionTag/컨트롤러주석)보다 우선 사용 */
     @Column(name = "description_override", columnDefinition = "TEXT")
     private String descriptionOverride;
@@ -354,6 +362,9 @@ public class ApiRecord {
     public void setTeamOverride(String teamOverride) { this.teamOverride = teamOverride; }
     public String getManagerOverride() { return managerOverride; }
     public void setManagerOverride(String managerOverride) { this.managerOverride = managerOverride; }
+
+    public boolean isManagerOverridden() { return managerOverridden; }
+    public void setManagerOverridden(boolean managerOverridden) { this.managerOverridden = managerOverridden; }
     public String getDescriptionOverride() { return descriptionOverride; }
     public void setDescriptionOverride(String descriptionOverride) { this.descriptionOverride = descriptionOverride; }
     public String getBlockTarget() { return blockTarget; }

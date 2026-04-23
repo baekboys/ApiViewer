@@ -227,10 +227,12 @@ public class ApiStorageService {
         return List.of();
     }
 
-    /** 프로그램ID 매핑 → managerOverride 자동 설정 (수동 입력 안 된 경우만) */
+    /** 프로그램ID 매핑 → managerOverride 자동 설정.
+     *  managerOverridden=true(사용자가 UI에서 수동 지정)인 레코드는 건드리지 않는다.
+     *  매핑에 매칭되지 않는 경우도 기존 값 유지 (자동 설정값 포함). */
     private void applyManagerMapping(ApiRecord r, List<Map<String, String>> mappings) {
         if (mappings.isEmpty()) return;
-        // 이미 수동으로 설정된 경우는 건드리지 않음 (단, 매핑 기반 자동설정은 재갱신)
+        if (r.isManagerOverridden()) return; // 수동 지정 보호
         String apiPath = r.getApiPath();
         if (apiPath == null) return;
         String pathUpper = apiPath.toUpperCase();
@@ -244,7 +246,7 @@ public class ApiStorageService {
                 }
             }
         }
-        // 매핑에 해당하지 않으면 기존 managerOverride 유지 (수동 설정 보호)
+        // 매핑에 해당하지 않으면 기존 managerOverride 유지
     }
 
     private void appendChangeLog(ApiRecord r, String msg) {
@@ -358,8 +360,12 @@ public class ApiStorageService {
                     r.setBlockCriteria(toNullableStr(fields.get("blockCriteria")));
                 if (fields.containsKey("teamOverride"))
                     r.setTeamOverride(toNullableStr(fields.get("teamOverride")));
-                if (fields.containsKey("managerOverride"))
-                    r.setManagerOverride(toNullableStr(fields.get("managerOverride")));
+                if (fields.containsKey("managerOverride")) {
+                    String mgrVal = toNullableStr(fields.get("managerOverride"));
+                    r.setManagerOverride(mgrVal);
+                    // 값 설정 시 수동 플래그 ON, 비움 시 OFF (매핑 재갱신 허용)
+                    r.setManagerOverridden(mgrVal != null);
+                }
 
                 boolean reviewChanged = false;
                 if (fields.containsKey("reviewResult"))  { r.setReviewResult(toNullableStr(fields.get("reviewResult"))); reviewChanged = true; }

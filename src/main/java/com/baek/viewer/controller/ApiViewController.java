@@ -682,7 +682,15 @@ public class ApiViewController {
             if (body.containsKey("isDeprecated"))   { r.setIsDeprecated(body.get("isDeprecated") != null ? body.get("isDeprecated").toString() : null); anyChanged = true; }
             if (body.containsKey("memo"))            { r.setMemo(body.get("memo") != null ? body.get("memo").toString() : null); anyChanged = true; }
             if (body.containsKey("teamOverride"))    { r.setTeamOverride(body.get("teamOverride") != null ? body.get("teamOverride").toString() : null); anyChanged = true; }
-            if (body.containsKey("managerOverride")) { r.setManagerOverride(body.get("managerOverride") != null ? body.get("managerOverride").toString() : null); anyChanged = true; }
+            if (body.containsKey("managerOverride")) {
+                Object mv = body.get("managerOverride");
+                String mgrVal = (mv == null) ? null : mv.toString();
+                if (mgrVal != null && mgrVal.isBlank()) mgrVal = null;
+                r.setManagerOverride(mgrVal);
+                // 수동 지정 플래그: 값 있으면 ON (매핑이 덮어쓰지 않음), 비우면 OFF (매핑 재갱신 허용)
+                r.setManagerOverridden(mgrVal != null);
+                anyChanged = true;
+            }
             if (body.containsKey("descriptionOverride")) {
                 Object v = body.get("descriptionOverride");
                 String s = v == null ? null : v.toString().trim();

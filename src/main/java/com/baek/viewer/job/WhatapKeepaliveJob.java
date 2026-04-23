@@ -59,9 +59,17 @@ public class WhatapKeepaliveJob implements Job {
             String msg = String.format("성공 — 대상 %d개 / OK %d / 실패 %d / %dms", total, ok, fail, elapsed);
             log.info("[WHATAP_KEEPALIVE] 완료: {}", msg);
             updateResult(msg);
+            context.setResult(java.util.Map.of(
+                    "status", fail == 0 ? "SUCCESS" : (ok == 0 ? "FAIL" : "SUCCESS"),
+                    "count", ok,
+                    "summary", msg));
         } catch (Exception e) {
             log.error("[WHATAP_KEEPALIVE] 배치 실패: {}", e.getMessage(), e);
             updateResult("실패: " + e.getMessage());
+            context.setResult(java.util.Map.of(
+                    "status", "FAIL",
+                    "summary", "실패: " + e.getMessage(),
+                    "message", String.valueOf(e)));
         }
     }
 

@@ -32,9 +32,17 @@ public class DbSnapshotJob implements Job {
                     snap.getApiRecordCount(), snap.getApmCallDataCount(), elapsed);
             log.info("[DB_SNAPSHOT] 배치 완료: {}", msg);
             updateResult(msg);
+            context.setResult(java.util.Map.of(
+                    "status", "SUCCESS",
+                    "count", (int) snap.getApiRecordCount(),
+                    "summary", msg));
         } catch (Exception e) {
             log.error("[DB_SNAPSHOT] 배치 실패: {}", e.getMessage(), e);
             updateResult("실패: " + e.getMessage());
+            context.setResult(java.util.Map.of(
+                    "status", "FAIL",
+                    "summary", "실패: " + e.getMessage(),
+                    "message", String.valueOf(e)));
         }
     }
 

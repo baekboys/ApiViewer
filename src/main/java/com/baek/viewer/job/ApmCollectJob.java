@@ -96,10 +96,18 @@ public class ApmCollectJob implements Job {
             log.info("[APM_COLLECT] 배치 완료: {}", msg);
             log.info("════════════════════════════════════════════════════════════");
             updateResult(msg);
+            context.setResult(java.util.Map.of(
+                    "status", "SUCCESS",
+                    "count", totalGenerated,
+                    "summary", msg));
         } catch (Exception e) {
             log.error("[APM_COLLECT] 배치 실패: {}", e.getMessage(), e);
             log.info("════════════════════════════════════════════════════════════");
             updateResult("실패: " + e.getMessage());
+            context.setResult(java.util.Map.of(
+                    "status", "FAIL",
+                    "summary", "실패: " + e.getMessage(),
+                    "message", String.valueOf(e)));
         }
     }
 

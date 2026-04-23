@@ -1,11 +1,16 @@
 package com.baek.viewer.controller;
 
+import com.baek.viewer.model.BatchExecutionLog;
 import com.baek.viewer.model.ScheduleConfig;
+import com.baek.viewer.repository.BatchExecutionLogRepository;
 import com.baek.viewer.repository.ScheduleConfigRepository;
 import com.baek.viewer.service.ScheduleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -15,10 +20,14 @@ public class ScheduleController {
 
     private final ScheduleService scheduleService;
     private final ScheduleConfigRepository scheduleRepo;
+    private final BatchExecutionLogRepository historyRepo;
 
-    public ScheduleController(ScheduleService scheduleService, ScheduleConfigRepository scheduleRepo) {
+    public ScheduleController(ScheduleService scheduleService,
+                              ScheduleConfigRepository scheduleRepo,
+                              BatchExecutionLogRepository historyRepo) {
         this.scheduleService = scheduleService;
         this.scheduleRepo = scheduleRepo;
+        this.historyRepo = historyRepo;
     }
 
     @GetMapping
@@ -54,4 +63,29 @@ public class ScheduleController {
 
         return ResponseEntity.ok(scheduleService.saveAndApply(existing));
     }
+
+    /**
+     * 배치 수행 이력 조회.
+     * @param from      YYYY-MM-DD (포함, 해당일 00:00)
+     * @param to        YYYY-MM-DD (포함, 해당일 23:59:59.999)
+     * @param jobTypes  콤마 구분 jobType 목록. 미지정 시 빈 결과 반환 (배치 선택 필수)
+     */
+    @GetMapping("/history")
+    public ResponseEntity<List<BatchExecutionLog>> history(
+            @RequestParam String from,
+            @RequestParam String to,
+            @RequestParam(required = false) String jobTypes) {
+        if (jobTypes == null || jobTypes.isBlank()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<String> types = Arrays.stream(jobTypes.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        if (types.isEmpty()) return ResponseEntity.ok(List.of());
+
+        LocalDateTime fromTs = LocalDate.parse(from).atStartOfDay();
+        LocalDateTime toTs   = LocalDate.parse(to).plusDays(1).atStartOfDay();
+
+        return ResponseEntity.ok(historyRepo.findByRange(fromTs, toTs, types));
+    }
 }
+

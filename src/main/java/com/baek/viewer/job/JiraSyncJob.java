@@ -44,11 +44,26 @@ public class JiraSyncJob implements Job {
                     elapsed);
             log.info("[JIRA_SYNC] 배치 완료: {}", msg);
             updateResult(msg);
+            int created = toInt(pushResult.get("created"));
+            int updated = toInt(pushResult.get("updated"));
+            int synced  = toInt(pullResult.get("synced"));
+            context.setResult(java.util.Map.of(
+                    "status", "SUCCESS",
+                    "count", created + updated + synced,
+                    "summary", msg));
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startMs;
             log.error("[JIRA_SYNC] 배치 실패 ({}ms): {}", elapsed, e.getMessage(), e);
             updateResult("실패: " + e.getMessage());
+            context.setResult(java.util.Map.of(
+                    "status", "FAIL",
+                    "summary", "실패: " + e.getMessage(),
+                    "message", String.valueOf(e)));
         }
+    }
+
+    private static int toInt(Object v) {
+        return (v instanceof Number n) ? n.intValue() : 0;
     }
 
     private void updateResult(String result) {

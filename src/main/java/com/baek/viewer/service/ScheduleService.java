@@ -1,6 +1,7 @@
 package com.baek.viewer.service;
 
 import com.baek.viewer.job.ApmCollectJob;
+import com.baek.viewer.job.BatchHistoryJobListener;
 import com.baek.viewer.job.WhatapKeepaliveJob;
 import com.baek.viewer.job.DataBackupJob;
 import com.baek.viewer.job.DbSnapshotJob;
@@ -10,6 +11,7 @@ import com.baek.viewer.model.ScheduleConfig;
 import com.baek.viewer.repository.ScheduleConfigRepository;
 import jakarta.annotation.PostConstruct;
 import org.quartz.*;
+import org.quartz.impl.matchers.EverythingMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,15 +25,26 @@ public class ScheduleService {
 
     private final Scheduler scheduler;
     private final ScheduleConfigRepository repository;
+    private final BatchHistoryJobListener batchHistoryJobListener;
 
-    public ScheduleService(Scheduler scheduler, ScheduleConfigRepository repository) {
+    public ScheduleService(Scheduler scheduler,
+                           ScheduleConfigRepository repository,
+                           BatchHistoryJobListener batchHistoryJobListener) {
         this.scheduler = scheduler;
         this.repository = repository;
+        this.batchHistoryJobListener = batchHistoryJobListener;
     }
 
     /** 기동 시 기본 스케줄 등록 + DB에서 복원 */
     @PostConstruct
     public void init() {
+        try {
+            scheduler.getListenerManager()
+                    .addJobListener(batchHistoryJobListener, EverythingMatcher.allJobs());
+            log.info("[스케줄] BatchHistoryJobListener 등록 완료");
+        } catch (SchedulerException e) {
+            log.warn("[스케줄] JobListener 등록 실패: {}", e.getMessage());
+        }
         ensureDefaultConfigs();
         repository.findAll().forEach(this::applySchedule);
     }

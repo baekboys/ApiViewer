@@ -502,6 +502,63 @@ function updateAdminBadge(valid) {
     <div id="scheduleList" style="display:flex;flex-direction:column;gap:12px;">로딩 중...</div>
   </div>
 
+  <!-- 배치 수행 이력 조회 -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#0ea5e9;"></span>배치 수행 이력
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">수행된 배치의 시작·종료 시간, 결과, 에러 메시지를 날짜별로 조회합니다.</span>
+      <div style="margin-left:auto;display:flex;gap:6px;">
+        <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;" onclick="loadBatchHistory()">🔄 새로고침</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="field">기간
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input id="bhFrom" type="date" style="width:140px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <span style="color:var(--text-muted);">~</span>
+          <input id="bhTo" type="date" style="width:140px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+        </div>
+      </div>
+      <div class="field">빠른 선택
+        <div style="display:flex;gap:6px;" id="bhRangeBtns">
+          <button class="btn btn-ghost active" onclick="setBhRange(1,this)">전일</button>
+          <button class="btn btn-ghost" onclick="setBhRange(3,this)">3일</button>
+          <button class="btn btn-ghost" onclick="setBhRange(7,this)">7일</button>
+        </div>
+      </div>
+      <div class="field" style="min-width:280px;flex:1;">배치 선택 (필수)
+        <div id="bhJobTypes" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;border:1px solid var(--border);border-radius:6px;padding:6px;background:var(--card-bg,#fff);">
+          <span style="font-size:11px;color:var(--text-muted);">로딩 중…</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;height:auto;" onclick="selectAllJobTypes(true)">전체선택</button>
+          <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;height:auto;" onclick="selectAllJobTypes(false)">전체해제</button>
+        </div>
+      </div>
+      <button class="btn btn-blue" style="height:34px;" onclick="loadBatchHistory()">🔍 조회</button>
+    </div>
+    <div id="bhSummary" style="font-size:12px;color:var(--text-muted);margin-bottom:6px;"></div>
+    <div style="overflow:auto;max-height:520px;border:1px solid var(--border);border-radius:6px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead style="background:var(--bg-muted,#f8fafc);position:sticky;top:0;z-index:1;">
+          <tr>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);width:100px;">날짜</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);width:160px;">배치명</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);width:80px;">시작</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);width:80px;">종료</th>
+            <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);width:80px;">소요</th>
+            <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);width:80px;">건수</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);width:70px;">결과</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);">메시지</th>
+          </tr>
+        </thead>
+        <tbody id="bhTbody">
+          <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text-muted);">조회 조건을 선택하고 조회를 클릭하세요.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <div style="border-top:2px solid var(--border);margin:20px 0;"></div>
 </section>
 
@@ -2199,6 +2256,113 @@ function updateAdminBadge(valid) {
 
   function fmtDt(s) { if(!s||s==='-')return'-'; return s.replace('T',' ').substring(0,16); }
 
+  // ── 배치 수행 이력 ────────────────────────────────────────────
+  function setBhRange(days, btn) {
+    if (btn && btn.parentElement) {
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const from = new Date(yesterday); from.setDate(yesterday.getDate() - (days - 1));
+    document.getElementById('bhFrom').value = from.toLocaleDateString('sv-SE');
+    document.getElementById('bhTo').value   = yesterday.toLocaleDateString('sv-SE');
+  }
+
+  async function initBhJobTypes() {
+    try {
+      const res = await adminFetch('/api/schedule', { method:'GET' });
+      if (!res.ok) throw new Error('load failed');
+      const list = await res.json();
+      const box = document.getElementById('bhJobTypes');
+      if (!list.length) {
+        box.innerHTML = '<span style="font-size:11px;color:var(--text-muted);">등록된 배치가 없습니다.</span>';
+        return;
+      }
+      box.innerHTML = list.map(s => `
+        <label style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border:1px solid var(--border);border-radius:12px;font-size:11px;cursor:pointer;background:var(--card-bg,#fff);">
+          <input type="checkbox" class="bh-jt" value="${s.jobType}" checked>
+          <span>${s.jobType}</span>
+          <span style="color:var(--text-muted);font-size:10px;">${s.description ? ' · ' + s.description : ''}</span>
+        </label>`).join('');
+    } catch (e) {
+      document.getElementById('bhJobTypes').innerHTML =
+        '<span style="font-size:11px;color:#dc2626;">배치 목록 로드 실패</span>';
+    }
+  }
+
+  function selectAllJobTypes(on) {
+    document.querySelectorAll('#bhJobTypes .bh-jt').forEach(cb => { cb.checked = on; });
+  }
+
+  function getSelectedJobTypes() {
+    return Array.from(document.querySelectorAll('#bhJobTypes .bh-jt:checked')).map(cb => cb.value);
+  }
+
+  function bhFmtTime(s) { return !s ? '-' : s.substring(11, 16); }
+  function bhFmtDate(s) { return !s ? '-' : s.substring(0, 10); }
+  function bhFmtDuration(ms) {
+    if (ms == null) return '-';
+    if (ms < 1000) return ms + 'ms';
+    const sec = Math.floor(ms / 1000);
+    if (sec < 60) return sec + 's';
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + 'm ' + s + 's';
+  }
+  function bhEscape(s) {
+    return (s == null ? '' : String(s))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function loadBatchHistory() {
+    const from = document.getElementById('bhFrom').value;
+    const to   = document.getElementById('bhTo').value;
+    const types = getSelectedJobTypes();
+    const tbody = document.getElementById('bhTbody');
+    const summary = document.getElementById('bhSummary');
+
+    if (!from || !to) { showToast('조회 기간을 선택하세요','error'); return; }
+    if (!types.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:#dc2626;">배치를 1개 이상 선택하세요.</td></tr>';
+      summary.textContent = '';
+      return;
+    }
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text-muted);">조회 중…</td></tr>';
+
+    try {
+      const qs = `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&jobTypes=${encodeURIComponent(types.join(','))}`;
+      const res = await adminFetch('/api/schedule/history?' + qs, { method:'GET' });
+      if (!res.ok) throw new Error('status ' + res.status);
+      const rows = await res.json();
+      summary.textContent = `총 ${rows.length.toLocaleString()}건`;
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text-muted);">이력이 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const ok = (r.status || '').toUpperCase() === 'SUCCESS';
+        const statusBadge = ok
+          ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534;font-size:11px;font-weight:600;">성공</span>'
+          : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:600;">실패</span>';
+        const msgFull = [r.resultSummary, r.message].filter(x => x).join('\n\n');
+        const msgShort = r.resultSummary || r.message || '';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 10px;">${bhFmtDate(r.startTime)}</td>
+          <td style="padding:6px 10px;font-weight:600;">${bhEscape(r.jobType)}${r.description ? `<div style="font-size:10px;font-weight:400;color:var(--text-muted);">${bhEscape(r.description)}</div>` : ''}</td>
+          <td style="padding:6px 10px;text-align:center;font-family:monospace;">${bhFmtTime(r.startTime)}</td>
+          <td style="padding:6px 10px;text-align:center;font-family:monospace;">${bhFmtTime(r.endTime)}</td>
+          <td style="padding:6px 10px;text-align:right;font-family:monospace;color:var(--text-muted);">${bhFmtDuration(r.durationMs)}</td>
+          <td style="padding:6px 10px;text-align:right;font-family:monospace;">${r.itemCount == null ? '-' : Number(r.itemCount).toLocaleString()}</td>
+          <td style="padding:6px 10px;text-align:center;">${statusBadge}</td>
+          <td style="padding:6px 10px;white-space:pre-wrap;word-break:break-all;" title="${bhEscape(msgFull)}">${bhEscape(msgShort)}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:#dc2626;">조회 실패: ${bhEscape(e.message || e)}</td></tr>`;
+      summary.textContent = '';
+    }
+  }
+
   // ── 데이터 삭제 ────────────────────────────────────────────
   async function loadDelRepoOptions() {
     try {
@@ -2558,6 +2722,8 @@ function updateAdminBadge(valid) {
     await init();
     loadLogDates();
     loadSchedules();
+    initBhJobTypes();
+    setBhRange(1, document.querySelector('#bhRangeBtns button.active'));
     loadDelRepoOptions();
     loadDbMonitor();
     loadMailConfig();

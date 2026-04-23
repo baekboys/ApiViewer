@@ -92,6 +92,10 @@ public class GitPullExtractJob implements Job {
         if (resultMsg.length() > 0) result += " (" + resultMsg.toString().trim() + ")";
         log.info("[배치] Git Pull & 추출 완료 — {}", result);
         updateResult(result);
+        context.setResult(java.util.Map.of(
+                "status", fail == 0 ? "SUCCESS" : (success == 0 ? "FAIL" : "SUCCESS"),
+                "count", success,
+                "summary", result));
     }
 
     /** 레포별 마지막 sync 결과를 repo_config 에 기록한다. 조회 화면 배너에서 참조.

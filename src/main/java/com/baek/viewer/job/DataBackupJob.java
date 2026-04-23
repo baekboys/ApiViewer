@@ -34,9 +34,17 @@ public class DataBackupJob implements Job {
                     analysis, callHistory, elapsed);
             log.info("[DATA_BACKUP] 배치 완료: {}", msg);
             updateResult(msg);
+            context.setResult(java.util.Map.of(
+                    "status", "SUCCESS",
+                    "count", analysis + callHistory,
+                    "summary", msg));
         } catch (Exception e) {
             log.error("[DATA_BACKUP] 배치 실패: {}", e.getMessage(), e);
             updateResult("실패: " + e.getMessage());
+            context.setResult(java.util.Map.of(
+                    "status", "FAIL",
+                    "summary", "실패: " + e.getMessage(),
+                    "message", String.valueOf(e)));
         }
     }
 

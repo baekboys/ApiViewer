@@ -138,6 +138,7 @@ public class JenniferApmService {
         boolean debug = globalConfigRepo.findById(1L).map(GlobalConfig::isApmDebug).orElse(false);
 
         StringBuilder url = new StringBuilder(repo.getJenniferUrl())
+                .append("/api/status/application")
                 .append("?domain_id=").append(repo.getJenniferSid())
                 .append("&start_time=").append(startTime)
                 .append("&end_time=").append(endTime);

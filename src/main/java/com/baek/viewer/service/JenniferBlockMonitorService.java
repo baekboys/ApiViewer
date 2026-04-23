@@ -154,8 +154,8 @@ public class JenniferBlockMonitorService {
 
         StringBuilder url = new StringBuilder(base).append(ERROR_SEARCH_PATH)
                 .append("?domain_id=").append(repo.getJenniferSid())
-                .append("&stime=").append(stime)
-                .append("&etime=").append(etime);
+                .append("&start_time=").append(stime)
+                .append("&end_time=").append(etime);
         if (!instanceId.isBlank()) {
             url.append("&instance_id=").append(instanceId);
         }

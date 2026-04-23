@@ -117,28 +117,15 @@
     [data-theme="dark"] .badge-repo{background:#3b2a5e;color:#c4b5fd;}
     [data-theme="dark"] .badge-okd{background:#1c3a26;color:#86efac;}
   </style>
+  <meta name="nav-segment" content="url-viewer">
+  <meta name="nav-page" content="block-monitor">
+  <link rel="stylesheet" href="/common/nav.css">
   <script src="/exceljs.min.js"></script>
   <script src="/js/dialog.js"></script>
   <script src="/js/darkmode.js"></script>
 </head>
 <body>
-<div class="header">
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-  </svg>
-  <a href="/" style="text-decoration:none;"><h1>URL Viewer</h1></a>
-  <span class="header-sub">URL차단 모니터링</span>
-  <div class="header-right">
-    <button class="dark-toggle" onclick="toggleDarkMode()">🌙 다크모드</button>
-    <a href="/"                       class="nav-link">📊 대시보드</a>
-    <a href="/viewer.html"            class="nav-link">📋 URL분석현황</a>
-    <a href="/call-stats.html"        class="nav-link">📈 URL호출현황</a>
-    <a href="/url-block-monitor.html" class="nav-link nav-active">🚧 차단 모니터링</a>
-    <a href="/review.html"            class="nav-link">📝 현업 검토</a>
-    <a href="/workflow.html"          class="nav-link">🗺️ 업무 흐름</a>
-    <a href="/settings.html"          class="nav-link">⚙️ 설정</a>
-  </div>
-</div>
+<div id="nav-container"></div>
 
 <div class="main">
 
@@ -256,7 +243,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const PAGE_SIZE = 50;
+  // 공통설정의 pageSize 를 초기값으로 사용. /api/config/global 응답 후 갱신됨 (아래 loadPageSize)
+  let PAGE_SIZE = 50;
   let allRows = [];
   let currentPage = 0;
   let excludeBot = true;
@@ -276,6 +264,16 @@
     '#', 'time', '레포', 'applicationName', 'domainId', 'domainName',
     'instanceId', 'instanceName', 'errorType', 'message'
   ];
+
+  async function loadPageSize(){
+    try {
+      const res = await fetch('/api/config/global');
+      if (!res.ok) return;
+      const cfg = await res.json();
+      const n = Number(cfg.pageSize);
+      if (n && n > 0) PAGE_SIZE = n;
+    } catch(e) { /* 실패 시 초기값 유지 */ }
+  }
 
   function esc(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function showToast(msg, type){
@@ -628,6 +626,7 @@
 
   // 초기화
   setRange(1, document.querySelector('button.btn-ghost.active'));
+  loadPageSize();
   loadRepos();
   // 글로벌 봇 키워드를 태그로 기본 세팅 (사용자가 직접 조정 가능)
   fetch('/api/url-block-monitor/bot-keywords')
@@ -635,5 +634,8 @@
     .then(d => { if (d.keywords && d.keywords.length) d.keywords.forEach(renderMonBotKeywordTag); })
     .catch(() => {});
 </script>
+
+<script src="/common/auth.js"></script>
+<script src="/common/nav.js"></script>
 </body>
 </html>

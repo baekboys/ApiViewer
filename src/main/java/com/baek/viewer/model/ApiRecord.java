@@ -109,6 +109,18 @@ public class ApiRecord {
     @Column(name = "has_url_block", length = 1)
     private String hasUrlBlock;
 
+    /**
+     * 표기 미흡 플래그 — 메서드 첫 실행 문장이 throw new UnsupportedOperationException(...) 이어서
+     * 실질 차단되어 있으나, @Deprecated 어노테이션 또는 [URL차단작업] javadoc 주석 중 하나 이상이 누락된 경우 true.
+     * 자동 갱신만 허용 (추출 시 재계산) — 수동 해제 경로 없음.
+     * <p>
+     * Boolean wrapper 사용 이유: 컬럼 신설 전에 생성된 레거시 레코드는 값이 NULL 이므로
+     * primitive boolean 바인딩 시 "Can not set boolean field to null" 오류가 난다.
+     * getter 에서 null-safe 변환으로 기본값 false 반환.
+     */
+    @Column(name = "block_marking_incomplete")
+    private Boolean blockMarkingIncomplete;
+
     @Column(name = "program_id", length = 500)
     private String programId;
 
@@ -287,6 +299,9 @@ public class ApiRecord {
     public void setIsDeprecated(String isDeprecated) { this.isDeprecated = isDeprecated; }
     public String getHasUrlBlock() { return hasUrlBlock; }
     public void setHasUrlBlock(String hasUrlBlock) { this.hasUrlBlock = hasUrlBlock; }
+    /** null-safe 반환: 레거시 NULL 레코드는 false 로 취급 */
+    public boolean isBlockMarkingIncomplete() { return Boolean.TRUE.equals(blockMarkingIncomplete); }
+    public void setBlockMarkingIncomplete(boolean blockMarkingIncomplete) { this.blockMarkingIncomplete = blockMarkingIncomplete; }
     public String getProgramId() { return programId; }
     public void setProgramId(String programId) { this.programId = programId; }
     public String getApiOperationValue() { return apiOperationValue; }

@@ -24,10 +24,11 @@ public class AdminInterceptor implements HandlerInterceptor {
         // OPTIONS 요청은 통과
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
 
-        // GET /api/config/global, /api/config/repos 는 공개 (viewer에서 조회용)
+        // GET /api/config/global, /api/config/repos, /api/config/repos/sync-warnings 는 공개 (viewer에서 조회용)
         String uri = request.getRequestURI();
         if ("GET".equalsIgnoreCase(request.getMethod()) &&
                 (uri.equals("/api/config/global") || uri.equals("/api/config/repos")
+                        || uri.equals("/api/config/repos/sync-warnings")
                         || uri.equals("/api/apm/data") || uri.equals("/api/jira/config"))) {
             return true;
         }

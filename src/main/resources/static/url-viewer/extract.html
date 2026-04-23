@@ -197,6 +197,9 @@
     .del-overlay-box .msg { font-size:14px; font-weight:600; color:#334155; }
     @keyframes delSpin { to { transform:rotate(360deg); } }
   </style>
+  <meta name="nav-segment" content="url-viewer">
+  <meta name="nav-page" content="extract">
+  <link rel="stylesheet" href="/common/nav.css">
   <script src="/exceljs.min.js"></script>
   <script src="/js/dialog.js"></script>
   <script src="/js/darkmode.js"></script>
@@ -235,24 +238,7 @@
     });
   }
 </script>
-<div class="header">
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-  </svg>
-  <a href="/" style="text-decoration:none;"><h1>URL Viewer</h1></a>
-  <div class="header-right">
-    <button class="dark-toggle" onclick="toggleDarkMode()">🌙 다크모드</button>
-    <a href="/"             class="nav-link">📊 대시보드</a>
-    <a href="/extract.html" class="nav-link nav-active">🔍 URL 분석</a>
-    <a href="/viewer.html"  class="nav-link">📋 URL분석현황</a>
-    <a href="/call-stats.html" class="nav-link">📈 URL호출현황</a>
-    <a href="/url-block-monitor.html" class="nav-link">🚧 차단 모니터링</a>
-    <a href="/review.html" class="nav-link">📝 현업 검토</a>
-    <a href="/workflow.html" class="nav-link">🗺️ 업무 흐름</a>
-
-    <a href="/settings.html" class="nav-link">⚙️ 설정</a>
-  </div>
-</div>
+<div id="nav-container"></div>
 
 <!-- 작업 진행 오버레이 -->
 <div class="del-overlay" id="delOverlay">
@@ -280,7 +266,7 @@
     <!-- 전체 추출 안내 -->
     <div id="allRepoInfo" style="display:none;" class="all-repo-info">
       <strong>전체 레포지토리 순차 추출</strong>
-      설정된 모든 레포지토리를 순서대로 추출합니다.
+      설정된 모든 레포지토리를 순서대로 추출합니다. pull · 분석 · 저장이 한 묶음으로 진행됩니다.
     </div>
 
     <!-- 개별 레포 입력 폼 -->
@@ -965,9 +951,9 @@
   function onRepoSelect() {
     const val = document.getElementById('repoConfigSelect').value;
     const isAll = val === 'all';
-    document.getElementById('allRepoInfo').style.display  = isAll ? 'block' : 'none';
+    document.getElementById('allRepoInfo').style.display   = isAll ? 'block' : 'none';
     document.getElementById('singleRepoForm').style.display = isAll ? 'none' : 'block';
-    document.getElementById('allRepoBtn').style.display   = isAll ? 'block' : 'none';
+    document.getElementById('allRepoBtn').style.display    = isAll ? 'block' : 'none';
     if (!isAll && val) loadRepoConfig(val);
   }
 
@@ -1123,7 +1109,10 @@
       document.getElementById('progCount').textContent = inner + outer;
       document.getElementById('progStatus').textContent = p.extracting ? '분석 중...' : '완료';
     } else {
-      document.getElementById('progCount').textContent = '파일 탐색 중...';
+      // pull / 탐색 단계 — currentFile 이 상태 메시지로 주입됨 (Git 동기화 실행 중... 등)
+      const stageMsg = p.currentFile && p.currentFile.trim() ? p.currentFile : '파일 탐색 중...';
+      document.getElementById('progCount').textContent = stageMsg;
+      if (p.extracting) document.getElementById('progStatus').textContent = '준비 중...';
     }
 
     // 서버 로그 동기화
@@ -1268,8 +1257,8 @@
     const repoName = document.getElementById('repositoryName').value.trim();
     const selVal = document.getElementById('repoConfigSelect').value;
     const viewerUrl = (selVal === 'all' || !repoName)
-      ? '/viewer.html'
-      : `/viewer.html?repo=${encodeURIComponent(repoName)}`;
+      ? '/url-viewer/viewer.html'
+      : `/url-viewer/viewer.html?repo=${encodeURIComponent(repoName)}`;
     actions.innerHTML = `<a class="link-viewer" href="${viewerUrl}">URL분석현황 →</a>`;
   }
 
@@ -1458,5 +1447,8 @@
     }
   });
 </script>
+
+<script src="/common/auth.js"></script>
+<script src="/common/nav.js"></script>
 </body>
 </html>

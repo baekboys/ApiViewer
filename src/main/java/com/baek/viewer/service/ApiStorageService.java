@@ -37,10 +37,18 @@ public class ApiStorageService {
         this.repoConfigRepository = repoConfigRepository;
     }
 
+    /**
+     * URL 차단 태그 인식 패턴 — 대괄호 안에 'URL' 과 '차단' 문자열이 모두 포함된 토큰.
+     * 순서 무관, 사이 공백·추가 문자 허용 (오타·변형 표기 수용).
+     * 예: [URL차단작업] / [URL 차단작업] / [URL차단완료] / [차단URL완료] 등 모두 매칭.
+     */
+    private static final String URL_BLOCK_TAG_REGEX =
+            "\\[(?=[^\\[\\]]*URL)(?=[^\\[\\]]*차단)[^\\[\\]]+\\]";
+    private static final Pattern URL_BLOCK_TAG_PATTERN = Pattern.compile(URL_BLOCK_TAG_REGEX);
     private static final Pattern BLOCKED_DATE_PATTERN =
-            Pattern.compile("\\[URL차단작업\\]\\[(\\d{4}-\\d{2}-\\d{2})\\]");
+            Pattern.compile(URL_BLOCK_TAG_REGEX + "\\[(\\d{4}-\\d{2}-\\d{2})\\]");
     private static final Pattern BLOCKED_REASON_PATTERN =
-            Pattern.compile("\\[URL차단작업\\]\\[\\d{4}-\\d{2}-\\d{2}\\]\\s*(.+)");
+            Pattern.compile(URL_BLOCK_TAG_REGEX + "\\[\\d{4}-\\d{2}-\\d{2}\\]\\s*(.+)");
 
     /**
      * 추출된 API 목록을 DB에 저장합니다.
@@ -170,6 +178,7 @@ public class ApiStorageService {
         r.setRepoPath(a.getRepoPath());
         r.setIsDeprecated(a.getIsDeprecated());
         r.setHasUrlBlock(a.getHasUrlBlock());
+        r.setBlockMarkingIncomplete(a.isBlockMarkingIncomplete());
         r.setProgramId(a.getProgramId());
         r.setApiOperationValue(a.getApiOperationValue());
         r.setDescriptionTag(a.getDescriptionTag());
@@ -389,10 +398,10 @@ public class ApiStorageService {
         if ("차단대상 제외".equals(r.getReviewResult())) {
             return "사용";
         }
-        // 1. 차단완료: 3가지 모두 충족 (①@Deprecated ②[URL차단작업] ③UnsupportedOperationException)
-        if ("Y".equals(r.getIsDeprecated())
-                && containsBlockText(r.getFullComment())
-                && "Y".equals(r.getHasUrlBlock())) {
+        // 1. 차단완료: 메서드 첫 실행 문장이 throw new UnsupportedOperationException(...) 이면 실질 차단.
+        //    @Deprecated 어노테이션 또는 [URL차단작업] 주석 중 일부가 누락되면 blockMarkingIncomplete=true
+        //    (차단처리미흡) 로 별도 플래그만 세우고 상태는 동일하게 "차단완료".
+        if ("Y".equals(r.getHasUrlBlock())) {
             r.setLogWorkExcluded(false);
             return "차단완료";
         }
@@ -429,9 +438,13 @@ public class ApiStorageService {
         return "사용";
     }
 
+    /** 패키지 공개 — ApiExtractorService 등에서도 동일 판정을 쓰도록 */
+    static boolean containsUrlBlockTag(String text) {
+        return text != null && URL_BLOCK_TAG_PATTERN.matcher(text).find();
+    }
+
     private boolean containsBlockText(String fullComment) {
-        if (fullComment == null) return false;
-        return fullComment.contains("[URL차단작업]");
+        return containsUrlBlockTag(fullComment);
     }
 
     /**

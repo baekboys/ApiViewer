@@ -70,6 +70,22 @@ public class ConfigController {
         return ResponseEntity.ok(repoRepo.findAllByOrderByRepoNameAsc());
     }
 
+    // ── 배치 Git 동기화 경고 (조회 화면 배너용, 공개) ─────────
+    @GetMapping("/repos/sync-warnings")
+    public ResponseEntity<?> listSyncWarnings() {
+        List<Map<String, Object>> warnings = new java.util.ArrayList<>();
+        for (RepoConfig rc : repoRepo.findAll()) {
+            if ("FAIL".equalsIgnoreCase(rc.getLastSyncStatus())) {
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("repoName", rc.getRepoName());
+                m.put("lastSyncAt", rc.getLastSyncAt());
+                m.put("message", rc.getLastSyncMessage());
+                warnings.add(m);
+            }
+        }
+        return ResponseEntity.ok(warnings);
+    }
+
     // ── 레포 단건 조회 ────────────────────────────────────
     @GetMapping("/repos/{id}")
     public ResponseEntity<?> getRepo(@PathVariable Long id) {

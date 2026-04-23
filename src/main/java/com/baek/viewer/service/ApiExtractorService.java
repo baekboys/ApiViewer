@@ -88,6 +88,12 @@ public class ApiExtractorService {
         savedCount = -1;
         statusRevertedCount = 0;
         extractLogs.clear();
+        // 이전 추출의 잔여 진행률 초기화 — pull 단계 초반에 이전 값(예: 100%)이 잠깐 보이는 현상 방지.
+        // 프론트는 `currentFile` 로 Git 동기화 단계임을 표시하고, 분석 단계에서 processedFiles/totalFiles 로 실제 진행률을 채움.
+        totalFiles = 0;
+        processedFiles = 0;
+        currentFile = "Git 동기화 준비 중...";
+        lastError = null;
         new Thread(() -> extract(req)).start();
     }
 
@@ -134,35 +140,20 @@ public class ApiExtractorService {
                 }
             }
             if (doPull) {
-                boolean checkoutOk = true;
-                // 브랜치 checkout (설정된 경우)
-                if (gitBranch != null && !gitBranch.isBlank()) {
-                    try {
-                        addLog("INFO", "Git fetch origin 실행 중...");
-                        runGitCommand(root.toFile(), gitBin, "fetch", "origin");
-
-                        addLog("INFO", "Git checkout → " + gitBranch);
-                        String coOutput = runGitCommand(root.toFile(), gitBin, "checkout", gitBranch);
-                        addLog("OK", "Git checkout 완료 → " + gitBranch + " " + coOutput);
-                    } catch (Exception coEx) {
-                        checkoutOk = false;
-                        addLog("ERROR", "Git checkout 실패 — '" + gitBranch + "' 전환 불가: " + coEx.getMessage() + ". 현재 브랜치로 분석 진행");
-                    }
-                }
-                // Pull (checkout 성공 시에만)
-                if (checkoutOk) {
-                    try {
-                        addLog("INFO", "Git Pull 실행 중...");
-                        String pullOutput = runGitCommand(root.toFile(), gitBin, "pull");
-                        addLog("OK", "Git Pull 완료 — " + pullOutput);
-                    } catch (Exception gitEx) {
-                        addLog("WARN", "Git Pull 실패 (분석은 계속): " + gitEx.getMessage());
-                    }
-                } else {
-                    addLog("WARN", "Git Pull 건너뜀 (checkout 실패)");
+                try {
+                    currentFile = "Git 동기화 실행 중...";
+                    addLog("INFO", "Git 강제 동기화 (fetch + checkout -B + clean) 실행 중...");
+                    String syncResult = hardSyncToOrigin(root.toFile(), gitBin, gitBranch);
+                    addLog("OK", "Git 동기화 완료 — " + syncResult);
+                } catch (Exception syncEx) {
+                    String repoLabel = (repoName != null && !repoName.isBlank()) ? repoName : rootPath;
+                    addLog("WARN", "Git 동기화 실패 [" + repoLabel + "] (기존 파일로 분석 계속) — "
+                            + syncEx.getMessage()
+                            + " / 해결: repo_config.git_branch 및 원격 브랜치 존재 여부 확인");
                 }
             }
 
+            currentFile = "Controller 파일 탐색 중...";
             List<Path> controllerFiles = Files.walk(root)
                     .filter(p -> p.toString().endsWith(".java") &&
                             (p.toString().contains("Controller") || p.toString().contains("Conrtoller")))
@@ -170,6 +161,7 @@ public class ApiExtractorService {
 
             totalFiles = controllerFiles.size();
             processedFiles = 0;
+            currentFile = "";  // 파일 개별 처리로 진입 — 개별 파일명이 채워짐
             addLog("INFO", "Controller 파일 " + totalFiles + "개 발견");
 
             controllerFiles.parallelStream().forEach(file -> {
@@ -409,10 +401,10 @@ public class ApiExtractorService {
                     } else {
                         info.setFullComment("-"); info.setDescriptionTag("-");
                     }
-                    // @Deprecated 라인에서 [URL차단작업] 정보 보충
-                    if (isDeprecated && (info.getFullComment().equals("-") || !info.getFullComment().contains("[URL차단작업]"))) {
+                    // @Deprecated 라인에서 [URL…차단…] 태그 정보 보충
+                    if (isDeprecated && (info.getFullComment().equals("-") || !ApiStorageService.containsUrlBlockTag(info.getFullComment()))) {
                         String depLine = extractDeprecatedLine(headArea);
-                        if (depLine != null && depLine.contains("[URL차단작업]")) {
+                        if (depLine != null && ApiStorageService.containsUrlBlockTag(depLine)) {
                             info.setFullComment(depLine);
                         }
                     }
@@ -429,10 +421,15 @@ public class ApiExtractorService {
                     }
                     info.setRequestPropertyValue("-");
                     info.setControllerRequestPropertyValue("-");
+                    info.setBlockMarkingIncomplete(computeBlockMarkingIncomplete(
+                            isFirstStmtUrlBlockRegex(mBody),
+                            info.getIsDeprecated(),
+                            info.getFullComment()));
                     apis.add(info);
                     if (debug) {
-                        log.debug("[파싱-RX]   {} {} | method={} | deprecated={} | urlBlock={}",
-                                httpMethod, finalPath, methodName, info.getIsDeprecated(), info.getHasUrlBlock());
+                        log.debug("[파싱-RX]   {} {} | method={} | deprecated={} | urlBlock={} | markingIncomplete={}",
+                                httpMethod, finalPath, methodName, info.getIsDeprecated(), info.getHasUrlBlock(),
+                                info.isBlockMarkingIncomplete());
                     }
                 }
 
@@ -456,10 +453,15 @@ public class ApiExtractorService {
                     info.setApiOperationValue("-");
                     info.setRequestPropertyValue("-");
                     info.setControllerRequestPropertyValue("-");
+                    info.setBlockMarkingIncomplete(computeBlockMarkingIncomplete(
+                            isFirstStmtUrlBlockRegex(mBody2),
+                            info.getIsDeprecated(),
+                            info.getFullComment()));
                     apis.add(info);
                     if (debug) {
-                        log.debug("[파싱-RX]   {} {} (빈매핑) | method={} | deprecated={}",
-                                httpMethod, info.getApiPath(), methodName, info.getIsDeprecated());
+                        log.debug("[파싱-RX]   {} {} (빈매핑) | method={} | deprecated={} | markingIncomplete={}",
+                                httpMethod, info.getApiPath(), methodName, info.getIsDeprecated(),
+                                info.isBlockMarkingIncomplete());
                     }
                 }
             }
@@ -500,12 +502,12 @@ public class ApiExtractorService {
         } else {
             info.setFullComment("-"); info.setDescriptionTag("-");
         }
-        // @Deprecated 라인에서 [URL차단작업] 정보 보충
-        if ("Y".equals(info.getIsDeprecated()) && (info.getFullComment().equals("-") || !info.getFullComment().contains("[URL차단작업]"))) {
+        // @Deprecated 라인에서 [URL…차단…] 태그 정보 보충
+        if ("Y".equals(info.getIsDeprecated()) && (info.getFullComment().equals("-") || !ApiStorageService.containsUrlBlockTag(info.getFullComment()))) {
             try {
                 String src = Files.readString(filePath, StandardCharsets.UTF_8);
                 String depLine = extractDeprecatedLine(src);
-                if (depLine != null && depLine.contains("[URL차단작업]")) {
+                if (depLine != null && ApiStorageService.containsUrlBlockTag(depLine)) {
                     info.setFullComment(depLine);
                 }
             } catch (Exception ignore) {}
@@ -517,6 +519,13 @@ public class ApiExtractorService {
         String op = extractAnnotationValue(method, "ApiOperation", "value");
         if ("-".equals(op)) op = extractAnnotationValue(method, "Operation", "summary");
         info.setApiOperationValue(op);
+
+        // 표기 미흡 판정 — 메서드 첫 실행 문장이 UnsupportedOperationException throw 인데
+        // @Deprecated 또는 [URL차단작업] 주석 중 하나라도 누락된 경우 true
+        info.setBlockMarkingIncomplete(computeBlockMarkingIncomplete(
+                isFirstStmtUrlBlock(method),
+                info.getIsDeprecated(),
+                info.getFullComment()));
 
         return info;
     }
@@ -633,35 +642,106 @@ public class ApiExtractorService {
     // ======================================================
 
     /**
-     * JavaParser: 메소드 본문 첫 statement가 UnsupportedOperationException throw인지 판단.
-     * if(true) throw new UnsupportedOperationException("..."); 패턴 포함.
+     * JavaParser: 메서드 본문 **어디든** UnsupportedOperationException 을 throw 하면서
+     * 첫 번째 인자(메시지 문자열 리터럴)에 "차단" 이 포함되면 true.
+     *
+     * (이전에는 메서드 첫 실행 문장만 검사했으나, 개발자 관행상 선행 로직 뒤
+     *  차단 throw 를 두는 경우도 있어 위치 제약을 제거하고 메시지 "차단" 키워드로 의미를 한정함.)
      */
     private boolean detectUrlBlock(MethodDeclaration method) {
         if (method.getBody().isEmpty()) return false;
-        var stmts = method.getBody().get().getStatements();
-        if (stmts.isEmpty()) return false;
-        String first = stmts.get(0).toString();
-        return first.contains("UnsupportedOperationException");
+        return method.getBody().get()
+                .findAll(com.github.javaparser.ast.expr.ObjectCreationExpr.class).stream()
+                .anyMatch(oc -> {
+                    if (!"UnsupportedOperationException".equals(oc.getType().getNameAsString())) return false;
+                    // 첫 번째 인자가 문자열 리터럴이고 "차단" 포함
+                    var args = oc.getArguments();
+                    if (args.isEmpty()) return false;
+                    var first = args.get(0);
+                    if (first.isStringLiteralExpr()) {
+                        return first.asStringLiteralExpr().getValue().contains("차단");
+                    }
+                    // 복잡한 표현식(상수·변수) 은 소스 문자열로 fallback 매칭
+                    return first.toString().contains("차단");
+                });
     }
 
-    /** Regex 폴백: 메소드 본문 초반에서 UnsupportedOperationException throw 패턴 검색 */
+    /**
+     * Regex 폴백: 메서드 본문 어디든 `new UnsupportedOperationException("...차단...")` 패턴이면 true.
+     * throw 키워드 없이 생성만 하는 변칙 케이스도 허용(의미 동일).
+     */
     private boolean detectUrlBlockRegex(String methodBodySnippet) {
         if (methodBodySnippet == null) return false;
-        return Pattern.compile("throw\\s+new\\s+UnsupportedOperationException", Pattern.CASE_INSENSITIVE)
-                .matcher(methodBodySnippet).find();
+        return Pattern.compile(
+                "new\\s+UnsupportedOperationException\\s*\\(\\s*\"[^\"]*차단[^\"]*\"",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+        ).matcher(methodBodySnippet).find();
     }
 
-    /** @Deprecated 라인에서 [URL차단작업] 이후 전체 텍스트 추출 */
+    /** 차단 판정 — 위치 무관 "차단" 메시지 포함 여부로 동일 판정. (이전 이름 유지 — 호출부 호환) */
+    private boolean isFirstStmtUrlBlock(MethodDeclaration method) { return detectUrlBlock(method); }
+
+    /** Regex 경로 — 위치 무관 판정으로 통일. */
+    private boolean isFirstStmtUrlBlockRegex(String methodBodySnippet) {
+        return detectUrlBlockRegex(methodBodySnippet);
+    }
+
+    /**
+     * 차단처리미흡 플래그 계산.
+     * 실질 차단(UnsupportedOperationException throw + 메시지 "차단" 포함) 이면서
+     * @Deprecated 또는 [URL차단작업] 주석 중 하나라도 누락되면 true.
+     */
+    private boolean computeBlockMarkingIncomplete(boolean urlBlockDetected, String isDeprecated, String fullComment) {
+        if (!urlBlockDetected) return false;
+        boolean deprecatedOk = "Y".equals(isDeprecated);
+        boolean commentOk = ApiStorageService.containsUrlBlockTag(fullComment);
+        return !(deprecatedOk && commentOk);
+    }
+
+    /**
+     * @Deprecated 인근 텍스트에서 [URL차단작업] 라인 추출.
+     *
+     * 탐색 순서 (하나라도 찾으면 즉시 반환):
+     *  ① @Deprecated 같은 줄 뒤쪽 (`@Deprecated [URL차단작업]...`)
+     *  ② @Deprecated 다음 줄/아래 라인 (`@Deprecated\n[URL차단작업]...`)
+     *  ③ @Deprecated **바로 위** 주석 블록들 — 원본 javadoc 과 별도로
+     *      `/** @deprecated [URL차단작업]... *\/` 블록을 @Deprecated 바로 위에 덧붙이는 개발자 관행 커버.
+     *      주석 블록이 여러 개 이어져 있어도(예: 원본 javadoc + 차단 태그 javadoc) 어느 블록이든 포함되면 감지.
+     */
+    /** 대괄호 안에 URL·차단 모두 포함된 토큰 — 변형 표기 허용 (예: [URL차단작업], [URL 차단작업], [차단URL완료]) */
+    private static final Pattern URL_BLOCK_TAG_IN_TEXT =
+            Pattern.compile("\\[(?=[^\\[\\]]*URL)(?=[^\\[\\]]*차단)[^\\[\\]]+\\]");
+
     private String extractDeprecatedLine(String source) {
         if (source == null) return null;
+        // ① 같은 줄
         Matcher m = Pattern.compile("@Deprecated\\s+(.+)", Pattern.MULTILINE).matcher(source);
         if (m.find()) {
             String line = m.group(1).trim();
-            if (line.contains("[URL차단작업]")) return line;
+            if (ApiStorageService.containsUrlBlockTag(line)) return line;
         }
-        // 여러 줄에 걸친 경우: @Deprecated 다음 줄에 [URL차단작업]
-        Matcher m2 = Pattern.compile("@Deprecated[\\s\\S]*?(\\[URL차단작업\\].+)", Pattern.MULTILINE).matcher(source);
+        // ② 뒤쪽 줄 — URL·차단 포함 대괄호 토큰 이후 라인 추출
+        Matcher m2 = Pattern.compile(
+                "@Deprecated[\\s\\S]*?(" + URL_BLOCK_TAG_IN_TEXT.pattern() + ".+)",
+                Pattern.MULTILINE).matcher(source);
         if (m2.find()) return m2.group(1).trim();
+
+        // ③ @Deprecated 바로 위 주석 블록
+        int depIdx = source.indexOf("@Deprecated");
+        if (depIdx >= 0) {
+            int scanStart = Math.max(0, depIdx - 4000);   // 과도 범위 방지
+            String pre = source.substring(scanStart, depIdx);
+            // 직전 메서드/블록 경계 (}) 이후로 한정 — 다른 메서드의 URL차단 주석 오판 방지
+            int lastBrace = pre.lastIndexOf("}");
+            if (lastBrace >= 0) pre = pre.substring(lastBrace);
+            if (ApiStorageService.containsUrlBlockTag(pre)) {
+                Matcher m3 = Pattern.compile("(" + URL_BLOCK_TAG_IN_TEXT.pattern() + "[^\\n\\r]*)").matcher(pre);
+                if (m3.find()) {
+                    // 주석 블록 종료 표식(*/ 또는 ** 등) 제거 + 선행 * 공백 제거
+                    return m3.group(1).replaceAll("\\s*\\*+/\\s*$", "").trim();
+                }
+            }
+        }
         return null;
     }
 
@@ -709,6 +789,125 @@ public class ApiExtractorService {
             p.waitFor();
         } catch (Exception ignored) {}
         return h;
+    }
+
+    /**
+     * 대상 레포 working tree 를 origin/{branch} 기준으로 강제 정렬한다.
+     * 로컬 변경·divergent history·detached HEAD·단일 브랜치 클론 어느 상태에서도 최신 원격 커밋으로 맞춘다.
+     *
+     * 순서:
+     *   1) target branch resolve (인자 비면 원격 기본 브랜치 자동 감지)
+     *   2) 명시 refspec 으로 git fetch origin (--single-branch 클론도 해당 브랜치 수신)
+     *   3) origin/{branch} 존재 검증 — 없으면 명확한 예외
+     *   4) before HEAD 기록 → git checkout -B {branch} origin/{branch} → git clean -fd
+     *   5) after HEAD 비교 — 변경 없음이면 리턴 문자열에 표기
+     *
+     * 서버의 레포 디렉토리는 읽기 전용 분석 미러이므로 로컬 변경은 폐기가 안전하다.
+     * 분석 전용이 아닌 곳에서는 호출하지 말 것.
+     */
+    public String hardSyncToOrigin(java.io.File repoDir, String gitBin, String branch) throws Exception {
+        StringBuilder out = new StringBuilder();
+        log.debug("[hardSync] 시작 — repo={}, branch={}", repoDir.getAbsolutePath(), branch);
+
+        // Step1. 대상 브랜치 resolve
+        String targetBranch;
+        if (branch != null && !branch.isBlank()) {
+            targetBranch = branch.trim();
+            log.debug("[hardSync] Step1. 대상 브랜치 = 설정값 '{}'", targetBranch);
+        } else {
+            targetBranch = resolveRemoteDefaultBranch(repoDir, gitBin);
+            log.debug("[hardSync] Step1. 대상 브랜치 = 원격 기본 브랜치 '{}' (설정 미지정)", targetBranch);
+        }
+        out.append("branch=").append(targetBranch).append(" / ");
+
+        // Step2. 명시 refspec 으로 fetch — --single-branch 클론도 커버
+        String refspec = "+refs/heads/" + targetBranch + ":refs/remotes/origin/" + targetBranch;
+        log.debug("[hardSync] Step2. git fetch origin --prune {}", refspec);
+        String fetchOut;
+        try {
+            fetchOut = runGitCommand(repoDir, gitBin, "fetch", "origin", "--prune", refspec);
+        } catch (Exception fetchEx) {
+            throw new RuntimeException("원격 브랜치 fetch 실패: origin/" + targetBranch
+                    + ". repo_config.git_branch 확인 필요. 원인: " + fetchEx.getMessage());
+        }
+        log.debug("[hardSync] fetch 결과: {}", fetchOut);
+
+        // Step3. origin/{branch} 존재 검증
+        try {
+            runGitCommand(repoDir, gitBin, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + targetBranch);
+        } catch (Exception verifyEx) {
+            throw new RuntimeException("원격에 브랜치 없음: origin/" + targetBranch
+                    + ". repo_config.git_branch=" + (branch == null ? "(empty)" : branch) + " 확인 필요");
+        }
+
+        // Step4. before HEAD → checkout -B → clean
+        String beforeSha;
+        try {
+            beforeSha = runGitCommand(repoDir, gitBin, "rev-parse", "--short", "HEAD").trim();
+        } catch (Exception e) {
+            beforeSha = "(detached/empty)";
+        }
+
+        log.debug("[hardSync] Step4. git checkout -B {} origin/{}", targetBranch, targetBranch);
+        String checkoutOut = runGitCommand(repoDir, gitBin, "checkout", "-B", targetBranch, "origin/" + targetBranch);
+        log.debug("[hardSync] checkout 결과: {}", checkoutOut);
+
+        log.debug("[hardSync] Step4. git clean -fd");
+        String cleanOut = runGitCommand(repoDir, gitBin, "clean", "-fd");
+        log.debug("[hardSync] clean 결과: {}", cleanOut);
+
+        // Step5. after HEAD 비교
+        String afterSha;
+        try {
+            afterSha = runGitCommand(repoDir, gitBin, "rev-parse", "--short", "HEAD").trim();
+        } catch (Exception e) {
+            afterSha = "(unknown)";
+        }
+        boolean unchanged = beforeSha.equals(afterSha);
+        out.append("HEAD: ").append(beforeSha).append(" → ").append(afterSha);
+        if (unchanged) out.append(" (변경 없음)");
+        out.append(" / clean: ").append(cleanOut.isEmpty() ? "(no untracked)" : cleanOut);
+        out.append(" / fetch: ").append(fetchOut.isEmpty() ? "(up-to-date)" : fetchOut);
+
+        log.info("[hardSync] 완료 — repo={} branch={} HEAD: {} → {}{}",
+                repoDir.getName(), targetBranch, beforeSha, afterSha, unchanged ? " (변경 없음)" : "");
+
+        return out.toString();
+    }
+
+    /**
+     * 원격(origin)의 기본 브랜치 이름을 감지한다.
+     * 1차: git ls-remote --symref origin HEAD 출력의 refs/heads/{name} 파싱
+     * 2차: git symbolic-ref --short refs/remotes/origin/HEAD 의 마지막 segment
+     * 둘 다 실패하면 예외 throw.
+     */
+    private String resolveRemoteDefaultBranch(java.io.File repoDir, String gitBin) throws Exception {
+        try {
+            String out = runGitCommand(repoDir, gitBin, "ls-remote", "--symref", "origin", "HEAD");
+            // "ref: refs/heads/main\tHEAD ..." 형태에서 main 추출
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("ref:\\s*refs/heads/(\\S+)\\s+HEAD").matcher(out);
+            if (m.find()) {
+                String name = m.group(1);
+                log.debug("[hardSync] 원격 기본 브랜치 감지(ls-remote): {}", name);
+                return name;
+            }
+        } catch (Exception e) {
+            log.debug("[hardSync] ls-remote --symref 실패, symbolic-ref 폴백: {}", e.getMessage());
+        }
+        try {
+            String symRef = runGitCommand(repoDir, gitBin, "symbolic-ref", "--short", "refs/remotes/origin/HEAD").trim();
+            // "origin/main" → "main"
+            int slash = symRef.indexOf('/');
+            String name = (slash >= 0) ? symRef.substring(slash + 1) : symRef;
+            if (!name.isEmpty()) {
+                log.debug("[hardSync] 원격 기본 브랜치 감지(symbolic-ref): {}", name);
+                return name;
+            }
+        } catch (Exception e) {
+            log.debug("[hardSync] symbolic-ref 폴백 실패: {}", e.getMessage());
+        }
+        throw new RuntimeException("원격 기본 브랜치를 확인할 수 없음. repo_config.git_branch 지정 필요");
     }
 
     /** Git 명령 실행 헬퍼 — 출력 문자열 반환, 실패 시 예외 */

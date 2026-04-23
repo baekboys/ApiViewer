@@ -224,6 +224,7 @@ public class MockAnalysisDataService {
         LocalDate blockedDate = null;
         String blockedReason = null;
         boolean overridden = false;
+        boolean markingIncomplete = false;
         if (pick < 60) {
             status = "사용";
         } else if (pick < 75) {
@@ -236,17 +237,39 @@ public class MockAnalysisDataService {
             blockCriteria = "(Mock) 수동 지정";
             overridden = true;
         } else {
+            // 차단완료 — 메서드 첫 줄에 throw new UnsupportedOperationException 존재.
+            // 하위 분포: 40% 는 차단처리미흡 (@Deprecated/[URL차단작업] 주석 일부 누락),
+            //           60% 는 완전 표기 (둘 다 존재).
             status = "차단완료";
             hasBlock = "Y";
-            isDeprecated = "Y";
-            blockedDate = LocalDate.now().minusDays(rnd.nextInt(200) + 10);
-            blockedReason = "Mock 차단근거 (CSR-" + (90000 + rnd.nextInt(9999)) + ")";
-            fullComment = "[URL차단작업][" + blockedDate + "][CSR-99999] Mock 차단";
+            int prop = rnd.nextInt(100);
+            if (prop < 40) {
+                markingIncomplete = true;
+                int which = prop % 3;   // 0=Deprecated누락 / 1=주석누락 / 2=둘 다 누락
+                LocalDate d = LocalDate.now().minusDays(rnd.nextInt(200) + 10);
+                String op = "OP-" + (10000 + rnd.nextInt(9000));
+                if (which == 0) {
+                    isDeprecated = "N";
+                    fullComment = "[URL차단작업][" + d + "][" + op + "] Mock 차단 (차단처리미흡-Deprecated누락)";
+                } else if (which == 1) {
+                    isDeprecated = "Y";
+                    fullComment = null;
+                } else {
+                    isDeprecated = "N";
+                    fullComment = null;
+                }
+            } else {
+                isDeprecated = "Y";
+                blockedDate = LocalDate.now().minusDays(rnd.nextInt(200) + 10);
+                blockedReason = "Mock 차단근거 (CSR-" + (90000 + rnd.nextInt(9999)) + ")";
+                fullComment = "[URL차단작업][" + blockedDate + "][CSR-99999] Mock 차단";
+            }
         }
         r.setStatus(status);
         r.setStatusOverridden(overridden);
         r.setHasUrlBlock(hasBlock);
         r.setIsDeprecated(isDeprecated);
+        r.setBlockMarkingIncomplete(markingIncomplete);
         r.setBlockTarget(blockTarget);
         r.setBlockCriteria(blockCriteria);
         r.setBlockedDate(blockedDate);

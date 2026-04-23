@@ -150,6 +150,7 @@
       <div class="field">
         빠른 선택
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" onclick="setRange(0,this)">당일</button>
           <button class="btn btn-ghost active" onclick="setRange(1,this)">전일</button>
           <button class="btn btn-ghost" onclick="setRange(3,this)">3일</button>
           <button class="btn btn-ghost" onclick="setRange(7,this)">7일</button>
@@ -291,6 +292,12 @@
       btn.classList.add('active');
     }
     const today = new Date();
+    if (days === 0) {
+      const t = today.toLocaleDateString('sv-SE');
+      document.getElementById('fFrom').value = t;
+      document.getElementById('fTo').value = t;
+      return;
+    }
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
     const from = new Date(yesterday); from.setDate(yesterday.getDate() - (days - 1));
     document.getElementById('fFrom').value = from.toLocaleDateString('sv-SE');

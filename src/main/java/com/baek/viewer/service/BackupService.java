@@ -35,14 +35,18 @@ public class BackupService {
 
     @Transactional
     public int backupAnalysis(String repoName, String ip) {
-        ensureBackupTable("api_record", "api_record_backup");
         int backed;
         if (isAll(repoName)) {
-            em.createNativeQuery("TRUNCATE TABLE api_record_backup").executeUpdate();
+            // 전체 백업: 스키마 동기화를 위해 DROP 후 재생성
+            em.createNativeQuery("DROP TABLE IF EXISTS api_record_backup").executeUpdate();
+            em.createNativeQuery("CREATE TABLE api_record_backup AS SELECT * FROM api_record WHERE 1=0").executeUpdate();
+            log.debug("[분석데이터 백업] api_record_backup 테이블 재생성 완료");
             backed = em.createNativeQuery("INSERT INTO api_record_backup SELECT * FROM api_record")
                     .executeUpdate();
             log.info("[분석데이터 백업] 전체 {}건, ip={}", backed, ip);
         } else {
+            // 레포 단위 백업: 테이블이 없으면 생성, 있으면 해당 레포만 교체
+            ensureBackupTable("api_record", "api_record_backup");
             em.createNativeQuery("DELETE FROM api_record_backup WHERE repository_name = :repo")
                     .setParameter("repo", repoName).executeUpdate();
             backed = em.createNativeQuery(
@@ -58,14 +62,18 @@ public class BackupService {
 
     @Transactional
     public int backupCallHistory(String repoName, String ip) {
-        ensureBackupTable("apm_call_data", "apm_call_data_backup");
         int backed;
         if (isAll(repoName)) {
-            em.createNativeQuery("TRUNCATE TABLE apm_call_data_backup").executeUpdate();
+            // 전체 백업: 스키마 동기화를 위해 DROP 후 재생성
+            em.createNativeQuery("DROP TABLE IF EXISTS apm_call_data_backup").executeUpdate();
+            em.createNativeQuery("CREATE TABLE apm_call_data_backup AS SELECT * FROM apm_call_data WHERE 1=0").executeUpdate();
+            log.debug("[호출이력 백업] apm_call_data_backup 테이블 재생성 완료");
             backed = em.createNativeQuery("INSERT INTO apm_call_data_backup SELECT * FROM apm_call_data")
                     .executeUpdate();
             log.info("[호출이력 백업] 전체 {}건, ip={}", backed, ip);
         } else {
+            // 레포 단위 백업: 테이블이 없으면 생성, 있으면 해당 레포만 교체
+            ensureBackupTable("apm_call_data", "apm_call_data_backup");
             em.createNativeQuery("DELETE FROM apm_call_data_backup WHERE repository_name = :repo")
                     .setParameter("repo", repoName).executeUpdate();
             backed = em.createNativeQuery(

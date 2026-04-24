@@ -23,6 +23,11 @@
 
   function formatLabel(repo) {
     if (!repo) return '';
+    // itemMode: repoName=value, businessName=label, _sublabel=sublabel
+    if (repo._sublabel !== undefined) {
+      const base = repo.businessName || repo.repoName || '';
+      return repo._sublabel ? `${base} · ${repo._sublabel}` : base;
+    }
     const biz  = (repo.businessName || '').trim();
     const name = repo.repoName || '';
     return biz ? `${biz} | ${name}` : name;
@@ -58,13 +63,24 @@
     container = _resolveEl(container);
     if (!container) throw new Error('RepoSelect: container not found');
 
+    // 일반 items 지원 ({value, label, sublabel}) — jobType 등 레포 아닌 목록에도 재사용
+    const useItems = Array.isArray(opts.items);
+    const toRepoShape = useItems
+      ? (opts.items || []).map(it => ({
+          repoName: it.value,
+          businessName: it.label || '',
+          _sublabel: it.sublabel || ''
+        }))
+      : null;
+
     const state = {
       repos: null,
       selected: new Set(opts.selected || []),
       onChange: typeof opts.onChange === 'function' ? opts.onChange : function () {},
-      placeholder: opts.placeholder || '(전체 활성 레포)',
+      placeholder: opts.placeholder || (useItems ? '선택' : '(전체 활성 레포)'),
       variant,
       singleMode: !!opts.singleMode,
+      itemMode: useItems,
       open: false,
       _outsideHandler: null,
     };
@@ -73,7 +89,10 @@
 
     const render = () => (variant === 'compact' ? _renderCompact(container, state) : _renderLarge(container, state));
 
-    if (Array.isArray(opts.repos)) {
+    if (useItems) {
+      state.repos = toRepoShape;
+      render();
+    } else if (Array.isArray(opts.repos)) {
       state.repos = opts.repos.slice();
       render();
     } else {
@@ -261,6 +280,12 @@
   window.RepoSelect = {
     formatLabel,
     loadRepos,
+    mountCompact(el, opts) { return _mount(el, opts || {}, 'compact'); },
+    mountLarge(el, opts)   { return _mount(el, opts || {}, 'large'); }
+  };
+
+  // 일반 items 기반 multi-select alias — jobType/상태 등에 재사용
+  window.MultiSelect = {
     mountCompact(el, opts) { return _mount(el, opts || {}, 'compact'); },
     mountLarge(el, opts)   { return _mount(el, opts || {}, 'large'); }
   };

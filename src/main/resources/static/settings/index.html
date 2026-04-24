@@ -186,6 +186,7 @@
   <meta name="nav-segment" content="settings">
   <meta name="nav-page" content="settings-home">
   <link rel="stylesheet" href="/common/nav.css">
+  <link rel="stylesheet" href="/common/repo-select.css">
   <script src="/js/dialog.js"></script>
   <script src="/js/darkmode.js"></script>
 </head>
@@ -321,9 +322,7 @@ function updateAdminBadge(valid) {
       <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);">
         <label class="field" style="display:block;">와탭 연결 테스트 (쿠키 세션 검증)
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <select id="whatapTestRepo" style="min-width:200px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-              <option value="">(레포 선택)</option>
-            </select>
+            <div id="whatapTestRepo"></div>
             <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="testWhatapConnection()">🔌 연결 테스트</button>
             <span id="whatapTestResult" style="font-size:11px;color:var(--text-muted);"></span>
           </div>
@@ -512,14 +511,9 @@ function updateAdminBadge(valid) {
       </div>
     </div>
     <div style="margin-bottom:12px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">배치 선택 <span style="color:#dc2626;">*</span></span>
-        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;height:auto;" onclick="selectAllJobTypes(true)">전체선택</button>
-        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;height:auto;" onclick="selectAllJobTypes(false)">전체해제</button>
-      </div>
-      <div id="bhJobTypes" style="display:flex;flex-wrap:wrap;gap:6px;">
-        <span style="font-size:11px;color:var(--text-muted);">로딩 중…</span>
-      </div>
+      <label class="field" style="margin:0;">배치 선택 <span style="color:#dc2626;">*</span>
+        <div id="bhJobTypes"></div>
+      </label>
     </div>
     <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
       <div class="field">기간
@@ -648,10 +642,8 @@ function updateAdminBadge(valid) {
       <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">현재 데이터를 백업 테이블에 스냅샷으로 저장 (단일 스냅샷, 덮어쓰기)</span>
     </div>
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
-      <label class="field" style="min-width:220px;">대상 레포지토리
-        <select id="bkpRepoSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-          <option value="ALL">(전체 레포)</option>
-        </select>
+      <label class="field" style="min-width:220px;">대상 레포지토리 <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(선택 없음 = 전체)</span>
+        <div id="bkpRepoSelect"></div>
       </label>
       <button class="btn" style="background:#3b82f6;color:#fff;height:34px;" onclick="backupAnalysisData()">💾 분석데이터 백업</button>
       <button class="btn" style="background:#2563eb;color:#fff;height:34px;" onclick="backupCallHistoryData()">💾 호출이력 백업</button>
@@ -671,10 +663,8 @@ function updateAdminBadge(valid) {
       <span style="font-size:11px;font-weight:400;color:#d97706;margin-left:6px;">백업 스냅샷으로 현재 데이터를 덮어씁니다 — 되돌릴 수 없습니다.</span>
     </div>
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-      <label class="field" style="min-width:220px;">대상 레포지토리
-        <select id="restoreRepoSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-          <option value="ALL">(전체 레포)</option>
-        </select>
+      <label class="field" style="min-width:220px;">대상 레포지토리 <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(선택 없음 = 전체)</span>
+        <div id="restoreRepoSelect"></div>
       </label>
       <button class="btn" style="background:#f59e0b;color:#fff;height:34px;" onclick="restoreAnalysisData()">♻️ 분석데이터 복구</button>
       <button class="btn" style="background:#d97706;color:#fff;height:34px;" onclick="restoreCallHistoryData()">♻️ 호출이력 복구</button>
@@ -692,10 +682,8 @@ function updateAdminBadge(valid) {
       <span style="font-size:11px;font-weight:400;color:#ef4444;margin-left:6px;">이 작업은 되돌릴 수 없습니다. 비밀번호 재확인 후 실행됩니다.</span>
     </div>
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-      <label class="field" style="min-width:220px;">대상 레포지토리
-        <select id="delRepoSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-          <option value="ALL">(전체 레포)</option>
-        </select>
+      <label class="field" style="min-width:220px;">대상 레포지토리 <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(선택 없음 = 전체)</span>
+        <div id="delRepoSelect"></div>
       </label>
       <button class="btn" style="background:#ef4444;color:#fff;height:34px;" onclick="deleteAnalysisData()">🗑 분석데이터 삭제</button>
       <button class="btn" style="background:#dc2626;color:#fff;height:34px;" onclick="deleteCallHistoryData()">🗑 호출이력 데이터 삭제 (MOCK 포함)</button>
@@ -713,6 +701,19 @@ function updateAdminBadge(valid) {
 
 <!-- ═══ 📧 알림 (메일 발송) ═══ -->
 <section class="settings-section" data-section="notify">
+  <!-- 점검중 배너 -->
+  <div class="card" style="border:1px solid #f59e0b;background:#fffbeb;">
+    <div style="display:flex;align-items:center;gap:10px;color:#92400e;">
+      <span style="font-size:18px;">🛠️</span>
+      <div>
+        <div style="font-weight:700;font-size:14px;">기능 점검중</div>
+        <div style="font-size:12px;color:#b45309;">알림(메일 발송·서식 관리) 기능은 현재 점검 중입니다. 아래 설정은 수정할 수 없습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 아래 카드 전체 비활성화 처리 -->
+  <div id="notifyDisabledWrap" style="pointer-events:none;opacity:0.55;filter:grayscale(0.3);">
   <!-- SMTP 설정 (글로벌에서 로드) -->
   <div class="card">
     <div class="card-title"><span class="dot" style="background:#0ea5e9;"></span>메일 서버 설정</div>
@@ -792,6 +793,7 @@ function updateAdminBadge(valid) {
     </div>
     <div id="sendResult" style="margin-top:8px;font-size:12px;"></div>
   </div>
+  </div><!-- /notifyDisabledWrap -->
 </section>
 
 <!-- ═══ 🔗 Jira 연동 ═══ -->
@@ -1291,17 +1293,19 @@ function updateAdminBadge(valid) {
   }
 
   function fillWhatapTestRepoSelect(repos) {
-    const sel = document.getElementById('whatapTestRepo');
-    if (!sel) return;
+    const mountEl = document.getElementById('whatapTestRepo');
+    if (!mountEl) return;
     const active = (repos || []).filter(r => r.whatapEnabled === 'Y' && r.whatapPcode != null);
-    sel.innerHTML = '<option value="">(레포 선택)</option>'
-      + active.map(r => `<option value="${esc(r.repoName)}">${esc(r.repoName)}</option>`).join('');
+    window._whatapTestRepoSel = RepoSelect.mountCompact(mountEl, {
+      repos: active, selected: [], placeholder: '(레포 선택)', singleMode: true
+    });
   }
 
   async function testWhatapConnection() {
-    const repoName = document.getElementById('whatapTestRepo').value;
+    const sel = window._whatapTestRepoSel ? window._whatapTestRepoSel.getSelected() : [];
     const resultEl = document.getElementById('whatapTestResult');
-    if (!repoName) { resultEl.textContent = '⚠ 레포를 선택하세요'; resultEl.style.color = '#dc2626'; return; }
+    if (sel.length !== 1) { resultEl.textContent = '⚠ 레포를 선택하세요'; resultEl.style.color = '#dc2626'; return; }
+    const repoName = sel[0];
     resultEl.textContent = '⏳ 호출 중...';
     resultEl.style.color = 'var(--text-muted)';
     try {
@@ -2023,12 +2027,17 @@ function updateAdminBadge(valid) {
   async function loadLogDates() {
     try {
       const res = await fetch(`/api/logs/dates?type=${logType}`, {headers:{'X-Admin-Token':sessionStorage.getItem('adminToken')||''}});
-      const dates = await res.json();
+      const all = await res.json();
       const bar = document.getElementById('logDatesBar');
-      bar.innerHTML = dates.map(d =>
+      // 최신순 정렬 후 최근 7일만 렌더 (전체 목록은 날짜 input 으로 접근 가능)
+      const recent = (all || []).slice().sort((a, b) => (a < b ? 1 : a > b ? -1 : 0)).slice(0, 7);
+      bar.innerHTML = recent.map(d =>
         `<button class="btn btn-ghost" style="padding:3px 10px;font-size:11px;height:auto;" onclick="selectLogDate('${d}')">${d}</button>`
       ).join('');
-      if (dates.length === 0) bar.innerHTML = '<span style="color:var(--text-muted);font-size:11px;">로그 파일이 없습니다.</span>';
+      if (recent.length === 0) bar.innerHTML = '<span style="color:var(--text-muted);font-size:11px;">로그 파일이 없습니다.</span>';
+      else if (all.length > recent.length) {
+        bar.innerHTML += `<span style="font-size:11px;color:var(--text-muted);padding:3px 6px;align-self:center;">(최근 7일만 표시 · 이전 날짜는 위 달력으로 조회)</span>`;
+      }
     } catch(e) {}
   }
 
@@ -2287,43 +2296,21 @@ function updateAdminBadge(valid) {
         box.innerHTML = '<span style="font-size:11px;color:var(--text-muted);">등록된 배치가 없습니다.</span>';
         return;
       }
-      box.innerHTML = list.map(s => {
-        const desc = s.description ? `<span class="bh-jt-desc" style="opacity:.75;font-weight:400;">· ${esc(s.description)}</span>` : '';
-        return `<button type="button" class="bh-jt on" data-job="${esc(s.jobType)}" onclick="toggleJobType(this)"
-          style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid #7c3aed;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;background:#7c3aed;color:#fff;transition:background .15s,border-color .15s,color .15s;">
-          <span>${esc(s.jobType)}</span>${desc}
-        </button>`;
-      }).join('');
+      const items = list.map(s => ({ value: s.jobType, label: s.jobType, sublabel: s.description || '' }));
+      const allValues = items.map(it => it.value);
+      window._bhJobSel = MultiSelect.mountCompact('#bhJobTypes', {
+        items,
+        selected: allValues,   // 기본 전체선택 (기존 pill 동작 유지)
+        placeholder: '(전체 배치)'
+      });
     } catch (e) {
       document.getElementById('bhJobTypes').innerHTML =
         '<span style="font-size:11px;color:#dc2626;">배치 목록 로드 실패</span>';
     }
   }
 
-  function toggleJobType(btn) {
-    const on = !btn.classList.contains('on');
-    applyJobTypeStyle(btn, on);
-  }
-
-  function applyJobTypeStyle(btn, on) {
-    btn.classList.toggle('on', on);
-    if (on) {
-      btn.style.background = '#7c3aed';
-      btn.style.borderColor = '#7c3aed';
-      btn.style.color = '#fff';
-    } else {
-      btn.style.background = 'transparent';
-      btn.style.borderColor = 'var(--border)';
-      btn.style.color = 'var(--text-muted)';
-    }
-  }
-
-  function selectAllJobTypes(on) {
-    document.querySelectorAll('#bhJobTypes .bh-jt').forEach(btn => applyJobTypeStyle(btn, on));
-  }
-
   function getSelectedJobTypes() {
-    return Array.from(document.querySelectorAll('#bhJobTypes .bh-jt.on')).map(b => b.dataset.job);
+    return window._bhJobSel ? window._bhJobSel.getSelected() : [];
   }
 
   function bhFmtTime(s) { return !s ? '-' : s.substring(11, 16); }
@@ -2390,25 +2377,29 @@ function updateAdminBadge(valid) {
     }
   }
 
-  // ── 데이터 삭제 ────────────────────────────────────────────
+  // ── 데이터 관리(백업/복구/삭제) 레포 선택 공용 ─────────────
+  // 선택 없음 → 전체(ALL), 1개 이상 → 선택 레포들만 순차 실행
+  window._dataRepoSels = {};
   async function loadDelRepoOptions() {
     try {
       const res = await fetch('/api/config/repos');
       const repos = await res.json();
       ['delRepoSelect','bkpRepoSelect','restoreRepoSelect'].forEach(selId => {
-        const sel = document.getElementById(selId);
-        if (!sel) return;
-        // 기존 ALL 옵션만 남기고 초기화
-        while (sel.options.length > 1) sel.remove(1);
-        repos.forEach(r => {
-          const opt = document.createElement('option');
-          opt.value = r.repoName;
-          opt.textContent = r.businessName ? `${r.businessName} | ${r.repoName}` : r.repoName;
-          sel.appendChild(opt);
+        const mountEl = document.getElementById(selId);
+        if (!mountEl) return;
+        window._dataRepoSels[selId] = RepoSelect.mountCompact(mountEl, {
+          repos, selected: [], placeholder: '(전체 레포)'
         });
       });
     } catch(e) {}
     await loadBackupStatus();
+  }
+
+  /** 데이터관리 select 의 선택된 repoName 배열. 0개면 ['ALL']. */
+  function getDataRepoTargets(selId) {
+    const inst = window._dataRepoSels[selId];
+    const arr = inst ? inst.getSelected() : [];
+    return arr.length === 0 ? ['ALL'] : arr;
   }
 
   // ── 데이터 백업 ────────────────────────────────────────────
@@ -2434,86 +2425,91 @@ function updateAdminBadge(valid) {
     } catch(e) {}
   }
 
-  async function backupAnalysisData() {
-    const repoName = document.getElementById('bkpRepoSelect').value;
-    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!await customConfirm(`${scope}의 분석데이터를 백업하시겠습니까?\n기존 백업이 있으면 덮어씁니다.`)) return;
+  /**
+   * 다중 레포에 대해 동일 API 를 순차 호출하고 결과를 합산해 단일 메시지로 노출.
+   * @param opts.selId       마운트한 multi-select id (bkpRepoSelect/restoreRepoSelect/delRepoSelect)
+   * @param opts.confirmMsg  (scope) => string
+   * @param opts.loadingMsg  (scope) => string
+   * @param opts.resultElId  결과 메시지를 표시할 div id
+   * @param opts.countKey    응답 payload 에서 처리 건수를 담은 필드명 (예: 'backed', 'restored', 'deleted')
+   * @param opts.label       결과 메시지 접두 (예: '분석데이터 백업')
+   * @param opts.apiUrl      (repoName) => string — 호출할 URL
+   * @param opts.method      HTTP method (POST/DELETE)
+   */
+  async function _runRepoOp(opts) {
+    const targets = getDataRepoTargets(opts.selId);    // [] → ['ALL'] 치환됨
+    const isAll = targets.length === 1 && targets[0] === 'ALL';
+    const scope = isAll ? '전체 레포' : `${targets.length}개 레포 [${targets.join(', ')}]`;
+    if (!await customConfirm(opts.confirmMsg(scope))) return;
     if (!await verifyPwPrompt()) return;
-    showDelProgress(`분석데이터 백업 중... (${scope})`);
+    showDelProgress(opts.loadingMsg(scope));
+    const resultEl = document.getElementById(opts.resultElId);
+    let totalCount = 0;
+    const failures = [];
     try {
-      const url = `/api/db/backup/analysis?repoName=${encodeURIComponent(repoName)}`;
-      const res = await adminFetch(url, { method:'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '백업 실패');
-      document.getElementById('bkpResult').innerHTML =
-        `<span style="color:var(--success);">✓ 분석데이터 ${data.backed.toLocaleString()}건 백업 완료 (${scope})</span>`;
-      showToast(`분석데이터 ${data.backed.toLocaleString()}건 백업 완료`, 'success');
-      await loadBackupStatus();
-    } catch(e) {
-      document.getElementById('bkpResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '백업 실패', 'error');
+      for (const name of targets) {
+        try {
+          const res = await adminFetch(opts.apiUrl(name), { method: opts.method });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '실패');
+          const n = Number(data[opts.countKey] ?? 0);
+          totalCount += n;
+        } catch (innerErr) {
+          failures.push(`${name}: ${innerErr.message || innerErr}`);
+        }
+      }
+      if (failures.length === 0) {
+        resultEl.innerHTML =
+          `<span style="color:var(--success);">✓ ${opts.label} ${totalCount.toLocaleString()}건 완료 (${scope})</span>`;
+        showToast(`${opts.label} ${totalCount.toLocaleString()}건 완료`, 'success');
+      } else {
+        resultEl.innerHTML =
+          `<span style="color:var(--danger);">일부 실패 — 성공 ${totalCount.toLocaleString()}건 / 실패 ${failures.length}건\n${failures.join('\n')}</span>`;
+        showToast(`일부 실패: ${failures.length}건`, 'error');
+      }
     } finally { hideDelProgress(); }
+  }
+
+  async function backupAnalysisData() {
+    await _runRepoOp({
+      selId: 'bkpRepoSelect', resultElId: 'bkpResult', method: 'POST', countKey: 'backed',
+      label: '분석데이터 백업',
+      confirmMsg: (s) => `${s}의 분석데이터를 백업하시겠습니까?\n기존 백업이 있으면 덮어씁니다.`,
+      loadingMsg: (s) => `분석데이터 백업 중... (${s})`,
+      apiUrl: (name) => `/api/db/backup/analysis?repoName=${encodeURIComponent(name)}`
+    });
+    await loadBackupStatus();
   }
 
   async function backupCallHistoryData() {
-    const repoName = document.getElementById('bkpRepoSelect').value;
-    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!await customConfirm(`${scope}의 호출이력 데이터를 백업하시겠습니까?\n기존 백업이 있으면 덮어씁니다.`)) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress(`호출이력 백업 중... (${scope})`);
-    try {
-      const url = `/api/db/backup/call-history?repoName=${encodeURIComponent(repoName)}`;
-      const res = await adminFetch(url, { method:'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '백업 실패');
-      document.getElementById('bkpResult').innerHTML =
-        `<span style="color:var(--success);">✓ 호출이력 ${data.backed.toLocaleString()}건 백업 완료 (${scope})</span>`;
-      showToast(`호출이력 ${data.backed.toLocaleString()}건 백업 완료`, 'success');
-      await loadBackupStatus();
-    } catch(e) {
-      document.getElementById('bkpResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '백업 실패', 'error');
-    } finally { hideDelProgress(); }
+    await _runRepoOp({
+      selId: 'bkpRepoSelect', resultElId: 'bkpResult', method: 'POST', countKey: 'backed',
+      label: '호출이력 백업',
+      confirmMsg: (s) => `${s}의 호출이력 데이터를 백업하시겠습니까?\n기존 백업이 있으면 덮어씁니다.`,
+      loadingMsg: (s) => `호출이력 백업 중... (${s})`,
+      apiUrl: (name) => `/api/db/backup/call-history?repoName=${encodeURIComponent(name)}`
+    });
+    await loadBackupStatus();
   }
 
   async function restoreAnalysisData() {
-    const repoName = document.getElementById('restoreRepoSelect').value;
-    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!await customConfirm(`${scope}의 분석데이터를 백업본으로 복구하시겠습니까?\n현재 데이터가 백업본으로 교체됩니다. 되돌릴 수 없습니다.`)) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress(`분석데이터 복구 중... (${scope})`);
-    try {
-      const url = `/api/db/restore/analysis?repoName=${encodeURIComponent(repoName)}`;
-      const res = await adminFetch(url, { method:'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '복구 실패');
-      document.getElementById('restoreResult').innerHTML =
-        `<span style="color:var(--success);">✓ 분석데이터 ${data.restored.toLocaleString()}건 복구 완료 (${scope})</span>`;
-      showToast(`분석데이터 ${data.restored.toLocaleString()}건 복구 완료`, 'success');
-    } catch(e) {
-      document.getElementById('restoreResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '복구 실패', 'error');
-    } finally { hideDelProgress(); }
+    await _runRepoOp({
+      selId: 'restoreRepoSelect', resultElId: 'restoreResult', method: 'POST', countKey: 'restored',
+      label: '분석데이터 복구',
+      confirmMsg: (s) => `${s}의 분석데이터를 백업본으로 복구하시겠습니까?\n현재 데이터가 백업본으로 교체됩니다. 되돌릴 수 없습니다.`,
+      loadingMsg: (s) => `분석데이터 복구 중... (${s})`,
+      apiUrl: (name) => `/api/db/restore/analysis?repoName=${encodeURIComponent(name)}`
+    });
   }
 
   async function restoreCallHistoryData() {
-    const repoName = document.getElementById('restoreRepoSelect').value;
-    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!await customConfirm(`${scope}의 호출이력을 백업본으로 복구하시겠습니까?\n현재 데이터가 백업본으로 교체됩니다. 되돌릴 수 없습니다.`)) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress(`호출이력 복구 중... (${scope})`);
-    try {
-      const url = `/api/db/restore/call-history?repoName=${encodeURIComponent(repoName)}`;
-      const res = await adminFetch(url, { method:'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '복구 실패');
-      document.getElementById('restoreResult').innerHTML =
-        `<span style="color:var(--success);">✓ 호출이력 ${data.restored.toLocaleString()}건 복구 완료 (${scope})</span>`;
-      showToast(`호출이력 ${data.restored.toLocaleString()}건 복구 완료`, 'success');
-    } catch(e) {
-      document.getElementById('restoreResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '복구 실패', 'error');
-    } finally { hideDelProgress(); }
+    await _runRepoOp({
+      selId: 'restoreRepoSelect', resultElId: 'restoreResult', method: 'POST', countKey: 'restored',
+      label: '호출이력 복구',
+      confirmMsg: (s) => `${s}의 호출이력을 백업본으로 복구하시겠습니까?\n현재 데이터가 백업본으로 교체됩니다. 되돌릴 수 없습니다.`,
+      loadingMsg: (s) => `호출이력 복구 중... (${s})`,
+      apiUrl: (name) => `/api/db/restore/call-history?repoName=${encodeURIComponent(name)}`
+    });
   }
 
   async function verifyPwPrompt() {
@@ -2536,43 +2532,23 @@ function updateAdminBadge(valid) {
   }
 
   async function deleteAnalysisData() {
-    const repoName = document.getElementById('delRepoSelect').value;
-    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!await customConfirm(`${scope}의 분석데이터(api_record)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress(`분석데이터 삭제 중... (${scope})`);
-    try {
-      const url = `/api/db/delete-all?repoName=${encodeURIComponent(repoName)}`;
-      const res = await adminFetch(url, { method:'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '삭제 실패');
-      document.getElementById('delResult').innerHTML =
-        `<span style="color:var(--success);">✓ 분석데이터 ${data.deleted}건 삭제 완료 (${scope})</span>`;
-      showToast(`분석데이터 ${data.deleted}건 삭제 완료`, 'success');
-    } catch(e) {
-      document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '삭제 실패', 'error');
-    } finally { hideDelProgress(); }
+    await _runRepoOp({
+      selId: 'delRepoSelect', resultElId: 'delResult', method: 'DELETE', countKey: 'deleted',
+      label: '분석데이터 삭제',
+      confirmMsg: (s) => `${s}의 분석데이터(api_record)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+      loadingMsg: (s) => `분석데이터 삭제 중... (${s})`,
+      apiUrl: (name) => `/api/db/delete-all?repoName=${encodeURIComponent(name)}`
+    });
   }
 
   async function deleteCallHistoryData() {
-    const repoName = document.getElementById('delRepoSelect').value;
-    const scope = repoName === 'ALL' ? '전체 레포' : `"${repoName}"`;
-    if (!await customConfirm(`${scope}의 호출이력(apm_call_data)을 삭제하시겠습니까?\nMOCK/WHATAP/JENNIFER 모두 포함됩니다.\n이 작업은 되돌릴 수 없습니다.`)) return;
-    if (!await verifyPwPrompt()) return;
-    showDelProgress(`호출이력 삭제 중... (${scope})`);
-    try {
-      const url = `/api/apm/data?repoName=${encodeURIComponent(repoName)}&source=ALL`;
-      const res = await adminFetch(url, { method:'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '삭제 실패');
-      document.getElementById('delResult').innerHTML =
-        `<span style="color:var(--success);">✓ 호출이력 ${data.deleted}건 삭제 완료 (${scope})</span>`;
-      showToast(`호출이력 ${data.deleted}건 삭제 완료`, 'success');
-    } catch(e) {
-      document.getElementById('delResult').innerHTML = `<span style="color:var(--danger);">${esc(e.message)}</span>`;
-      showToast(e.message || '삭제 실패', 'error');
-    } finally { hideDelProgress(); }
+    await _runRepoOp({
+      selId: 'delRepoSelect', resultElId: 'delResult', method: 'DELETE', countKey: 'deleted',
+      label: '호출이력 삭제',
+      confirmMsg: (s) => `${s}의 호출이력(apm_call_data)을 삭제하시겠습니까?\nMOCK/WHATAP/JENNIFER 모두 포함됩니다.\n이 작업은 되돌릴 수 없습니다.`,
+      loadingMsg: (s) => `호출이력 삭제 중... (${s})`,
+      apiUrl: (name) => `/api/apm/data?repoName=${encodeURIComponent(name)}&source=ALL`
+    });
   }
 
   // ── DB 모니터링 ──────────────────────────────────────────
@@ -3156,5 +3132,6 @@ function updateAdminBadge(valid) {
 <!-- 공통 네비게이션 (대영역·하위메뉴·관리자 인증 인디케이터) -->
 <script src="/common/auth.js"></script>
 <script src="/common/nav.js"></script>
+<script src="/common/repo-select.js"></script>
 </body>
 </html>

@@ -588,27 +588,6 @@ function updateAdminBadge(valid) {
     </div>
   </div>
 
-  <!-- APM 호출이력 아카이브 (배치/관리 탭에 포함) -->
-  <div class="card" style="border:1px solid #fcd34d;">
-    <div class="card-title" style="margin-bottom:12px;">
-      <span class="dot" style="background:#d97706;"></span>APM 호출이력 아카이브 (장기 보존)
-      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">지정 기간 이전 데이터를 CSV로 백업 후 DB에서 제거합니다.</span>
-    </div>
-    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-      <label class="field" style="min-width:140px;">유지 기간 (일)
-        <input id="archKeepDays" type="number" min="30" value="365" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-        <span class="field-hint">기본 365 (1년)</span>
-      </label>
-      <button class="btn btn-ghost" style="height:34px;" onclick="runArchive(true)">대상 건수 확인</button>
-      <button class="btn" style="background:#d97706;color:#fff;height:34px;" onclick="runArchive(false)">📦 CSV 백업 + 삭제</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="loadArchiveList()">아카이브 목록</button>
-    </div>
-    <div id="archResult" style="margin-top:8px;font-size:12px;"></div>
-    <div id="archList" style="margin-top:10px;"></div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
-      파일 저장 위치: <code>./data/archive/apm_call_data_before_YYYY-MM-DD_archived_YYYY-MM-DD.csv</code>
-    </div>
-  </div>
 </section>
 
 <!-- ═══ 📊 데이터관리 (DB모니터링 + 데이터삭제) ═══ -->
@@ -696,6 +675,28 @@ function updateAdminBadge(valid) {
   </div>
 
   <div style="border-top:2px solid var(--border);margin:20px 0;"></div>
+
+  <!-- APM 호출이력 아카이브 -->
+  <div class="card" style="border:1px solid #fcd34d;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#d97706;"></span>APM 호출이력 아카이브 (장기 보존)
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">지정 기간 이전 데이터를 CSV로 백업 후 DB에서 제거합니다.</span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <label class="field" style="min-width:140px;">유지 기간 (일)
+        <input id="archKeepDays" type="number" min="30" value="365" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+        <span class="field-hint">기본 365 (1년)</span>
+      </label>
+      <button class="btn btn-ghost" style="height:34px;" onclick="runArchive(true)">대상 건수 확인</button>
+      <button class="btn" style="background:#d97706;color:#fff;height:34px;" onclick="runArchive(false)">📦 CSV 백업 + 삭제</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="loadArchiveList()">아카이브 목록</button>
+    </div>
+    <div id="archResult" style="margin-top:8px;font-size:12px;"></div>
+    <div id="archList" style="margin-top:10px;"></div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+      파일 저장 위치: <code>./data/archive/apm_call_data_before_YYYY-MM-DD_archived_YYYY-MM-DD.csv</code>
+    </div>
+  </div>
 
 </section>
 

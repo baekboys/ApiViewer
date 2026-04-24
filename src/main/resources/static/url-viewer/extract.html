@@ -516,7 +516,7 @@
       const mockSel = document.getElementById('mockRepoSelect');
       const mockAnSel = document.getElementById('mockAnRepoSelect');
       allRepos.forEach(r => {
-        const label = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
+        const label = r.businessName ? `${r.businessName} | ${r.repoName}` : r.repoName;
         const opt = document.createElement('option');
         opt.value = r.id;
         opt.textContent = label;

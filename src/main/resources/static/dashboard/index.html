@@ -535,7 +535,7 @@
       repos.forEach(r => {
         const opt = document.createElement('option');
         opt.value = r.repoName;
-        opt.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
+        opt.textContent = r.businessName ? `${r.businessName} | ${r.repoName}` : r.repoName;
         sel.appendChild(opt);
       });
       if (repos.length > 0) { sel.selectedIndex = 1; loadTopApisByRepo(); }

@@ -120,6 +120,7 @@
   <meta name="nav-segment" content="url-viewer">
   <meta name="nav-page" content="block-monitor">
   <link rel="stylesheet" href="/common/nav.css">
+  <link rel="stylesheet" href="/common/repo-select.css">
   <script src="/exceljs.min.js"></script>
   <script src="/js/dialog.js"></script>
   <script src="/js/darkmode.js"></script>
@@ -134,10 +135,8 @@
 
     <!-- Row 1: 레포지토리 | 기간 | 빠른선택 -->
     <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
-      <div class="field" style="min-width:200px;">레포지토리
-        <select id="fRepo" onchange="onRepoChange()">
-          <option value="">(전체 활성 레포)</option>
-        </select>
+      <div class="field" style="min-width:220px;">업무명 | 레포지토리
+        <div id="fRepo"></div>
       </div>
       <div class="field">
         기간
@@ -250,7 +249,7 @@
   let currentPage = 0;
   let excludeBot = true;
   let reposCache = [];
-  let selectedRepo = '';
+  let selectedRepos = [];   // 다중 선택 (빈 배열 = 전체)
   /** 현재 데이터 소스: 'WHATAP' | 'JENNIFER' | 'MIXED' | null */
   let detectedSource = null;
 
@@ -375,16 +374,25 @@
 
   async function loadRepos(){
     try {
-      const res = await fetch('/api/url-block-monitor/repos');
-      if (!res.ok) throw new Error('레포 목록 로드 실패');
-      reposCache = await res.json();
-      const sel = document.getElementById('fRepo');
-      reposCache.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r.repoName;
-        const srcBadge = r.source === 'JENNIFER' ? ' [Jennifer]' : ' [Whatap]';
-        opt.textContent = r.repoName + srcBadge;
-        sel.appendChild(opt);
+      const [monRes, cfgRes] = await Promise.all([
+        fetch('/api/url-block-monitor/repos'),
+        fetch('/api/config/repos')
+      ]);
+      if (!monRes.ok) throw new Error('레포 목록 로드 실패');
+      reposCache = await monRes.json();
+      let cfgList = [];
+      try { cfgList = cfgRes.ok ? await cfgRes.json() : []; } catch(e){}
+      const cfgByName = {};
+      cfgList.forEach(c => { cfgByName[c.repoName] = c; });
+      // repoName/businessName/source 통합 — businessName 은 /api/config/repos 에서 보강
+      const enriched = reposCache.map(r => ({
+        repoName: r.repoName,
+        businessName: (cfgByName[r.repoName] && cfgByName[r.repoName].businessName) || '',
+        source: r.source
+      }));
+      window._fRepoSel = RepoSelect.mountCompact('#fRepo', {
+        repos: enriched, selected: [], placeholder: '(전체 활성 레포)',
+        onChange: (arr) => { selectedRepos = arr || []; onRepoChange(); }
       });
       onRepoChange();
     } catch(e) {
@@ -393,9 +401,8 @@
   }
 
   function onRepoChange(){
-    selectedRepo = document.getElementById('fRepo').value;
     // 레포 선택 즉시 헤더·요약 레이블 미리 갱신
-    detectedSource = selectedRepoSource(); // 전체 선택 시 null → 와탭 기본 헤더
+    detectedSource = selectedRepoSource(); // 전체/복수 선택 시 null or 'MIXED'
     renderTableHeader();
     updateSummaryLabels();
     // 기존 조회 데이터가 있으면 초기화 (다른 레포 데이터가 남지 않도록)
@@ -408,10 +415,10 @@
     }
   }
 
-  /** 선택된 레포의 소스 타입 반환. 미선택(전체)이면 null */
+  /** 선택된 레포의 소스 타입 반환. 미선택(전체)/복수 선택이면 null(→전체/MIXED). */
   function selectedRepoSource(){
-    if (!selectedRepo) return null;
-    const repo = reposCache.find(r => r.repoName === selectedRepo);
+    if (!selectedRepos || selectedRepos.length !== 1) return null;
+    const repo = reposCache.find(r => r.repoName === selectedRepos[0]);
     return repo ? repo.source : null;
   }
 
@@ -434,7 +441,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          repoName: selectedRepo || null,
+          repoName: selectedRepos.length === 1 ? selectedRepos[0] : null,
+          repoNames: selectedRepos.length > 1 ? selectedRepos : null,
           okindNames: null,
           serviceLike: serviceLike || null,
           from, to,
@@ -644,5 +652,6 @@
 
 <script src="/common/auth.js"></script>
 <script src="/common/nav.js"></script>
+<script src="/common/repo-select.js"></script>
 </body>
 </html>

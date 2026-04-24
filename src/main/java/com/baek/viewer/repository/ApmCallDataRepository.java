@@ -146,6 +146,25 @@ public interface ApmCallDataRepository extends JpaRepository<ApmCallData, Long> 
             @Param("repo") String repo, @Param("q") String q,
             org.springframework.data.domain.Pageable pageable);
 
+    /** aggregateByPeriod 의 복수 레포 변형 — repoList 가 비어있지 않을 때만 사용. */
+    @Query(value = "SELECT a.repositoryName, a.apiPath, " +
+           "SUM(a.callCount), SUM(a.errorCount) " +
+           "FROM ApmCallData a " +
+           "WHERE a.callDate BETWEEN :from AND :to " +
+           "  AND a.repositoryName IN (:repos) " +
+           "  AND (:q IS NULL OR LOWER(CAST(a.apiPath AS string)) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))) " +
+           "GROUP BY a.repositoryName, a.apiPath " +
+           "ORDER BY SUM(a.callCount) DESC",
+           countQuery = "SELECT COUNT(DISTINCT CONCAT(a.repositoryName, '|', CAST(a.apiPath AS string))) " +
+           "FROM ApmCallData a " +
+           "WHERE a.callDate BETWEEN :from AND :to " +
+           "  AND a.repositoryName IN (:repos) " +
+           "  AND (:q IS NULL OR LOWER(CAST(a.apiPath AS string)) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%')))")
+    org.springframework.data.domain.Page<Object[]> aggregateByPeriodIn(
+            @Param("from") LocalDate from, @Param("to") LocalDate to,
+            @Param("repos") java.util.Collection<String> repos, @Param("q") String q,
+            org.springframework.data.domain.Pageable pageable);
+
     /** 단일 URL의 일별 세부 데이터 (상세보기용) */
     @Query("SELECT a.callDate, a.source, SUM(a.callCount), SUM(a.errorCount) " +
            "FROM ApmCallData a " +

@@ -58,23 +58,40 @@ public class UrlBlockMonitorController {
      */
     @PostMapping("/search")
     public ResponseEntity<?> search(@RequestBody SearchReq req) {
-        log.info("[URL차단모니터] POST /search repoName={} from={} to={} excludeBot={} okindNames={} serviceLike={}",
-                req.repoName, req.from, req.to, req.excludeBot, req.okindNames, req.serviceLike);
+        log.info("[URL차단모니터] POST /search repoName={} repoNames={} from={} to={} excludeBot={} okindNames={} serviceLike={}",
+                req.repoName, req.repoNames, req.from, req.to, req.excludeBot, req.okindNames, req.serviceLike);
         try {
             LocalDate from = LocalDate.parse(req.from);
             LocalDate to = LocalDate.parse(req.to);
 
+            // 다중 레포 지정 우선 — 지정되지 않으면 단일 repoName, 그것도 비면 전체 활성 레포
+            List<String> targetRepos = (req.repoNames != null && !req.repoNames.isEmpty())
+                    ? req.repoNames
+                    : (req.repoName != null && !req.repoName.isBlank()
+                            ? List.of(req.repoName)
+                            : List.of());
+
             List<BlockedTxRow> rows = new ArrayList<>();
 
-            // 와탭 — whatapEnabled=Y 레포에 대해서만 동작
-            rows.addAll(txService.search(
-                    req.repoName, req.okindNames, req.serviceLike, from, to,
-                    req.excludeBot, req.extraBotKeywords));
-
-            // Jennifer — jenniferEnabled=Y 레포에 대해서만 동작
-            rows.addAll(jenniferService.search(
-                    req.repoName, req.serviceLike, from, to,
-                    req.excludeBot, req.extraBotKeywords));
+            if (targetRepos.isEmpty()) {
+                // 전체 활성 레포 — 기존 동작 유지
+                rows.addAll(txService.search(
+                        null, req.okindNames, req.serviceLike, from, to,
+                        req.excludeBot, req.extraBotKeywords));
+                rows.addAll(jenniferService.search(
+                        null, req.serviceLike, from, to,
+                        req.excludeBot, req.extraBotKeywords));
+            } else {
+                // 지정 레포들 순회 — 각 서비스는 담당 아닌 레포를 자동 스킵
+                for (String name : targetRepos) {
+                    rows.addAll(txService.search(
+                            name, req.okindNames, req.serviceLike, from, to,
+                            req.excludeBot, req.extraBotKeywords));
+                    rows.addAll(jenniferService.search(
+                            name, req.serviceLike, from, to,
+                            req.excludeBot, req.extraBotKeywords));
+                }
+            }
 
             // 최신순 정렬
             rows.sort((a, b) -> {
@@ -97,7 +114,8 @@ public class UrlBlockMonitorController {
     }
 
     public static class SearchReq {
-        public String repoName;
+        public String repoName;           // 하위호환 (단일)
+        public List<String> repoNames;    // 신규 (다중)
         public List<String> okindNames;
         public String serviceLike;
         public String from;

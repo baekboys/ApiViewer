@@ -1,0 +1,124 @@
+/* ═══════════════════════════════════════════════════════════════
+ * 공용 레포지토리 선택 컴포넌트 CSS
+ * - .repo-select: mount container 공통
+ * - .repo-select--compact: 사용자 페이지용 (버튼 + 드롭다운)
+ * - .repo-select--large:   관리자 페이지용 (카드 그리드)
+ * ═══════════════════════════════════════════════════════════════ */
+
+.repo-select { position: relative; display: inline-block; }
+.repo-select--compact { min-width: 200px; }
+.repo-select--large   { display: block; }
+
+.rs-trigger {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg, #fff);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 180px;
+  justify-content: space-between;
+  transition: border-color .15s;
+}
+.rs-trigger:hover { border-color: var(--text-muted); }
+.rs-trigger-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-trigger-caret { color: var(--text-muted); font-size: 10px; }
+
+.rs-panel {
+  display: none;
+  position: absolute; z-index: 1000;
+  top: 100%; left: 0;
+  margin-top: 4px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  min-width: 240px; max-width: 380px;
+  max-height: 340px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.rs-panel.is-open { display: flex; }
+.rs-panel-actions {
+  display: flex; gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.rs-panel-actions .rs-all,
+.rs-panel-actions .rs-none,
+.rs-large-header .rs-all,
+.rs-large-header .rs-none {
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.rs-panel-actions .rs-all:hover,
+.rs-panel-actions .rs-none:hover,
+.rs-large-header .rs-all:hover,
+.rs-large-header .rs-none:hover {
+  background: var(--bg-muted, #f1f5f9);
+}
+
+.rs-list { flex: 1; overflow-y: auto; padding: 4px; }
+.rs-list-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+.rs-list-item:hover { background: var(--bg-muted, #f1f5f9); }
+.rs-list-item input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; }
+.rs-list-item .rs-label {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.rs-empty { padding: 10px; font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* Large variant */
+.rs-large-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.rs-large-header .rs-summary { margin-right: auto; }
+.rs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg, #fff);
+}
+.rs-grid-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background .15s, border-color .15s;
+}
+.rs-grid-item:hover {
+  background: var(--bg-muted, #f8fafc);
+  border-color: var(--text-muted);
+}
+.rs-grid-item input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; }
+.rs-grid-item .rs-label {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600;
+}

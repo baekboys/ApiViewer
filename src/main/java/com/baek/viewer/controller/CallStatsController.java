@@ -44,6 +44,14 @@ public class CallStatsController {
         try { return LocalDate.parse(s); } catch (Exception e) { return def; }
     }
 
+    /** CSV 형식 repos 파라미터 파싱 (null/blank → 빈 리스트). */
+    private List<String> parseRepos(String csv) {
+        if (csv == null || csv.isBlank()) return List.of();
+        return Arrays.stream(csv.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty())
+                .distinct().toList();
+    }
+
     /**
      * 대시보드 — apm_url_stat 집계 테이블 기반.
      * 6개 기간: yesterday / week / month / 3month / 6month / year
@@ -52,12 +60,19 @@ public class CallStatsController {
     @GetMapping("/dashboard")
     public ResponseEntity<?> dashboard(@RequestParam(defaultValue = "month") String period,
                                         @RequestParam(required = false) String repo,
+                                        @RequestParam(required = false) String repos,
                                         @RequestParam(defaultValue = "10") int topN) {
-        log.info("[대시보드] 기간={}, repo={}", period, repo);
+        log.info("[대시보드] 기간={}, repo={}, repos={}", period, repo, repos);
 
-        List<ApmUrlStat> stats = (repo != null && !repo.isBlank())
-                ? apmUrlStatRepo.findByRepositoryName(repo)
-                : apmUrlStatRepo.findAll();
+        List<String> repoList = parseRepos(repos);
+        List<ApmUrlStat> stats;
+        if (!repoList.isEmpty()) {
+            stats = apmUrlStatRepo.findByRepositoryNameIn(repoList);
+        } else if (repo != null && !repo.isBlank()) {
+            stats = apmUrlStatRepo.findByRepositoryName(repo);
+        } else {
+            stats = apmUrlStatRepo.findAll();
+        }
 
         Function<ApmUrlStat, Long> callFn = switch (period) {
             case "yesterday" -> ApmUrlStat::getCallCountYesterday;
@@ -139,19 +154,23 @@ public class CallStatsController {
     public ResponseEntity<?> apis(@RequestParam(required = false) String from,
                                    @RequestParam(required = false) String to,
                                    @RequestParam(required = false) String repo,
+                                   @RequestParam(required = false) String repos,
                                    @RequestParam(required = false) String q,
                                    @RequestParam(defaultValue = "0") int page,
                                    @RequestParam(defaultValue = "200") int size) {
         LocalDate toDate   = parse(to,   LocalDate.now());
         LocalDate fromDate = parse(from,  toDate.minusDays(30));
+        List<String> repoList = parseRepos(repos);
         String repoArg = (repo != null && !repo.isBlank()) ? repo : null;
         String qArg    = (q    != null && !q.isBlank())    ? q    : null;
         int pageNum  = Math.max(0, page);
         int pageSize = Math.min(500, Math.max(1, size));
-        log.info("[URL 조회] from={}, to={}, repo={}, q={}, page={}", fromDate, toDate, repoArg, qArg, pageNum);
+        log.info("[URL 조회] from={}, to={}, repo={}, repos={}, q={}, page={}", fromDate, toDate, repoArg, repoList, qArg, pageNum);
 
         Pageable pageable = PageRequest.of(pageNum, pageSize);
-        Page<Object[]> pageResult = apmRepo.aggregateByPeriod(fromDate, toDate, repoArg, qArg, pageable);
+        Page<Object[]> pageResult = !repoList.isEmpty()
+                ? apmRepo.aggregateByPeriodIn(fromDate, toDate, repoList, qArg, pageable)
+                : apmRepo.aggregateByPeriod(fromDate, toDate, repoArg, qArg, pageable);
 
         List<Map<String, Object>> items = new ArrayList<>();
         for (Object[] row : pageResult.getContent()) {

@@ -14,6 +14,9 @@ public interface ApmUrlStatRepository extends JpaRepository<ApmUrlStat, Long> {
     /** 레포별 전체 조회 (대시보드 in-memory 집계용) */
     java.util.List<ApmUrlStat> findByRepositoryName(String repositoryName);
 
+    /** 복수 레포 IN 조회 (대시보드 다중 필터 지원). 빈 컬렉션 주입 시 빈 결과 — 호출 측에서 가드. */
+    java.util.List<ApmUrlStat> findByRepositoryNameIn(java.util.Collection<String> repositoryNames);
+
     /** 레포 전체 삭제 (집계 갱신 시 delete + insert 패턴) */
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)

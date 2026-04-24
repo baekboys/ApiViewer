@@ -171,6 +171,7 @@
   <meta name="nav-segment" content="url-viewer">
   <meta name="nav-page" content="call-stats">
   <link rel="stylesheet" href="/common/nav.css">
+  <link rel="stylesheet" href="/common/repo-select.css">
   <script src="/exceljs.min.js"></script>
   <script src="/js/dialog.js"></script>
   <script src="/js/darkmode.js"></script>
@@ -188,10 +189,8 @@
   <!-- 기간 선택 + 레포 필터 -->
   <div class="card" style="padding-bottom:10px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <label class="field" style="margin-top:0;">레포지토리
-        <select id="dashRepoSelect" style="min-width:160px;" onchange="loadDashboard()">
-          <option value="">(전체)</option>
-        </select>
+      <label class="field" style="margin-top:0;">업무명 | 레포지토리
+        <div id="dashRepoSelect"></div>
       </label>
       <div class="filter-bar" style="margin:0;">
         <span style="font-size:10px;color:var(--text-muted);font-weight:600;">기간:</span>
@@ -269,10 +268,8 @@
   <!-- 조회 필터 -->
   <div class="card">
     <div class="filter-bar" style="margin-bottom:8px;">
-      <label class="field">레포지토리
-        <select id="queryRepoSelect" style="min-width:180px;">
-          <option value="">(전체 — URL 검색 권장)</option>
-        </select>
+      <label class="field">업무명 | 레포지토리
+        <div id="queryRepoSelect"></div>
       </label>
       <label class="field">시작일<input id="fromDate" type="date"></label>
       <label class="field">종료일<input id="toDate"   type="date"></label>
@@ -375,15 +372,13 @@
     try {
       const res = await fetch('/api/config/repos');
       const repos = await res.json();
-      [document.getElementById('dashRepoSelect'), document.getElementById('queryRepoSelect')]
-        .forEach(sel => {
-          repos.forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r.repoName;
-            opt.textContent = r.businessName ? `${r.repoName} | ${r.businessName}` : r.repoName;
-            sel.appendChild(opt);
-          });
-        });
+      window._dashRepoSel = RepoSelect.mountCompact('#dashRepoSelect', {
+        repos, selected: [], placeholder: '(전체)',
+        onChange: () => loadDashboard()
+      });
+      window._queryRepoSel = RepoSelect.mountCompact('#queryRepoSelect', {
+        repos, selected: [], placeholder: '(전체 — URL 검색 권장)'
+      });
     } catch(e) {}
 
     // 대시보드 초기 로드
@@ -409,9 +404,10 @@
   }
 
   async function loadDashboard() {
-    const repo = document.getElementById('dashRepoSelect').value;
+    const selected = (window._dashRepoSel ? window._dashRepoSel.getSelected() : []) || [];
     const params = new URLSearchParams({ period: currentPeriod, topN: 10 });
-    if (repo) params.set('repo', repo);
+    if (selected.length === 1) params.set('repo', selected[0]);
+    else if (selected.length > 1) params.set('repos', selected.join(','));
 
     document.getElementById('dashCall').innerHTML = '<div class="spinner"></div>';
     document.getElementById('dashErr').innerHTML  = '<div class="spinner"></div>';
@@ -471,7 +467,7 @@
 
   // 레포별 행 클릭 → 하단 조회 레포 필터 세팅 + 스크롤
   function filterQueryByRepo(repoName) {
-    document.getElementById('queryRepoSelect').value = repoName;
+    if (window._queryRepoSel) window._queryRepoSel.setSelected([repoName]);
     document.getElementById('queryResultCard').scrollIntoView({ behavior:'smooth' });
   }
 
@@ -491,10 +487,10 @@
   }
 
   async function querySearch() {
-    const repo = document.getElementById('queryRepoSelect').value;
+    const selected = (window._queryRepoSel ? window._queryRepoSel.getSelected() : []) || [];
     const q    = document.getElementById('searchInput').value.trim();
     // 전체 레포 + URL 미입력 경고
-    if (!repo && !q) {
+    if (selected.length === 0 && !q) {
       const ok = await customConfirm(
         '레포지토리 미선택 + URL 미입력 상태에서 전체 조회를 실행합니다.\n' +
         '데이터 규모에 따라 수십 초 이상 소요될 수 있습니다.\n계속하시겠습니까?'
@@ -513,11 +509,12 @@
       const params = new URLSearchParams();
       const from = document.getElementById('fromDate').value;
       const to   = document.getElementById('toDate').value;
-      const repo = document.getElementById('queryRepoSelect').value;
+      const selected = (window._queryRepoSel ? window._queryRepoSel.getSelected() : []) || [];
       const q    = document.getElementById('searchInput').value.trim();
       if (from) params.set('from', from);
       if (to)   params.set('to',   to);
-      if (repo) params.set('repo', repo);
+      if (selected.length === 1) params.set('repo', selected[0]);
+      else if (selected.length > 1) params.set('repos', selected.join(','));
       if (q)    params.set('q',    q);
       params.set('page', currentPage);
       params.set('size', currentSize);
@@ -858,5 +855,6 @@
 
 <script src="/common/auth.js"></script>
 <script src="/common/nav.js"></script>
+<script src="/common/repo-select.js"></script>
 </body>
 </html>

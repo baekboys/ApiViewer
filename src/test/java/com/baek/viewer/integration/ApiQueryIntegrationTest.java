@@ -180,9 +180,38 @@ class ApiQueryIntegrationTest {
         MvcResult two = mockMvc.perform(get("/api/db/stats")
                         .param("repositories", REPO_A + "," + REPO_B))
                 .andExpect(status().isOk()).andReturn();
-        // 셋 다 200 OK 응답 + 비어있지 않음
         assertThat(body(all)).contains("\"total\"");
         assertThat(body(one)).contains("\"total\"");
         assertThat(body(two)).contains("\"total\"");
+    }
+
+    @Test
+    @DisplayName("상세조회 GET /api/db/record/{id} — 신규 leaf status + 모든 필드 응답")
+    void detailRecord_returnsAllFields() throws Exception {
+        // /b/2 = ①-④ 업무종료 — 상세 응답에 leaf 라벨, recentLogOnly, logWorkExcluded, statusChangeLog 포함
+        ApiRecord target = recordRepo.findByRepositoryNameAndApiPathAndHttpMethod(REPO_B, "/b/2", "GET").orElseThrow();
+        target.setStatusChangeLog("①-② 호출0건+변경없음 → ①-④ 업무종료 | 호출건수 0→5건 발생");
+        target.setStatusChanged(true);
+        target.setRecentLogOnly(false);
+        recordRepo.save(target);
+
+        MvcResult res = mockMvc.perform(get("/api/db/record/" + target.getId()))
+                .andExpect(status().isOk()).andReturn();
+        String b = body(res);
+        // 신규 leaf 라벨이 그대로 응답
+        assertThat(b).contains("①-④ 업무종료");
+        // statusChangeLog 가 응답에 포함 (상세 화면이 이력 렌더링에 사용)
+        assertThat(b).contains("호출건수 0→5건 발생");
+        // 보조 플래그 필드도 응답
+        assertThat(b).contains("\"recentLogOnly\"");
+        assertThat(b).contains("\"logWorkExcluded\"");
+        assertThat(b).contains("\"statusChanged\"");
+    }
+
+    @Test
+    @DisplayName("상세조회 — 존재하지 않는 ID 는 404")
+    void detailRecord_notFound() throws Exception {
+        mockMvc.perform(get("/api/db/record/9999999"))
+                .andExpect(status().isNotFound());
     }
 }

@@ -41,6 +41,7 @@ public interface ApiRecordSummary {
     LocalDate getDeployScheduledDate();
     String getDeployCsr();
     String getDeployManager();
+    Boolean getRecentLogOnly();
     String getReviewTeam();
     String getReviewManager();
     LocalDateTime getReviewedAt();

@@ -75,6 +75,16 @@ public class ApiRecord {
     @Column(name = "log_work_excluded")
     private Boolean logWorkExcluded = false;
 
+    /**
+     * 1년 미만 커밋이 모두 로그성("로그"/"불필요" 키워드)인지 여부.
+     * true → 보류 ④ 호출0+로그건 분류용 (status='검토필요대상' AND callCount=0 AND recentLogOnly=true).
+     * false → ⑤ 호출0+변경있음 (비-로그성 변경이 1건이라도 있음).
+     * 1년 경과(fullOld) 또는 git_history 비어있는 경우 false.
+     * 추출 시 자동 갱신. ApiStorageService 의 areAllCommitsOlderThanOneYear 와 동일한 키워드("로그"|"불필요") 사용.
+     */
+    @Column(name = "recent_log_only")
+    private Boolean recentLogOnly = false;
+
     /** 차단대상: 최우선 차단대상 / 후순위 차단대상 / null(미지정) — 수동 설정 전용 */
     @Column(name = "block_target", length = 30)
     private String blockTarget;
@@ -297,6 +307,9 @@ public class ApiRecord {
     public boolean isLogWorkExcluded() { return logWorkExcluded != null && logWorkExcluded; }
     public Boolean getLogWorkExcluded() { return logWorkExcluded; }
     public void setLogWorkExcluded(boolean logWorkExcluded) { this.logWorkExcluded = logWorkExcluded; }
+    public boolean isRecentLogOnly() { return Boolean.TRUE.equals(recentLogOnly); }
+    public Boolean getRecentLogOnly() { return recentLogOnly; }
+    public void setRecentLogOnly(boolean v) { this.recentLogOnly = v; }
     public Long getCallCount() { return callCount; }
     public void setCallCount(Long callCount) { this.callCount = callCount; }
     public Long getCallCountMonth() { return callCountMonth; }

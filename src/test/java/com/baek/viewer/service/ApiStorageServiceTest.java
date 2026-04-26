@@ -135,6 +135,47 @@ class ApiStorageServiceTest {
         assertThat(status).isEqualTo("검토필요대상");
     }
 
+    @Test
+    @DisplayName("calculateStatus(threshold=3, upper=10) — 호출 5건 + 1년 경과 → 검토필요대상 (보류 ⑦ 분류)")
+    void calculateStatus_callBetweenThresholdAndUpper() {
+        ApiRecord r = new ApiRecord();
+        r.setCallCount(5L);
+        LocalDate oldDate = LocalDate.now().minusYears(2);
+        r.setGitHistory("[{\"date\":\"" + oldDate + "\",\"author\":\"a\",\"message\":\"m\"}]");
+
+        String status = service.calculateStatus(r, 3, 10);
+        assertThat(status).isEqualTo("검토필요대상");
+    }
+
+    @Test
+    @DisplayName("calculateStatus — 호출 0건 + 1년 미만 + 모든 커밋 로그성 → recentLogOnly=true")
+    void calculateStatus_recentLogOnlyTrue() {
+        ApiRecord r = new ApiRecord();
+        r.setCallCount(0L);
+        LocalDate recent = LocalDate.now().minusMonths(6);
+        // 1년 미만 커밋 2건 모두 "로그" 키워드 포함 → recentLogOnly=true
+        r.setGitHistory("[{\"date\":\"" + recent + "\",\"author\":\"a\",\"message\":\"침해사고 로그 패치\"},"
+                + "{\"date\":\"" + recent + "\",\"author\":\"b\",\"message\":\"불필요 코드 정리\"}]");
+
+        String status = service.calculateStatus(r, 3);
+        assertThat(status).isEqualTo("검토필요대상");
+        assertThat(r.isRecentLogOnly()).isTrue();
+    }
+
+    @Test
+    @DisplayName("calculateStatus — 호출 0건 + 1년 미만 + 비-로그성 커밋 1건 → recentLogOnly=false")
+    void calculateStatus_recentLogOnlyFalseWhenAnyBizCommit() {
+        ApiRecord r = new ApiRecord();
+        r.setCallCount(0L);
+        LocalDate recent = LocalDate.now().minusMonths(6);
+        r.setGitHistory("[{\"date\":\"" + recent + "\",\"author\":\"a\",\"message\":\"기능 추가\"},"
+                + "{\"date\":\"" + recent + "\",\"author\":\"b\",\"message\":\"로그 추가\"}]");
+
+        String status = service.calculateStatus(r, 3);
+        assertThat(status).isEqualTo("검토필요대상");
+        assertThat(r.isRecentLogOnly()).isFalse();
+    }
+
     // ═══════════════════ save ═══════════════════
 
     @Test

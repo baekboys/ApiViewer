@@ -4,7 +4,9 @@ import com.baek.viewer.model.ApiInfo;
 import com.baek.viewer.model.ApiRecord;
 import com.baek.viewer.model.ApiRecordStatsDto;
 import com.baek.viewer.model.ApiRecordSummary;
+import com.baek.viewer.model.BlockOverviewDto;
 import com.baek.viewer.model.DeployScheduleDto;
+import com.baek.viewer.model.GlobalConfig;
 import com.baek.viewer.model.ExtractRequest;
 import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.model.WhatapRequest;
@@ -193,6 +195,7 @@ public class ApiViewController {
                                      @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly,
                                      @RequestParam(required = false) String status,
                                      @RequestParam(required = false) Boolean logWorkExcluded,
+                                     @RequestParam(required = false) Boolean recentLogOnly,
                                      @RequestParam(required = false) String httpMethod,
                                      @RequestParam(required = false) String isDeprecated,
                                      @RequestParam(required = false) String q,
@@ -223,6 +226,7 @@ public class ApiViewController {
         // 동적 필터가 하나라도 있으면 Specification 경로 사용
         boolean hasDynamicFilter = (status != null && !status.isBlank())
                 || (logWorkExcluded != null)
+                || (recentLogOnly != null)
                 || (httpMethod != null && !httpMethod.isBlank())
                 || (isDeprecated != null && !isDeprecated.isBlank())
                 || (q != null && !q.isBlank())
@@ -244,7 +248,7 @@ public class ApiViewController {
             Pageable pageable = PageRequest.of(pageIdx, pageSize, sortSpec);
 
             Specification<ApiRecord> spec = buildSpec(repository, repoList, blockTargetOnly,
-                    status, logWorkExcluded, httpMethod, isDeprecated, q, alert, ids,
+                    status, logWorkExcluded, recentLogOnly, httpMethod, isDeprecated, q, alert, ids,
                     modifiedFrom, modifiedTo, cboFrom, cboTo, deployFrom, deployTo, deployManager);
 
             Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
@@ -340,7 +344,7 @@ public class ApiViewController {
 
     /** 동적 필터 Specification 빌더 */
     private Specification<ApiRecord> buildSpec(String repository, List<String> repoList, boolean blockTargetOnly,
-                                                String status, Boolean logWorkExcluded,
+                                                String status, Boolean logWorkExcluded, Boolean recentLogOnly,
                                                 String httpMethod, String isDeprecated, String q, String alert,
                                                 String ids, String modifiedFrom, String modifiedTo,
                                                 String cboFrom, String cboTo,
@@ -368,6 +372,15 @@ public class ApiViewController {
                     ps.add(cb.or(
                             cb.isNull(root.get("logWorkExcluded")),
                             cb.isFalse(root.get("logWorkExcluded"))));
+                }
+            }
+            if (recentLogOnly != null) {
+                if (recentLogOnly) {
+                    ps.add(cb.isTrue(root.get("recentLogOnly")));
+                } else {
+                    ps.add(cb.or(
+                            cb.isNull(root.get("recentLogOnly")),
+                            cb.isFalse(root.get("recentLogOnly"))));
                 }
             }
             if (httpMethod != null && !httpMethod.isBlank()) {
@@ -461,6 +474,7 @@ public class ApiViewController {
         m.put("status",             r.getStatus());
         m.put("statusOverridden",   r.isStatusOverridden());
         m.put("logWorkExcluded",    r.isLogWorkExcluded());
+        m.put("recentLogOnly",      r.isRecentLogOnly());
         m.put("blockTarget",        r.getBlockTarget());
         m.put("blockCriteria",      r.getBlockCriteria());
         m.put("callCount",          r.getCallCount());
@@ -1169,6 +1183,178 @@ public class ApiViewController {
 
         log.info("[배포일자 통계] 건수={}, 일자수={}, 소요={}ms",
                 all.size(), dateColumns.size(), System.currentTimeMillis() - start);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 차단대상 진행사항 대시보드 — 사용/차단/보류 3-tier × 13컬럼 그룹별 집계.
+     *
+     * 컬럼 정의:
+     *   사용: status='사용' AND reviewResult <> '차단대상 제외'
+     *   차단:
+     *     A. 차단완료: status='차단완료'
+     *     B-① 호출0+변경없음: status='최우선 차단대상' AND logWorkExcluded=false
+     *     B-② 호출0+변경있음(로그): status='최우선 차단대상' AND logWorkExcluded=true
+     *     B-③ 업무종료: status='후순위 차단대상'
+     *     C-1 현업요청 차단제외: reviewResult='차단대상 제외'
+     *     C-2 사용으로 변경: status='차단대상 → 사용'
+     *   보류:
+     *     ④ 호출0+로그건: status='검토필요대상' AND callCount=0 AND recentLogOnly=true
+     *     ⑤ 호출0+변경있음: status='검토필요대상' AND callCount=0 AND recentLogOnly=false
+     *     ⑥ 호출 1~reviewThreshold: status='검토필요대상' AND callCount BETWEEN 1 AND threshold
+     *     ⑦ 호출 threshold+1~upper: status='검토필요대상' AND callCount > threshold
+     *     사용으로 변경: status='검토필요 → 사용'
+     */
+    @GetMapping("/db/stats/block-overview")
+    public ResponseEntity<?> dbBlockOverview() {
+        long start = System.currentTimeMillis();
+        int reviewThreshold = globalConfigRepository.findById(1L)
+                .map(GlobalConfig::getReviewThreshold).orElse(3);
+
+        List<BlockOverviewDto> all = recordRepository.findForBlockOverview();
+
+        Map<String, RepoConfig> repoConfigMap = repoConfigRepository.findAll().stream()
+                .collect(Collectors.toMap(RepoConfig::getRepoName, r -> r, (a, b) -> a));
+        Map<String, List<Map<String, String>>> mappingCache = new HashMap<>();
+        for (RepoConfig cfg : repoConfigMap.values()) {
+            mappingCache.put(cfg.getRepoName(), parseManagerMappings(cfg.getManagerMappings()));
+        }
+
+        java.util.function.Function<BlockOverviewDto, String> teamOf = r -> {
+            if (r.getTeamOverride() != null && !r.getTeamOverride().isBlank()) return r.getTeamOverride();
+            RepoConfig c = repoConfigMap.get(r.getRepositoryName());
+            return (c != null && c.getTeamName() != null && !c.getTeamName().isBlank()) ? c.getTeamName() : "(팀 미지정)";
+        };
+        java.util.function.Function<BlockOverviewDto, String> managerOf = r -> {
+            RepoConfig c = repoConfigMap.get(r.getRepositoryName());
+            List<Map<String, String>> mappings = mappingCache.getOrDefault(r.getRepositoryName(), List.of());
+            return resolveManager(r.getManagerOverride(), r.getApiPath(), c, mappings);
+        };
+
+        // 그룹 키별 13컬럼 카운터 누적 헬퍼 (Map<key, int[13]>)
+        java.util.function.BiFunction<java.util.function.Function<BlockOverviewDto, String>,
+                List<BlockOverviewDto>, Map<String, long[]>> aggregate = (keyFn, recs) -> {
+            Map<String, long[]> acc = new LinkedHashMap<>();
+            for (BlockOverviewDto r : recs) {
+                long[] c = acc.computeIfAbsent(keyFn.apply(r), k -> new long[13]);
+                String s = r.getStatus();
+                String rev = r.getReviewResult();
+                long call = r.getCallCountValue();
+                boolean reviewExcluded = "차단대상 제외".equals(rev);
+
+                // 0: 사용
+                if ("사용".equals(s) && !reviewExcluded) c[0]++;
+                // 1: A. 차단완료
+                else if ("차단완료".equals(s)) c[1]++;
+                // 2: B-① 호출0+변경없음 (최우선, logWorkExcluded=false)
+                else if ("최우선 차단대상".equals(s) && !r.isLogWorkExcluded()) c[2]++;
+                // 3: B-② 호출0+변경있음(로그) (최우선, logWorkExcluded=true)
+                else if ("최우선 차단대상".equals(s) && r.isLogWorkExcluded()) c[3]++;
+                // 4: B-③ 업무종료 (후순위 차단대상)
+                else if ("후순위 차단대상".equals(s)) c[4]++;
+                // 6: C-2 사용으로 변경 (차단대상→사용 수동)
+                else if ("차단대상 → 사용".equals(s)) c[6]++;
+                // 7~10: 검토필요대상 분류
+                else if ("검토필요대상".equals(s)) {
+                    if (call == 0) {
+                        if (r.isRecentLogOnly()) c[7]++;     // ④ 호출0+로그건
+                        else c[8]++;                          // ⑤ 호출0+변경있음
+                    } else if (call <= reviewThreshold) c[9]++;  // ⑥ 호출 1~3
+                    else c[10]++;                                 // ⑦ 호출 4건이상
+                }
+                // 11: 검토필요 → 사용 (수동)
+                else if ("검토필요 → 사용".equals(s)) c[11]++;
+
+                // 5: C-1 현업요청 차단제외 (status 무관, reviewResult 매칭) — 사용 컬럼과 중복 방지 위해 사용 분기에서 이미 제외함
+                if (reviewExcluded) c[5]++;
+
+                // 12: 총합 (각 행의 grandTotal)
+                c[12]++;
+            }
+            return acc;
+        };
+
+        java.util.function.Function<Map.Entry<String, long[]>, Map<String, Object>> rowOf = e -> {
+            long[] c = e.getValue();
+            long blockTotal = c[1] + c[2] + c[3] + c[4] + c[5] + c[6];
+            long holdTotal  = c[7] + c[8] + c[9] + c[10] + c[11];
+            Map<String, Object> m = new LinkedHashMap<>();
+            // upper-tier counts
+            m.put("use",        c[0]);
+            m.put("blockTotal", blockTotal);
+            m.put("blockDone",  c[1]);
+            m.put("btTopPure",  c[2]);
+            m.put("btTopLog",  c[3]);
+            m.put("btLow",      c[4]);
+            m.put("exReview",   c[5]);
+            m.put("exManUse",   c[6]);
+            m.put("holdTotal",  holdTotal);
+            m.put("rev0Log",    c[7]);
+            m.put("rev0Chg",    c[8]);
+            m.put("revLow",     c[9]);
+            m.put("revHigh",    c[10]);
+            m.put("holdManUse", c[11]);
+            m.put("grandTotal", c[12]);
+            return m;
+        };
+
+        // 팀별
+        Map<String, long[]> teamAcc = aggregate.apply(teamOf, all);
+        List<Map<String, Object>> byTeam = teamAcc.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue()[12], a.getValue()[12]))
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("team", e.getKey());
+                    m.putAll(rowOf.apply(e));
+                    return m;
+                }).collect(Collectors.toList());
+
+        // 담당자별 (팀+담당자)
+        java.util.function.Function<BlockOverviewDto, String> mgrKey = r -> teamOf.apply(r) + "|" + managerOf.apply(r);
+        Map<String, long[]> mgrAcc = aggregate.apply(mgrKey, all);
+        List<Map<String, Object>> byManager = mgrAcc.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue()[12], a.getValue()[12]))
+                .map(e -> {
+                    String[] parts = e.getKey().split("\\|", 2);
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("team",    parts[0]);
+                    m.put("manager", parts.length > 1 ? parts[1] : "(미지정)");
+                    m.putAll(rowOf.apply(e));
+                    return m;
+                }).collect(Collectors.toList());
+
+        // 레포별 (팀+레포)
+        java.util.function.Function<BlockOverviewDto, String> repoKey = r -> teamOf.apply(r) + "|" + r.getRepositoryName();
+        Map<String, long[]> repoAcc = aggregate.apply(repoKey, all);
+        List<Map<String, Object>> byRepo = repoAcc.entrySet().stream()
+                .sorted((a, b) -> {
+                    String[] ka = a.getKey().split("\\|", 2);
+                    String[] kb = b.getKey().split("\\|", 2);
+                    int tc = ka[0].compareTo(kb[0]);
+                    return tc != 0 ? tc : Long.compare(b.getValue()[12], a.getValue()[12]);
+                })
+                .map(e -> {
+                    String[] parts = e.getKey().split("\\|", 2);
+                    String teamVal = parts[0];
+                    String repoName = parts[1];
+                    RepoConfig cfg = repoConfigMap.get(repoName);
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("team", teamVal);
+                    m.put("repo", repoName);
+                    m.put("businessName", cfg != null && cfg.getBusinessName() != null ? cfg.getBusinessName() : "-");
+                    m.putAll(rowOf.apply(e));
+                    return m;
+                }).collect(Collectors.toList());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("reviewThreshold", reviewThreshold);
+        result.put("byTeam",    byTeam);
+        result.put("byManager", byManager);
+        result.put("byRepo",    byRepo);
+        result.put("totalRecords", all.size());
+
+        log.info("[차단대상 진행사항] 건수={}, 팀={}, 담당자={}, 레포={}, 소요={}ms",
+                all.size(), byTeam.size(), byManager.size(), byRepo.size(), System.currentTimeMillis() - start);
         return ResponseEntity.ok(result);
     }
 

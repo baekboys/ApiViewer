@@ -703,6 +703,40 @@
         <div class="status-card-meta">담당자 수동 판단</div>
       </div>
     </div>
+
+    <!-- 4-2. 상위상태 3분류 + 세부 13컬럼 매핑 (대시보드 "차단대상 진행사항" 표 기준) -->
+    <div style="margin-top:18px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+      <div style="font-weight:700;font-size:13px;color:#1e293b;margin-bottom:10px;">📊 상위상태 3분류 ↔ 세부 13컬럼 매핑 (대시보드 "차단대상 진행사항")</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+          <thead>
+            <tr style="background:#f1f5f9;">
+              <th style="text-align:left;padding:6px 10px;border:1px solid #e2e8f0;width:100px;">상위</th>
+              <th style="text-align:left;padding:6px 10px;border:1px solid #e2e8f0;">세부 컬럼</th>
+              <th style="text-align:left;padding:6px 10px;border:1px solid #e2e8f0;">조건 (status / 보조필드)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="background:#dcfce7;color:#166534;font-weight:700;padding:6px 10px;border:1px solid #e2e8f0;" rowspan="1">🟢 사용</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">사용</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='사용' AND reviewResult ≠ '차단대상 제외'</td></tr>
+            <tr><td style="background:#fde68a;color:#92400e;font-weight:700;padding:6px 10px;border:1px solid #e2e8f0;" rowspan="6">🟠 차단</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">A. 차단완료</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='차단완료'</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">B-① 호출0+변경없음</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='최우선 차단대상' AND logWorkExcluded=false</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">B-② 호출0+변경있음(로그)</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='최우선 차단대상' AND logWorkExcluded=true</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">B-③ 업무종료</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='후순위 차단대상'</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">C-1 현업요청 차단제외</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">reviewResult='차단대상 제외' (status는 자동 '사용'으로 변환)</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">C-2 사용으로 변경</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='차단대상 → 사용' (수동)</td></tr>
+            <tr><td style="background:#dbeafe;color:#1e40af;font-weight:700;padding:6px 10px;border:1px solid #e2e8f0;" rowspan="5">🔵 보류</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">④ 호출0+로그건</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='검토필요대상' AND callCount=0 AND recentLogOnly=true</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">⑤ 호출0+변경있음</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='검토필요대상' AND callCount=0 AND recentLogOnly=false</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">⑥ 호출 1~reviewThreshold건</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='검토필요대상' AND callCount BETWEEN 1 AND reviewThreshold</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">⑦ 호출 reviewThreshold+1건↑</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='검토필요대상' AND callCount &gt; reviewThreshold (~ reviewUpperThreshold)</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">사용으로 변경</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='검토필요 → 사용' (수동)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#64748b;line-height:1.7;">
+        <b>설정값</b>: <code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">reviewThreshold</code>(기본 3) — ⑥/⑦ 분기 기준, <code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">reviewUpperThreshold</code>(기본 10) — ⑦의 호출 상한.
+        <code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">recentLogOnly</code> — 1년 미만 커밋이 모두 "로그/불필요" 키워드 포함 시 true (자동 갱신).
+      </div>
+    </div>
   </div>
 
   <!-- 섹션 5: 역할별 Use Case -->
@@ -1366,7 +1400,8 @@ flowchart TD
         <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">cbo_scheduled_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">CBO 예정일자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATE</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
         <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">deploy_scheduled_date</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">배포 예정일자</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATE</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
         <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">deploy_csr</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">배포 CSR</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(50)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
-        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">log_work_excluded</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">로그작업이력 제외 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최우선 차단대상 subset 구분용</td></tr>
+        <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">log_work_excluded</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">로그작업이력 제외 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최우선 차단대상 subset 구분용 (B-② 호출0+변경있음(로그))</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">recent_log_only</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">1년미만 커밋 전부 로그성 여부</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">BOOLEAN</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">검토필요대상 subset 구분용 (보류 ④ vs ⑤)</td></tr>
         <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">created_ip</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">최초 생성 IP</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">VARCHAR(50)</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
         <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">modified_at</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">수정일시</td><td style="padding:5px 10px;border:1px solid #e2e8f0;white-space:nowrap;">DATETIME</td><td style="padding:5px 10px;border:1px solid #e2e8f0;"></td></tr>
       </tbody>

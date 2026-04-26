@@ -77,6 +77,7 @@ public class ApiStorageService {
         log.info("[DB 저장 시작] repo={}, 건수={}, ip={}", repositoryName, apis.size(), clientIp);
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int reviewThreshold = getReviewThreshold();
+        int reviewUpper = getReviewUpperThreshold();
 
         // 프로그램ID별 담당자 매핑 로드
         List<Map<String, String>> managerMappings = loadManagerMappings(repositoryName);
@@ -109,7 +110,7 @@ public class ApiStorageService {
                 applyManagerMapping(existing, managerMappings);
 
                 if (!existing.isStatusOverridden()) {
-                    String newStatus = calculateStatus(existing, reviewThreshold);
+                    String newStatus = calculateStatus(existing, reviewThreshold, reviewUpper);
                     if (!Objects.equals(oldStatus, newStatus)) {
                         if (!"차단완료".equals(newStatus)) {
                             String logMsg = oldStatus + " → " + newStatus;
@@ -144,7 +145,7 @@ public class ApiStorageService {
                 r.setDataSource("ANALYSIS");
                 updateExtractedFields(r, a, now);
                 applyManagerMapping(r, managerMappings);
-                r.setStatus(calculateStatus(r, reviewThreshold));
+                r.setStatus(calculateStatus(r, reviewThreshold, reviewUpper));
                 if ("차단완료".equals(r.getStatus())) {
                     r.setBlockedDate(parseBlockedDate(r.getFullComment()));
                     r.setBlockedReason(parseBlockedReason(r.getFullComment()));
@@ -277,6 +278,7 @@ public class ApiStorageService {
     public void updateCallCounts(String repoName, Map<String, Long> pathToCount) {
         log.info("[호출건수 반영] repo={}, 매핑건수={}", repoName, pathToCount.size());
         int reviewThreshold = getReviewThreshold();
+        int reviewUpper = getReviewUpperThreshold();
         List<ApiRecord> records = repository.findByRepositoryName(repoName);
 
         for (ApiRecord r : records) {
@@ -300,7 +302,7 @@ public class ApiStorageService {
 
             if (!r.isStatusOverridden()) {
                 String oldStatus = r.getStatus();
-                String newStatus = calculateStatus(r, reviewThreshold);
+                String newStatus = calculateStatus(r, reviewThreshold, reviewUpper);
                 if (!Objects.equals(oldStatus, newStatus)) {
                     appendChangeLog(r, oldStatus + "→" + newStatus + ": 호출건수 반영 시 상태 변경");
                 }
@@ -322,6 +324,7 @@ public class ApiStorageService {
     public int updateBulk(List<Long> ids, Map<String, Object> fields, String clientIp) {
         log.info("[일괄 변경] 대상={}건, 필드={}, ip={}", ids.size(), fields.keySet(), clientIp);
         int reviewThreshold = getReviewThreshold();
+        int reviewUpper = getReviewUpperThreshold();
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int updated = 0;
 
@@ -352,7 +355,7 @@ public class ApiStorageService {
                     String status = fields.get("status") != null ? fields.get("status").toString() : null;
                     if (status == null || status.isBlank()) {
                         r.setStatusOverridden(false);
-                        r.setStatus(calculateStatus(r, reviewThreshold));
+                        r.setStatus(calculateStatus(r, reviewThreshold, reviewUpper));
                     } else {
                         r.setStatus(status);
                         // 수동 판단 상태는 자동 재계산되지 않도록 statusOverridden 자동 ON
@@ -431,13 +434,23 @@ public class ApiStorageService {
 
     // ── 상태 계산 ────────────────────────────────────────────────────────────
 
+    /** 기존 호환 — reviewUpperThreshold 미지정 시 reviewThreshold 와 동일하게 동작 */
     String calculateStatus(ApiRecord r, int reviewThreshold) {
+        return calculateStatus(r, reviewThreshold, reviewThreshold);
+    }
+
+    /**
+     * 자동 상태 판정. reviewUpperThreshold 가 reviewThreshold 보다 크면 1~upper 까지 검토필요대상으로 분류.
+     * 또한 검토필요대상 + callCount=0 케이스에서 1년 미만 커밋이 모두 로그성인지 판단해 recentLogOnly 갱신.
+     */
+    String calculateStatus(ApiRecord r, int reviewThreshold, int reviewUpperThreshold) {
         // 0-a. 수동 판단 상태(MANUAL_STATUSES)는 보존 — statusOverridden 이 잠깐 풀려도 자동계산이 덮어쓰지 않게 가드
         if (MANUAL_STATUSES.contains(r.getStatus())) {
             return r.getStatus();
         }
         // 0-b. 현업검토결과 "차단대상 제외" → 차단 조건과 무관하게 "사용" 강제
         if ("차단대상 제외".equals(r.getReviewResult())) {
+            r.setRecentLogOnly(false);
             return "사용";
         }
         // 1. 차단완료: 메서드 첫 실행 문장이 throw new UnsupportedOperationException(...) 이면 실질 차단.
@@ -445,39 +458,81 @@ public class ApiStorageService {
         //    (차단처리미흡) 로 별도 플래그만 세우고 상태는 동일하게 "차단완료".
         if ("Y".equals(r.getHasUrlBlock())) {
             r.setLogWorkExcluded(false);
+            r.setRecentLogOnly(false);
             return "차단완료";
         }
 
         Long call = r.getCallCount();
         boolean callZero = (call == null || call == 0);  // null도 0건으로 간주
-        boolean callLow  = (call != null && call >= 1 && call <= reviewThreshold);
-        boolean fullOld  = areAllCommitsOlderThanOneYear(r.getGitHistory(), false); // 전체 커밋 기준
-        boolean bizOld   = areAllCommitsOlderThanOneYear(r.getGitHistory(), true);  // 침해사고 로그작업 커밋 제외 기준
+        // upper 가 reviewThreshold 와 같으면 종전과 동일 동작 (1~reviewThreshold)
+        int upper = Math.max(reviewThreshold, reviewUpperThreshold);
+        boolean callMid = (call != null && call >= 1 && call <= upper);
+        boolean fullOld = areAllCommitsOlderThanOneYear(r.getGitHistory(), false); // 전체 커밋 기준
+        boolean bizOld  = areAllCommitsOlderThanOneYear(r.getGitHistory(), true);  // 침해사고 로그작업 커밋 제외 기준
 
         // 2-a. 최우선 차단대상 (순수 미사용): 호출 0건 + 모든 커밋 1년 경과
         if (callZero && fullOld) {
             r.setLogWorkExcluded(false);
+            r.setRecentLogOnly(false);
             return "최우선 차단대상";
         }
         // 2-b. 최우선 차단대상 (로그작업이력 제외): 호출 0건 + 로그작업 커밋 제외 시에만 1년 경과
         //      → 침해사고 로그 패치 때문에 최근 커밋이 있는 건을 최우선으로 승격
         if (callZero && bizOld) {
             r.setLogWorkExcluded(true);
+            r.setRecentLogOnly(false);
             return "최우선 차단대상";
         }
 
         // 2-b 이하: 최우선 아님 — 플래그 리셋 (잔여값 제거)
         r.setLogWorkExcluded(false);
 
-        // 3. 검토필요대상: 호출 0건 + 1년 미만 OR 호출 1~N건 + 1년 경과
+        // 3. 검토필요대상: 호출 0건 + 1년 미만 OR 호출 1~upper건 + 1년 경과
         if (callZero && !fullOld) {
+            // 보류 ④/⑤ 분류용: 1년 미만 커밋이 모두 로그성인지
+            r.setRecentLogOnly(recentCommitsAllLogOnly(r.getGitHistory()));
             return "검토필요대상";
         }
-        if (callLow && fullOld) {
+        if (callMid && fullOld) {
+            r.setRecentLogOnly(false);
             return "검토필요대상";
         }
         // 4. 사용: 그 외
+        r.setRecentLogOnly(false);
         return "사용";
+    }
+
+    /**
+     * git_history JSON 에서 1년 미만 커밋만 추려, 전부 로그성("로그"/"불필요" 키워드) 메시지인지 판정.
+     * - 1년 미만 커밋이 0건이면 false (분류 의미 없음).
+     * - 모든 1년 미만 커밋 메시지가 "로그" 또는 "불필요" 포함 → true.
+     * - 한 건이라도 비-로그성 메시지가 있으면 false.
+     */
+    boolean recentCommitsAllLogOnly(String gitHistoryJson) {
+        if (gitHistoryJson == null || gitHistoryJson.isBlank() || "[]".equals(gitHistoryJson.trim())) return false;
+        try {
+            List<Map<String, String>> commits = objectMapper.readValue(
+                    gitHistoryJson, new TypeReference<>() {});
+            if (commits.isEmpty()) return false;
+            LocalDate oneYearAgo = LocalDate.now().minusYears(1);
+            int recentCount = 0;
+            for (Map<String, String> c : commits) {
+                String dateStr = c.get("date");
+                if (dateStr == null || dateStr.isBlank()) continue;
+                LocalDate d;
+                try { d = LocalDate.parse(dateStr.length() >= 10 ? dateStr.substring(0, 10) : dateStr); }
+                catch (Exception e) { continue; }
+                if (d.isBefore(oneYearAgo)) continue;
+                recentCount++;
+                String msg = c.get("message");
+                if (msg == null) msg = "";
+                boolean isLogish = msg.contains("로그") || msg.contains("불필요");
+                if (!isLogish) return false;  // 비-로그성 1건 발견 → 즉시 false
+            }
+            return recentCount > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** 패키지 공개 — ApiExtractorService 등에서도 동일 판정을 쓰도록 */
@@ -559,5 +614,11 @@ public class ApiStorageService {
         return globalConfigRepository.findById(1L)
                 .map(GlobalConfig::getReviewThreshold)
                 .orElse(3);
+    }
+
+    private int getReviewUpperThreshold() {
+        return globalConfigRepository.findById(1L)
+                .map(GlobalConfig::getReviewUpperThreshold)
+                .orElse(10);
     }
 }

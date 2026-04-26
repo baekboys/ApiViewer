@@ -277,6 +277,10 @@ function updateAdminBadge(valid) {
         <input id="gReviewThreshold" type="number" min="0" placeholder="3" style="width:120px;">
         <span class="field-hint">이 값 이하 + 소스변경 1년 초과 시 차단검토</span>
       </label>
+      <label class="field">보류 호출 상한
+        <input id="gReviewUpperThreshold" type="number" min="0" placeholder="10" style="width:120px;">
+        <span class="field-hint">이 값 이하 + 소스변경 1년 초과 시 검토필요대상으로 분류 (대시보드 보류 ⑦ 컬럼)</span>
+      </label>
       <label class="field">페이지당 건수 (URL현황/호출현황)
         <input id="gPageSize" type="number" min="10" max="1000" placeholder="200" style="width:120px;">
         <span class="field-hint">URL분석현황·호출현황 목록 페이지당 표시</span>
@@ -1084,6 +1088,7 @@ function updateAdminBadge(valid) {
       const res = await fetch('/api/config/global');
       const g = await res.json();
       document.getElementById('gReviewThreshold').value  = g.reviewThreshold  ?? 3;
+      document.getElementById('gReviewUpperThreshold').value = g.reviewUpperThreshold ?? 10;
       document.getElementById('gPageSize').value         = g.pageSize         ?? 200;
       document.getElementById('gPageNavSize').value      = g.pageNavSize      ?? 10;
       // whatapMockEnabled/jenniferMockEnabled 제거됨 (WHATAP/JENNIFER는 항상 실제 API)
@@ -1188,6 +1193,7 @@ function updateAdminBadge(valid) {
       const jpList = collectJenniferProfiles();
 
       cur.reviewThreshold = parseInt(document.getElementById('gReviewThreshold').value) || 3;
+      cur.reviewUpperThreshold = parseInt(document.getElementById('gReviewUpperThreshold').value) || 10;
       cur.pageSize = parseInt(document.getElementById('gPageSize').value) || 200;
       cur.pageNavSize = parseInt(document.getElementById('gPageNavSize').value) || 10;
       cur.apmLogLevel = document.getElementById('gApmLogLevel').value;

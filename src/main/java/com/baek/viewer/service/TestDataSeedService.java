@@ -164,9 +164,15 @@ public class TestDataSeedService {
                 deployManager = DEPLOY_MANAGERS[i % DEPLOY_MANAGERS.length];
             }
 
+            // recentLogOnly: 검토필요대상의 일부(40%) 에 true 분포 → 보류 ④ 카운트 검증용
+            boolean recentLogOnly = false;
+            if ("검토필요대상".equals(status) && (i % 5) < 2) {
+                recentLogOnly = true;
+            }
+
             rows.add(new ApiRow(repo, apiPath, method, status, overridden,
                     blockTarget, blockCriteria, hasUrlBlock, isDeprecated, moduleIdx, i,
-                    deployDate, deployManager));
+                    deployDate, deployManager, recentLogOnly));
         }
         return rows;
     }
@@ -180,8 +186,8 @@ public class TestDataSeedService {
                 "api_operation_value, description_tag, full_url, controller_file_path, " +
                 "last_analyzed_at, created_ip, modified_at, modified_ip, " +
                 "data_source, is_new, status_changed, git_history, repo_path, full_comment, " +
-                "deploy_scheduled_date, deploy_manager" +
-                ") VALUES (?,?,?,?,?, ?,?,?,?, ?,?,?, ?,?,?, ?,?,?,?, ?,?,?,?, ?,?,?,?,?,?, ?,?)";
+                "deploy_scheduled_date, deploy_manager, recent_log_only" +
+                ") VALUES (?,?,?,?,?, ?,?,?,?, ?,?,?, ?,?,?, ?,?,?,?, ?,?,?,?, ?,?,?,?,?,?, ?,?,?)";
 
         LocalDateTime now = LocalDateTime.now();
         Timestamp nowTs = Timestamp.valueOf(now);
@@ -231,6 +237,7 @@ public class TestDataSeedService {
                         ps.setNull(p++, java.sql.Types.DATE);
                     }
                     ps.setString(p++, row.deployManager);
+                    ps.setBoolean(p++, row.recentLogOnly);
                 }
 
                 @Override
@@ -341,11 +348,12 @@ public class TestDataSeedService {
         final int uniq;
         final LocalDate deployDate;
         final String deployManager;
+        final boolean recentLogOnly;
 
         ApiRow(String repo, String apiPath, String method, String status, boolean overridden,
                String blockTarget, String blockCriteria, String hasUrlBlock, String isDeprecated,
                int module, int uniq,
-               LocalDate deployDate, String deployManager) {
+               LocalDate deployDate, String deployManager, boolean recentLogOnly) {
             this.repo = repo;
             this.apiPath = apiPath;
             this.method = method;
@@ -359,6 +367,7 @@ public class TestDataSeedService {
             this.uniq = uniq;
             this.deployDate = deployDate;
             this.deployManager = deployManager;
+            this.recentLogOnly = recentLogOnly;
         }
     }
 }

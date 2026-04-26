@@ -682,7 +682,7 @@
       <!-- 수동 판단 상태 2종 — 담당자가 검토 후 직접 결정. 자동 재계산 없음. -->
       <div class="status-card" style="border-color:#bef264;background:#f7fee7;">
         <div class="status-card-head">
-          <span class="status-card-title" style="color:#365314;">차단대상 → 사용</span>
+          <span class="status-card-title" style="color:#365314;">①-⑥ 사용으로 변경</span>
           <span class="status-badge" style="background:#bef264;color:#365314;">수동</span>
         </div>
         <div class="status-card-rule">
@@ -693,7 +693,7 @@
       </div>
       <div class="status-card" style="border-color:#bef264;background:#f7fee7;">
         <div class="status-card-head">
-          <span class="status-card-title" style="color:#365314;">검토필요 → 사용</span>
+          <span class="status-card-title" style="color:#365314;">②-⑤ 사용으로 변경</span>
           <span class="status-badge" style="background:#bef264;color:#365314;">수동</span>
         </div>
         <div class="status-card-rule">
@@ -723,12 +723,12 @@
             <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">①-③ 호출0건+변경있음(로그)</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='①-③ 호출0건+변경있음(로그)'</td></tr>
             <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">①-④ 업무종료</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='①-④ 업무종료'</td></tr>
             <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">C-1 현업요청 차단제외</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">reviewResult='차단대상 제외' (status는 자동 '사용'으로 변환)</td></tr>
-            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">C-2 사용으로 변경</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='차단대상 → 사용' (수동)</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">C-2 사용으로 변경</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='①-⑥ 사용으로 변경' (수동)</td></tr>
             <tr><td style="background:#dbeafe;color:#1e40af;font-weight:700;padding:6px 10px;border:1px solid #e2e8f0;" rowspan="5">🔵 보류</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">②-① 호출0건+로그건</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='②-① 호출0건+로그건'</td></tr>
             <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">②-② 호출0건+변경있음</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='②-② 호출0건+변경있음'</td></tr>
             <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">②-③ 호출 1~reviewThreshold건</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='②-③ 호출 1~reviewThreshold건'</td></tr>
             <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">②-④ 호출 reviewThreshold+1건↑</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='②-④ 호출 reviewThreshold+1건↑'</td></tr>
-            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">사용으로 변경</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='검토필요 → 사용' (수동)</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;">사용으로 변경</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">status='②-⑤ 사용으로 변경' (수동)</td></tr>
           </tbody>
         </table>
       </div>
@@ -741,7 +741,7 @@
         <div style="font-size:11.5px;color:#78350f;line-height:1.7;">
           <code style="background:#fde68a;padding:1px 5px;border-radius:3px;">calculateStatus</code> 는 <code style="background:#fde68a;padding:1px 5px;border-radius:3px;">statusOverridden=false</code> 인 레코드에만 동작합니다.<br>
           <b>강한 신호 (무조건 우선):</b><br>
-          &nbsp;&nbsp;1. <code>MANUAL_STATUSES</code> (<code>차단대상 → 사용</code> / <code>검토필요 → 사용</code>) → 보존<br>
+          &nbsp;&nbsp;1. <code>MANUAL_STATUSES</code> (<code>①-⑥ 사용으로 변경</code> / <code>②-⑤ 사용으로 변경</code>) → 보존<br>
           &nbsp;&nbsp;2. <code>hasUrlBlock=Y</code> → <b>①-① 차단완료</b><br>
           &nbsp;&nbsp;3. <code>reviewResult='차단대상 제외'</code> → <b>①-⑤ 현업요청 차단제외</b><br>
           <b>Umbrella sticky:</b> 위 강한 신호가 없을 때만 적용<br>

@@ -412,8 +412,8 @@
     <div class="stat-pill sg-pri3" id="pill-review" onclick="setFilter('group:review')" title="②-①~②-④ 합계 — 클릭 시 ② 추가검토대상 전체"><span>② 추가검토대상</span><strong id="stat-review" style="color:#d97706;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
     <!-- 수동 판단 그룹 (담당자 수동 결정) -->
-    <div class="stat-pill" id="pill-bt-use" style="background:#ecfccb;border-color:#bef264;" onclick="setFilter('차단대상 → 사용')" title="차단대상 → 사용 (수동, 최우선/후순위/담당자 판단 통합)"><span>차단대상 → 사용</span><strong id="stat-bt-use" style="color:#3f6212;">0</strong></div>
-    <div class="stat-pill" id="pill-rev-use" style="background:#ecfccb;border-color:#bef264;" onclick="setFilter('검토필요 → 사용')" title="검토필요 → 사용 (수동)"><span>검토필요 → 사용</span><strong id="stat-rev-use" style="color:#3f6212;">0</strong></div>
+    <div class="stat-pill" id="pill-bt-use" style="background:#ecfccb;border-color:#bef264;" onclick="setFilter('①-⑥ 사용으로 변경')" title="①-⑥ 사용으로 변경 (수동, 최우선/후순위/담당자 판단 통합)"><span>①-⑥ 사용으로 변경</span><strong id="stat-bt-use" style="color:#3f6212;">0</strong></div>
+    <div class="stat-pill" id="pill-rev-use" style="background:#ecfccb;border-color:#bef264;" onclick="setFilter('②-⑤ 사용으로 변경')" title="②-⑤ 사용으로 변경 (수동)"><span>②-⑤ 사용으로 변경</span><strong id="stat-rev-use" style="color:#3f6212;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
     <!-- 검토 그룹 -->
     <div class="stat-pill sg-review" id="pill-reviewed" onclick="setFilter('reviewed')"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
@@ -537,8 +537,8 @@
         <option value="②-③ 호출 1~reviewThreshold건">②-③ 호출 1~reviewThreshold건</option>
         <option value="②-④ 호출 reviewThreshold+1건↑">②-④ 호출 reviewThreshold+1건↑</option>
         <option disabled>──── 수동 판단 ────</option>
-        <option value="차단대상 → 사용">차단대상 → 사용</option>
-        <option value="검토필요 → 사용">검토필요 → 사용</option>
+        <option value="①-⑥ 사용으로 변경">①-⑥ 사용으로 변경</option>
+        <option value="②-⑤ 사용으로 변경">②-⑤ 사용으로 변경</option>
         <option value="">자동계산 (초기화)</option>
       </select>
       <select id="bulkBlockCriteria">
@@ -744,10 +744,10 @@
 
   // 상태 표시 레이블 — DB 값 = 화면 라벨 (13 leaf 통일). 별도 매핑 없이 status 그대로 노출.
   // 13 leaf: 사용 / ①-① 차단완료 / ①-② 호출0건+변경없음 / ①-③ 호출0건+변경있음(로그) /
-  //          ①-④ 업무종료 / ①-⑤ 현업요청 차단제외 / 차단대상 → 사용 /
+  //          ①-④ 업무종료 / ①-⑤ 현업요청 차단제외 / ①-⑥ 사용으로 변경 /
   //          ②-① 호출0건+로그건 / ②-② 호출0건+변경있음 /
   //          ②-③ 호출 1~reviewThreshold건 / ②-④ 호출 reviewThreshold+1건↑ /
-  //          검토필요 → 사용 / 삭제
+  //          ②-⑤ 사용으로 변경 / 삭제
   const STATUS_LEAF_BLOCK = [
     '①-② 호출0건+변경없음',
     '①-③ 호출0건+변경있음(로그)',
@@ -765,8 +765,8 @@
     if (!status) return '사용';
     if (status === '사용') return '사용';
     if (status === '삭제') return '삭제';
-    if (status === '차단대상 → 사용') return '① 차단대상';
-    if (status === '검토필요 → 사용') return '② 추가검토대상';
+    if (status === '①-⑥ 사용으로 변경') return '① 차단대상';
+    if (status === '②-⑤ 사용으로 변경') return '② 추가검토대상';
     if (status === '①-① 차단완료') return '① 차단대상';
     if (status.startsWith('①-')) return '① 차단대상';
     if (status.startsWith('②-')) return '② 추가검토대상';
@@ -1173,8 +1173,8 @@
     else if (
       activeFilter === '사용' ||
       activeFilter === '①-① 차단완료' ||
-      activeFilter === '차단대상 → 사용' ||
-      activeFilter === '검토필요 → 사용' ||
+      activeFilter === '①-⑥ 사용으로 변경' ||
+      activeFilter === '②-⑤ 사용으로 변경' ||
       activeFilter === '삭제' ||
       activeFilter.startsWith('①-') ||
       activeFilter.startsWith('②-')
@@ -1384,8 +1384,8 @@
     document.getElementById('stat-차단완료').textContent   = get('①-① 차단완료');
     { const e = document.getElementById('stat-block');    if (e) e.textContent = blockSum; }
     { const e = document.getElementById('stat-review');   if (e) e.textContent = reviewSum; }
-    { const e1 = document.getElementById('stat-bt-use');  if (e1) e1.textContent = get('차단대상 → 사용'); }
-    { const e2 = document.getElementById('stat-rev-use'); if (e2) e2.textContent = get('검토필요 → 사용'); }
+    { const e1 = document.getElementById('stat-bt-use');  if (e1) e1.textContent = get('①-⑥ 사용으로 변경'); }
+    { const e2 = document.getElementById('stat-rev-use'); if (e2) e2.textContent = get('②-⑤ 사용으로 변경'); }
     document.getElementById('stat-reviewed').textContent  = c.reviewedCount || 0;
     document.getElementById('stat-new').textContent       = c.newCount || 0;
     document.getElementById('stat-changed').textContent   = c.changedCount || 0;
@@ -1453,8 +1453,8 @@
     else if (val === '①-① 차단완료') { document.getElementById('pill-차단완료').classList.add('active-filter'); }
     else if (val === 'group:block')  { const e = document.getElementById('pill-block');  if (e) e.classList.add('active-filter'); }
     else if (val === 'group:review') { const e = document.getElementById('pill-review'); if (e) e.classList.add('active-filter'); }
-    else if (val === '차단대상 → 사용') { const e = document.getElementById('pill-bt-use');  if (e) e.classList.add('active-filter'); }
-    else if (val === '검토필요 → 사용') { const e = document.getElementById('pill-rev-use'); if (e) e.classList.add('active-filter'); }
+    else if (val === '①-⑥ 사용으로 변경') { const e = document.getElementById('pill-bt-use');  if (e) e.classList.add('active-filter'); }
+    else if (val === '②-⑤ 사용으로 변경') { const e = document.getElementById('pill-rev-use'); if (e) e.classList.add('active-filter'); }
     else if (val === 'reviewed') { document.getElementById('pill-reviewed').classList.add('active-filter'); }
     else if (val === 'new') { document.getElementById('pill-new').classList.add('active-filter'); }
     else if (val === 'changed') { document.getElementById('pill-changed').classList.add('active-filter'); }
@@ -1598,12 +1598,12 @@
     '①-③ 호출0건+변경있음(로그)': '호출 0건 + 침해사고 로그작업 제외 1년경과',
     '①-④ 업무종료': 'IT담당자 검토결과 미사용 또는 업무종료로 인지된 건',
     '①-⑤ 현업요청 차단제외': '현업요청에 의한 차단 제외 건',
-    '차단대상 → 사용': '담당자 검토결과 사용중으로 확정 (수동)',
+    '①-⑥ 사용으로 변경': '담당자 검토결과 사용중으로 확정 (수동)',
     '②-① 호출0건+로그건': '호출 0건 + 1년 미만 커밋이 모두 로그/불필요 키워드',
     '②-② 호출0건+변경있음': '호출 0건 + 1년 미만 일반 커밋',
     '②-③ 호출 1~reviewThreshold건': `호출 1~${typeof reviewThreshold!=='undefined'?reviewThreshold:3}건 + 소스변경 1년 경과`,
     '②-④ 호출 reviewThreshold+1건↑': `호출 ${(typeof reviewThreshold!=='undefined'?reviewThreshold:3)+1}건↑ + 소스변경 1년 경과`,
-    '검토필요 → 사용': '담당자 검토결과 사용중으로 확정 (수동)',
+    '②-⑤ 사용으로 변경': '담당자 검토결과 사용중으로 확정 (수동)',
     '삭제': '분석에서 제외된 API (소스 삭제 등)'
   };
   // 대괄호 안에 'URL' 과 '차단' 둘 다 포함된 토큰 탐지 — 공백·오타·순서 허용.
@@ -1621,7 +1621,7 @@
     if (status === '①-② 호출0건+변경없음' || status === '①-③ 호출0건+변경있음(로그)') return 'background:#fee2e2;color:#dc2626;';
     if (status === '①-④ 업무종료') return 'background:#ffedd5;color:#ea580c;';
     if (status === '①-⑤ 현업요청 차단제외') return 'background:#ede9fe;color:#7c3aed;';
-    if (status === '차단대상 → 사용' || status === '검토필요 → 사용') return 'background:#ecfccb;color:#3f6212;';
+    if (status === '①-⑥ 사용으로 변경' || status === '②-⑤ 사용으로 변경') return 'background:#ecfccb;color:#3f6212;';
     if (status === '②-① 호출0건+로그건' || status === '②-② 호출0건+변경있음') return 'background:#fef3c7;color:#92400e;';
     if (status === '②-③ 호출 1~reviewThreshold건' || status === '②-④ 호출 reviewThreshold+1건↑') return 'background:#fef3c7;color:#d97706;';
     if (status === '삭제') return 'background:#fee2e2;color:#991b1b;text-decoration:line-through;';
@@ -2083,7 +2083,7 @@
     // 데이터 유효성 검증: 0-based 컬럼 인덱스 → 허용 값 목록
     const validations = [
       { colIdx:18, values:['Y','N'] },                                                                       // Deprecated
-      { colIdx:22, values:['사용','①-① 차단완료','①-② 호출0건+변경없음','①-③ 호출0건+변경있음(로그)','①-④ 업무종료','①-⑤ 현업요청 차단제외','차단대상 → 사용','②-① 호출0건+로그건','②-② 호출0건+변경있음','②-③ 호출 1~reviewThreshold건','②-④ 호출 reviewThreshold+1건↑','검토필요 → 사용'] }, // 상태 — 13 leaf
+      { colIdx:22, values:['사용','①-① 차단완료','①-② 호출0건+변경없음','①-③ 호출0건+변경있음(로그)','①-④ 업무종료','①-⑤ 현업요청 차단제외','①-⑥ 사용으로 변경','②-① 호출0건+로그건','②-② 호출0건+변경있음','②-③ 호출 1~reviewThreshold건','②-④ 호출 reviewThreshold+1건↑','②-⑤ 사용으로 변경'] }, // 상태 — 13 leaf
       { colIdx:23, values:['확정','미확정'] },                                                               // 상태확정
       { colIdx:29, values:['차단대상 제외','차단확정','판단불가'] },                                         // 현업검토결과
     ];
@@ -2174,7 +2174,7 @@
     const groupBorders = new Set([6, 16, 21, 30, 32, 35, 38, 41, 44, 47, 50]);
     const validations = [
       { colIdx:18, values:['Y','N'] },
-      { colIdx:22, values:['사용','①-① 차단완료','①-② 호출0건+변경없음','①-③ 호출0건+변경있음(로그)','①-④ 업무종료','①-⑤ 현업요청 차단제외','차단대상 → 사용','②-① 호출0건+로그건','②-② 호출0건+변경있음','②-③ 호출 1~reviewThreshold건','②-④ 호출 reviewThreshold+1건↑','검토필요 → 사용'] }, // 13 leaf
+      { colIdx:22, values:['사용','①-① 차단완료','①-② 호출0건+변경없음','①-③ 호출0건+변경있음(로그)','①-④ 업무종료','①-⑤ 현업요청 차단제외','①-⑥ 사용으로 변경','②-① 호출0건+로그건','②-② 호출0건+변경있음','②-③ 호출 1~reviewThreshold건','②-④ 호출 reviewThreshold+1건↑','②-⑤ 사용으로 변경'] }, // 13 leaf
       { colIdx:23, values:['확정','미확정'] },
       { colIdx:29, values:['차단대상 제외','차단확정','판단불가'] },
     ];
@@ -2645,8 +2645,8 @@
             <option value="②-③ 호출 1~reviewThreshold건" ${r.status==='②-③ 호출 1~reviewThreshold건'?'selected':''}>②-③ 호출 1~reviewThreshold건</option>
             <option value="②-④ 호출 reviewThreshold+1건↑" ${r.status==='②-④ 호출 reviewThreshold+1건↑'?'selected':''}>②-④ 호출 reviewThreshold+1건↑</option>
             <option disabled>──── 수동 판단 ────</option>
-            <option value="차단대상 → 사용" ${r.status==='차단대상 → 사용'?'selected':''}>차단대상 → 사용</option>
-            <option value="검토필요 → 사용" ${r.status==='검토필요 → 사용'?'selected':''}>검토필요 → 사용</option>
+            <option value="①-⑥ 사용으로 변경" ${r.status==='①-⑥ 사용으로 변경'?'selected':''}>①-⑥ 사용으로 변경</option>
+            <option value="②-⑤ 사용으로 변경" ${r.status==='②-⑤ 사용으로 변경'?'selected':''}>②-⑤ 사용으로 변경</option>
           </select></div>
           <div class="detail-label">차단대상기준 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value" style="white-space:normal;"><select id="df-blockCriteria" class="df-select" style="width:100%;" ${dis}>${buildCriteriaOptions(r.status, r.blockCriteria || '')}</select></div>

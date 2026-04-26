@@ -1221,13 +1221,13 @@ public class ApiViewController {
      *     ①-③ 호출0건+변경있음(로그)
      *     ①-④ 업무종료
      *     ①-⑤ 현업요청 차단제외
-     *     ①-⑥ "차단대상 → 사용" (수동, 라벨 그대로)
+     *     ①-⑥ "①-⑥ 사용으로 변경" (수동, 라벨 그대로)
      *   ② 추가검토대상:
      *     ②-① 호출0건+로그건
      *     ②-② 호출0건+변경있음
      *     ②-③ 호출 1~reviewThreshold건
      *     ②-④ 호출 reviewThreshold+1건↑
-     *     ②-⑤ "검토필요 → 사용" (수동, 라벨 그대로)
+     *     ②-⑤ "②-⑤ 사용으로 변경" (수동, 라벨 그대로)
      */
     @GetMapping("/db/stats/block-overview")
     public ResponseEntity<?> dbBlockOverview() {
@@ -1275,8 +1275,8 @@ public class ApiViewController {
                 else if ("①-④ 업무종료".equals(s)) c[4]++;
                 // 5: ①-⑤ 현업요청 차단제외
                 else if ("①-⑤ 현업요청 차단제외".equals(s)) c[5]++;
-                // 6: ①-⑥ = "차단대상 → 사용" 수동
-                else if ("차단대상 → 사용".equals(s)) c[6]++;
+                // 6: ①-⑥ = "①-⑥ 사용으로 변경" 수동
+                else if ("①-⑥ 사용으로 변경".equals(s)) c[6]++;
                 // 7: ②-① 호출0건+로그건
                 else if ("②-① 호출0건+로그건".equals(s)) c[7]++;
                 // 8: ②-② 호출0건+변경있음
@@ -1285,8 +1285,8 @@ public class ApiViewController {
                 else if ("②-③ 호출 1~reviewThreshold건".equals(s)) c[9]++;
                 // 10: ②-④ 호출 reviewThreshold+1건↑
                 else if ("②-④ 호출 reviewThreshold+1건↑".equals(s)) c[10]++;
-                // 11: ②-⑤ = "검토필요 → 사용" 수동
-                else if ("검토필요 → 사용".equals(s)) c[11]++;
+                // 11: ②-⑤ = "②-⑤ 사용으로 변경" 수동
+                else if ("②-⑤ 사용으로 변경".equals(s)) c[11]++;
 
                 // 12: 총합 (각 행의 grandTotal)
                 c[12]++;

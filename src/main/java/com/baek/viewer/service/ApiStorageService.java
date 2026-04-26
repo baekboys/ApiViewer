@@ -54,12 +54,12 @@ public class ApiStorageService {
     /**
      * 수동 판단 전용 상태값 — 자동 재계산(calculateStatus)에서 보존되며,
      * 일괄 수정 시 selecting 만으로 statusOverridden=true 가 자동 적용된다.
-     * 모두 의미상 "사용" 계열이며, 차단대상에서 사용으로 전환된 건과 검토필요에서
-     * 사용으로 전환된 건을 구분한다. (옵션A: 라벨 그대로 유지, 대시보드에서 ①-⑥/②-⑤ 컬럼으로 자동 분류)
+     * 모두 의미상 "사용" 계열이며, 차단대상에서 사용으로 전환된 건과 추가검토대상에서
+     * 사용으로 전환된 건을 구분 (차단대상 ①-⑥ / 추가검토대상 ②-⑤ 컬럼).
      */
     public static final List<String> MANUAL_STATUSES = List.of(
-            "차단대상 → 사용",
-            "검토필요 → 사용"
+            "①-⑥ 사용으로 변경",
+            "②-⑤ 사용으로 변경"
     );
 
     private final ApiRecordRepository repository;

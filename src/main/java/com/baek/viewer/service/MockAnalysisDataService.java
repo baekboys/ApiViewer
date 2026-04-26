@@ -72,10 +72,12 @@ public class MockAnalysisDataService {
 
     private final ApiRecordRepository repo;
     private final JdbcTemplate jdbc;
+    private final TestSuspectMatcher testSuspectMatcher;
 
-    public MockAnalysisDataService(ApiRecordRepository repo, JdbcTemplate jdbc) {
+    public MockAnalysisDataService(ApiRecordRepository repo, JdbcTemplate jdbc, TestSuspectMatcher testSuspectMatcher) {
         this.repo = repo;
         this.jdbc = jdbc;
+        this.testSuspectMatcher = testSuspectMatcher;
     }
 
     /**
@@ -282,6 +284,10 @@ public class MockAnalysisDataService {
 
         // git_history: 1~3개 커밋 (최근 2년 내 랜덤, 최우선 차단대상 후보는 1년 경과 커밋 보장)
         r.setGitHistory(buildGitHistoryJson(status, rnd));
+
+        // 테스트용 의심 매칭 — apiPath=/mock-test/.. , controllerName=XxxMockController,
+        // repoPath=src/main/java/com/mock/.. 등 키워드 풍부하므로 대다수 mock 레코드가 의심 표시됨
+        r.setTestSuspectReason(testSuspectMatcher.matchFromRecord(r));
 
         return r;
     }

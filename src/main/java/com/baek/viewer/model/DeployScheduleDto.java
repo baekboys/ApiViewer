@@ -3,7 +3,7 @@ package com.baek.viewer.model;
 import java.time.LocalDate;
 
 /**
- * 배포일자 분포 통계 전용 DTO — 차단완료 + 차단대상(최우선/후순위/추가검토필요) 만 로드.
+ * 배포일자 분포 통계 전용 DTO — 차단완료 + 차단대상(최우선/후순위/검토필요) 만 로드.
  * 대시보드 "배포일자 분포" 섹션 집계용.
  */
 public class DeployScheduleDto {

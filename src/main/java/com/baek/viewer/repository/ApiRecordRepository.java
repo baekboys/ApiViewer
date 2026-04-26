@@ -137,7 +137,7 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long>,
     List<ApiRecordStatsDto> findAllForStats();
 
     /**
-     * 배포일자 분포 집계용 — 차단완료 + 차단대상(최우선/후순위/추가검토필요) 만 로드.
+     * 배포일자 분포 집계용 — 차단완료 + 차단대상(최우선/후순위/검토필요) 만 로드.
      * deployScheduledDate, deployManager 포함.
      */
     @Query("SELECT new com.baek.viewer.model.DeployScheduleDto("

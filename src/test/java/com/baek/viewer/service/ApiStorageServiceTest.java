@@ -85,7 +85,7 @@ class ApiStorageServiceTest {
         r.setGitHistory("[{\"date\":\"" + recent + "\",\"author\":\"a\",\"message\":\"m\"}]");
 
         String status = service.calculateStatus(r, 3);
-        assertThat(status).isEqualTo("추가검토필요 차단대상");
+        assertThat(status).isEqualTo("검토필요대상");
     }
 
     @Test
@@ -97,7 +97,7 @@ class ApiStorageServiceTest {
         r.setGitHistory("[{\"date\":\"" + oldDate + "\",\"author\":\"a\",\"message\":\"m\"}]");
 
         String status = service.calculateStatus(r, 3);
-        assertThat(status).isEqualTo("추가검토필요 차단대상");
+        assertThat(status).isEqualTo("검토필요대상");
     }
 
     @Test
@@ -132,7 +132,7 @@ class ApiStorageServiceTest {
         r.setGitHistory("[]");
 
         String status = service.calculateStatus(r, 3);
-        assertThat(status).isEqualTo("추가검토필요 차단대상");
+        assertThat(status).isEqualTo("검토필요대상");
     }
 
     // ═══════════════════ save ═══════════════════
@@ -265,7 +265,7 @@ class ApiStorageServiceTest {
         when(globalConfigRepository.findById(1L)).thenReturn(Optional.of(defaultConfig()));
         when(repository.findAllById(anyList())).thenReturn(List.of(r));
 
-        service.updateBulk(List.of(1L), Map.of("status", "추가검토필요 차단대상"), "ip");
+        service.updateBulk(List.of(1L), Map.of("status", "검토필요대상"), "ip");
 
         // statusOverridden=true 이고 statusOverridden 필드도 함께 오지 않았으므로 변경 skip
         assertThat(r.getStatus()).isEqualTo("사용");

@@ -121,7 +121,7 @@ public class TestDataSeedService {
             String apiPath = String.format("/api/test/mod%02d/op%03d/%06d", moduleIdx, opIdx, i);
             String method = HTTP_METHODS[i % HTTP_METHODS.length];
 
-            // 상태 분포: 사용 60 / 추가검토필요 15 / 최우선 10 / 후순위 8 / 차단완료 7
+            // 상태 분포: 사용 60 / 검토필요대상 15 / 최우선 10 / 후순위 8 / 차단완료 7
             String status;
             boolean overridden = false;
             String blockTarget = null;
@@ -132,7 +132,7 @@ public class TestDataSeedService {
             if (r < 60) {
                 status = "사용";
             } else if (r < 75) {
-                status = "추가검토필요 차단대상";
+                status = "검토필요대상";
             } else if (r < 85) {
                 status = "최우선 차단대상";
             } else if (r < 93) {
@@ -152,7 +152,7 @@ public class TestDataSeedService {
                 deployDate = today.minusDays(7 + (i % 180));
             } else if ("최우선 차단대상".equals(status)
                     || "후순위 차단대상".equals(status)
-                    || "추가검토필요 차단대상".equals(status)) {
+                    || "검토필요대상".equals(status)) {
                 if (i % 10 < 7) {
                     deployDate = today.plusDays(DEPLOY_DATE_OFFSETS[i % DEPLOY_DATE_OFFSETS.length]);
                 }
@@ -267,7 +267,7 @@ public class TestDataSeedService {
                     baseMin = 0;
                     baseMax = 5;
                     break;
-                case "추가검토필요 차단대상":
+                case "검토필요대상":
                     baseMin = 0;
                     baseMax = 20;
                     break;

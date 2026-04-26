@@ -922,7 +922,7 @@ public class JiraService {
         String s = r.getStatus();
         return "최우선 차단대상".equals(s)
                 || "후순위 차단대상".equals(s)
-                || "추가검토필요 차단대상".equals(s)
+                || "검토필요대상".equals(s)
                 || "차단완료".equals(s);
     }
 
@@ -1189,7 +1189,7 @@ public class JiraService {
     /**
      * 상태값을 viewer.html 배지 색상으로 채색.
      * 사용/차단완료: 초록(#166534), 최우선: 빨강(#991b1b), 후순위: 주황(#c2410c),
-     * 추가검토필요: 노랑(#92400e)
+     * 검토필요대상: 노랑(#92400e)
      */
     private String colorizeStatus(String status) {
         if (status == null || status.isBlank()) return "-";
@@ -1197,7 +1197,7 @@ public class JiraService {
             case "사용", "차단완료" -> "#166534";
             case "최우선 차단대상"   -> "#991b1b";
             case "후순위 차단대상"   -> "#c2410c";
-            case "추가검토필요 차단대상" -> "#92400e";
+            case "검토필요대상"          -> "#92400e";
             default                   -> "#475569";
         };
         return "{color:" + color + "}*" + status + "*{color}";

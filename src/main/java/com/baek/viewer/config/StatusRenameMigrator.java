@@ -10,8 +10,13 @@ import org.springframework.stereotype.Component;
 /**
  * 상태값 리네임 일회성 마이그레이션.
  *
- * 배경: "검토필요 차단대상" → "추가검토필요 차단대상" 으로 상태값을 변경하면서,
- *       `ddl-auto=update` 만으로는 데이터 변환이 되지 않아 기동 시 1회 UPDATE 를 실행해야 한다.
+ * 변환 이력 (모두 최종 형태로 수렴):
+ *  1. 기존 "검토필요 차단대상"(아주 오래된 표기) → "검토필요대상"
+ *  2. 기존 "추가검토필요 차단대상"(최근 표기) → "검토필요대상"
+ *  3. 수동 판단 상태 통합 — 다음 3종을 단일 "차단대상 → 사용" 으로 통합
+ *      · "최우선 차단대상 → 사용"
+ *      · "후순위 차단대상 → 사용"
+ *      · "현업요청 사용"
  *
  * 특성:
  * - Idempotent: 이미 변환된 상태면 0건 업데이트되고 로그만 남김.
@@ -25,6 +30,16 @@ public class StatusRenameMigrator implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(StatusRenameMigrator.class);
 
+    /** (newStatus, oldStatus) 매핑 — 순차 적용. 신규 변환 추가 시 이 배열에만 추가. */
+    private static final String[][] RENAMES = {
+            {"검토필요대상",     "검토필요 차단대상"},
+            // NOTE: 한글 변환원본을 명시적으로 분리해 보관 (sed 자가 치환 방지)
+            {"검토필요대상",     "추가" + "검토필요 차단대상"},
+            {"차단대상 → 사용",  "최우선 차단대상 → 사용"},
+            {"차단대상 → 사용",  "후순위 차단대상 → 사용"},
+            {"차단대상 → 사용",  "현업요청 사용"},
+    };
+
     private final JdbcTemplate jdbc;
 
     public StatusRenameMigrator(JdbcTemplate jdbc) {
@@ -33,18 +48,22 @@ public class StatusRenameMigrator implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        try {
-            int updated = jdbc.update(
-                    "UPDATE api_record SET status = ? WHERE status = ?",
-                    "추가검토필요 차단대상", "검토필요 차단대상");
-            if (updated > 0) {
-                log.warn("[마이그레이션] status '검토필요 차단대상' → '추가검토필요 차단대상' {}건 변환 완료", updated);
-            } else {
-                log.info("[마이그레이션] status 리네임 대상 없음 (이미 변환됨)");
+        for (String[] r : RENAMES) {
+            String newStatus = r[0];
+            String oldStatus = r[1];
+            try {
+                int updated = jdbc.update(
+                        "UPDATE api_record SET status = ? WHERE status = ?",
+                        newStatus, oldStatus);
+                if (updated > 0) {
+                    log.warn("[마이그레이션] status '{}' → '{}' {}건 변환 완료", oldStatus, newStatus, updated);
+                } else {
+                    log.info("[마이그레이션] status '{}' 리네임 대상 없음 (이미 변환됨)", oldStatus);
+                }
+            } catch (Exception e) {
+                // api_record 테이블이 아직 없거나(최초 기동 직전) DB 문제 — 기동은 계속 진행
+                log.warn("[마이그레이션] status '{}' 리네임 스킵: {}", oldStatus, e.getMessage());
             }
-        } catch (Exception e) {
-            // api_record 테이블이 아직 없거나(최초 기동 직전) DB 문제 — 기동은 계속 진행
-            log.warn("[마이그레이션] status 리네임 스킵: {}", e.getMessage());
         }
     }
 }

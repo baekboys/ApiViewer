@@ -3,6 +3,7 @@ package com.baek.viewer.repository;
 import com.baek.viewer.model.ApiRecord;
 import com.baek.viewer.model.ApiRecordStatsDto;
 import com.baek.viewer.model.ApiRecordSummary;
+import com.baek.viewer.model.BlockOverviewDto;
 import com.baek.viewer.model.DeployScheduleDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -137,13 +138,22 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long>,
     List<ApiRecordStatsDto> findAllForStats();
 
     /**
-     * 배포일자 분포 집계용 — 차단완료 + 차단대상(최우선/후순위/추가검토필요) 만 로드.
+     * 배포일자 분포 집계용 — 차단완료 + 차단대상(최우선/후순위/검토필요) 만 로드.
      * deployScheduledDate, deployManager 포함.
      */
     @Query("SELECT new com.baek.viewer.model.DeployScheduleDto("
             + "r.id, r.repositoryName, r.status, r.teamOverride, r.managerOverride, r.deployManager, r.apiPath, r.deployScheduledDate) "
             + "FROM ApiRecord r WHERE r.status IN :statuses")
     List<DeployScheduleDto> findForDeploySchedule(@Param("statuses") List<String> statuses);
+
+    /**
+     * 차단대상 진행사항 대시보드 집계용 — 삭제 제외 전체 레코드를 경량 8필드로 로드.
+     * status / callCount / logWorkExcluded / recentLogOnly / reviewResult / team / manager / apiPath.
+     */
+    @Query("SELECT new com.baek.viewer.model.BlockOverviewDto("
+            + "r.id, r.repositoryName, r.status, r.callCount, r.logWorkExcluded, r.recentLogOnly, r.reviewResult, r.teamOverride, r.managerOverride, r.apiPath) "
+            + "FROM ApiRecord r WHERE r.status IS NULL OR r.status <> '삭제'")
+    List<BlockOverviewDto> findForBlockOverview();
 
     long countByStatus(String status);
 

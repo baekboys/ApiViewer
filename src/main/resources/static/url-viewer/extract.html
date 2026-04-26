@@ -280,10 +280,7 @@
       <span class="dot dot-blue"></span>URL 분석 추출
       <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
         <span style="font-size:11px;color:var(--text-muted);font-weight:400;">레포지토리 선택</span>
-        <select id="repoConfigSelect" onchange="onRepoSelect()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--card);min-width:180px;">
-          <option value="">-- 선택 --</option>
-          <option value="all">🔄 전체 레포 추출</option>
-        </select>
+        <div id="repoConfigSelect" style="min-width:200px;"></div>
       </div>
     </div>
 
@@ -409,10 +406,8 @@
         <span style="font-size:10px;color:#3730a3;">선택 레포에 URL <b>/mock-test/*</b> 로 시작하는 더미 ApiRecord 생성 · git_history 포함 · 중복 자동 스킵</span>
       </div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px;">
-        <label class="field" style="min-width:220px;">대상 레포지토리
-          <select id="mockAnRepoSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-            <option value="">레포지토리 선택</option>
-          </select>
+        <label class="field" style="min-width:260px;">대상 레포지토리 <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(다중 선택 가능 · 0개=전체)</span>
+          <div id="mockAnRepoSelect" style="min-width:240px;"></div>
         </label>
         <label class="field" style="min-width:120px;">생성 건수
           <input id="mockAnCount" type="number" value="100" min="1" max="5000"
@@ -438,9 +433,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
         <button class="btn" style="background:#8b5cf6;color:#fff;height:32px;font-size:12px;" onclick="collectAllApm(true)">🧪 전체 MOCK 수집</button>
         <span style="border-left:2px solid #fcd34d;height:20px;margin:0 4px;"></span>
-        <select id="mockRepoSelect" style="padding:4px 8px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;background:#fffbeb;height:32px;min-width:160px;">
-          <option value="">레포지토리 선택</option>
-        </select>
+        <div id="mockRepoSelect" style="min-width:200px;"></div>
         <button class="btn" style="background:#8b5cf6;color:#fff;height:32px;font-size:12px;" onclick="collectOneMock()">🧪 선택 레포 수집</button>
         <button class="btn" style="background:#f59e0b;color:#fff;height:32px;font-size:12px;" onclick="deleteMockData('repo')">🗑 선택 레포 삭제</button>
         <button class="btn" style="background:#d97706;color:#fff;height:32px;font-size:12px;" onclick="deleteMockData('all')">🗑 전체 MOCK 삭제</button>
@@ -529,46 +522,84 @@
 <script>
   let allRepos = [];
   let lastLogCount = 0;
+  // RepoSelect 인스턴스 (전역 핸들 — value 조회용)
+  window._repoConfigSel = null;   // URL 분석 추출 (singleMode + ALL)
+  window._mockAnRepoSel = null;   // Mock 분석데이터 (다중)
+  window._mockRepoSel   = null;   // MOCK 호출데이터 (다중)
 
   // ── 레포 설정 목록 로드 ───────────────────────────────────
   async function initRepoConfigs() {
     try {
       const res = await fetch('/api/config/repos');
       allRepos = await res.json();
-      const sel = document.getElementById('repoConfigSelect');
-      const apmSel = document.getElementById('apmCollectRepo');
-      const mockSel = document.getElementById('mockRepoSelect');
-      const mockAnSel = document.getElementById('mockAnRepoSelect');
-      allRepos.forEach(r => {
-        const label = r.businessName ? `${r.businessName} | ${r.repoName}` : r.repoName;
-        const opt = document.createElement('option');
-        opt.value = r.id;
-        opt.textContent = label;
-        sel.appendChild(opt);
-        if (apmSel) {
-          const opt2 = document.createElement('option');
-          opt2.value = r.repoName;
-          opt2.textContent = label;
-          apmSel.appendChild(opt2);
-        }
-        if (mockSel) {
-          const opt3 = document.createElement('option');
-          opt3.value = r.repoName;
-          opt3.textContent = label;
-          mockSel.appendChild(opt3);
-        }
-        if (mockAnSel) {
-          const opt4 = document.createElement('option');
-          opt4.value = r.repoName;
-          opt4.textContent = label;
-          mockAnSel.appendChild(opt4);
-        }
+
+      // ── ① URL 분석 추출 (단일 선택, "전체 레포 추출" 옵션 포함) ──
+      // RepoSelect 는 repoName 만 다루므로 ALL 토큰을 별도 items 모드 항목으로 합성
+      const extractItems = [
+        { value: '__ALL__', label: '🔄 전체 레포 추출' },
+        ...allRepos.map(r => ({
+          value: String(r.id),
+          label: r.businessName ? `${r.businessName} | ${r.repoName}` : r.repoName
+        }))
+      ];
+      window._repoConfigSel = MultiSelect.mountCompact('#repoConfigSelect', {
+        singleMode: true,
+        items: extractItems,
+        placeholder: '-- 레포 선택 --',
+        onChange: () => onRepoSelect()
       });
+
+      // ── ② APM 호출건수 수집 (단일 native — 기존 유지: APM 종류/기간 폼 연동) ──
+      const apmSel = document.getElementById('apmCollectRepo');
+      if (apmSel) {
+        apmSel.innerHTML = '';
+        allRepos.forEach(r => {
+          const opt = document.createElement('option');
+          opt.value = r.repoName;
+          opt.textContent = r.businessName ? `${r.businessName} | ${r.repoName}` : r.repoName;
+          apmSel.appendChild(opt);
+        });
+      }
+
+      // ── ③ Mock URL 분석데이터 생성 (다중 선택) ──
+      window._mockAnRepoSel = RepoSelect.mountCompact('#mockAnRepoSelect', {
+        repos: allRepos,
+        placeholder: '레포 선택 (0개=전체)',
+        onChange: () => {}
+      });
+
+      // ── ④ MOCK 호출데이터 (다중 선택) ──
+      window._mockRepoSel = RepoSelect.mountCompact('#mockRepoSelect', {
+        repos: allRepos,
+        placeholder: '레포 선택 (0개=전체)',
+        onChange: () => {}
+      });
+
       // 첫 레포 선택 시 자동으로 APM 종류/기간 세팅
       if (allRepos.length > 0 && document.getElementById('apmCollectRepo')) {
         onApmRepoChange();
       }
-    } catch(e) {}
+    } catch(e) {
+      console.warn('[initRepoConfigs] 실패', e);
+    }
+  }
+
+  // RepoSelect 기반 헬퍼 — 다중 선택 시 [선택된 repoName 배열] 반환.
+  // 0개 선택이면 전체 레포로 간주 (allRepos 전체 펼침).
+  function getMockAnSelectedRepos() {
+    const sel = window._mockAnRepoSel ? window._mockAnRepoSel.getSelected() : [];
+    if (!sel.length) return allRepos.map(r => r.repoName);
+    return sel;
+  }
+  function getMockSelectedRepos() {
+    const sel = window._mockRepoSel ? window._mockRepoSel.getSelected() : [];
+    if (!sel.length) return allRepos.map(r => r.repoName);
+    return sel;
+  }
+  // URL 분석 추출 단일 셀렉터 — value 추출 ('__ALL__' | repoConfigId | '')
+  function getRepoConfigValue() {
+    const sel = window._repoConfigSel ? window._repoConfigSel.getSelected() : [];
+    return sel[0] || '';
   }
 
   // APM 기간 바로가기 버튼
@@ -973,8 +1004,8 @@
   }
 
   function onRepoSelect() {
-    const val = document.getElementById('repoConfigSelect').value;
-    const isAll = val === 'all';
+    const val = getRepoConfigValue();
+    const isAll = val === '__ALL__';
     document.getElementById('allRepoInfo').style.display   = isAll ? 'block' : 'none';
     document.getElementById('singleRepoForm').style.display = isAll ? 'none' : 'block';
     document.getElementById('allRepoBtn').style.display    = isAll ? 'block' : 'none';
@@ -1000,7 +1031,7 @@
   let progressTimer = null;
 
   async function doExtract() {
-    const selVal = document.getElementById('repoConfigSelect').value;
+    const selVal = getRepoConfigValue();
 
     // 초기화
     lastLogCount = 0;
@@ -1009,7 +1040,7 @@
     clearLogs();
     hideResult();
 
-    if (selVal === 'all') {
+    if (selVal === '__ALL__') {
       const repos = allRepos.filter(r => r.rootPath);
       if (repos.length === 0) { showToast('추출할 레포지토리가 없습니다.', 'error'); return; }
 
@@ -1279,8 +1310,8 @@
     // 조회 링크
     const actions = document.getElementById('resultActions');
     const repoName = document.getElementById('repositoryName').value.trim();
-    const selVal = document.getElementById('repoConfigSelect').value;
-    const viewerUrl = (selVal === 'all' || !repoName)
+    const selVal = getRepoConfigValue();
+    const viewerUrl = (selVal === '__ALL__' || !repoName)
       ? '/url-viewer/viewer.html'
       : `/url-viewer/viewer.html?repo=${encodeURIComponent(repoName)}`;
     actions.innerHTML = `<a class="link-viewer" href="${viewerUrl}">URL분석현황 →</a>`;

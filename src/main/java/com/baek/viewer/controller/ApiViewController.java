@@ -205,6 +205,7 @@ public class ApiViewController {
                                      @RequestParam(required = false) String repositories,
                                      @RequestParam(required = false, defaultValue = "false") boolean blockTargetOnly,
                                      @RequestParam(required = false) String status,
+                                     @RequestParam(required = false) String statusGroup,
                                      @RequestParam(required = false) Boolean logWorkExcluded,
                                      @RequestParam(required = false) Boolean recentLogOnly,
                                      @RequestParam(required = false) String httpMethod,
@@ -236,6 +237,7 @@ public class ApiViewController {
 
         // 동적 필터가 하나라도 있으면 Specification 경로 사용
         boolean hasDynamicFilter = (status != null && !status.isBlank())
+                || (statusGroup != null && !statusGroup.isBlank())
                 || (logWorkExcluded != null)
                 || (recentLogOnly != null)
                 || (httpMethod != null && !httpMethod.isBlank())
@@ -259,7 +261,7 @@ public class ApiViewController {
             Pageable pageable = PageRequest.of(pageIdx, pageSize, sortSpec);
 
             Specification<ApiRecord> spec = buildSpec(repository, repoList, blockTargetOnly,
-                    status, logWorkExcluded, recentLogOnly, httpMethod, isDeprecated, q, alert, ids,
+                    status, statusGroup, logWorkExcluded, recentLogOnly, httpMethod, isDeprecated, q, alert, ids,
                     modifiedFrom, modifiedTo, cboFrom, cboTo, deployFrom, deployTo, deployManager);
 
             Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
@@ -355,7 +357,8 @@ public class ApiViewController {
 
     /** 동적 필터 Specification 빌더 */
     private Specification<ApiRecord> buildSpec(String repository, List<String> repoList, boolean blockTargetOnly,
-                                                String status, Boolean logWorkExcluded, Boolean recentLogOnly,
+                                                String status, String statusGroup,
+                                                Boolean logWorkExcluded, Boolean recentLogOnly,
                                                 String httpMethod, String isDeprecated, String q, String alert,
                                                 String ids, String modifiedFrom, String modifiedTo,
                                                 String cboFrom, String cboTo,
@@ -374,6 +377,17 @@ public class ApiViewController {
             }
             if (status != null && !status.isBlank()) {
                 ps.add(cb.equal(root.get("status"), status));
+            }
+            // statusGroup: 'block' = (1)-* leaf 모두, 'review' = (2)-* leaf 모두
+            if (statusGroup != null && !statusGroup.isBlank()) {
+                String prefix = switch (statusGroup) {
+                    case "block"  -> "(1)-";
+                    case "review" -> "(2)-";
+                    default -> null;
+                };
+                if (prefix != null) {
+                    ps.add(cb.like(root.get("status"), prefix + "%"));
+                }
             }
             if (logWorkExcluded != null) {
                 // logWorkExcluded=false 는 null 또는 false 모두 매칭 (과거 row 의 null 호환)

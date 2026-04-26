@@ -181,7 +181,7 @@ public class GlobalConfig {
     public void setWhatapPsize(Integer v) { this.whatapPsize = v; }
     public String getReviewTargetStatuses() {
         return reviewTargetStatuses != null ? reviewTargetStatuses
-               : "최우선 차단대상,후순위 차단대상,추가검토필요 차단대상";
+               : "최우선 차단대상,후순위 차단대상,검토필요대상";
     }
     public void setReviewTargetStatuses(String v) { this.reviewTargetStatuses = v; }
     public String getLastBackupMeta() { return lastBackupMeta; }

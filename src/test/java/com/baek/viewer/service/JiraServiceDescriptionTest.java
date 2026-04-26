@@ -149,7 +149,7 @@ class JiraServiceDescriptionTest {
     }
 
     @Test
-    @DisplayName("상태 색상 매핑: 사용/후순위/추가검토필요/차단완료")
+    @DisplayName("상태 색상 매핑: 사용/후순위/검토필요대상/차단완료")
     void status_colorMapping() {
         ApiRecord r = baseRecord();
 
@@ -161,9 +161,9 @@ class JiraServiceDescriptionTest {
         assertThat(svc.buildDescriptionTables(cfg, repoCfg, r, "x"))
                 .contains("{color:#c2410c}*후순위 차단대상*{color}");
 
-        r.setStatus("추가검토필요 차단대상");
+        r.setStatus("검토필요대상");
         assertThat(svc.buildDescriptionTables(cfg, repoCfg, r, "x"))
-                .contains("{color:#92400e}*추가검토필요 차단대상*{color}");
+                .contains("{color:#92400e}*검토필요대상*{color}");
 
         r.setStatus("차단완료");
         assertThat(svc.buildDescriptionTables(cfg, repoCfg, r, "x"))

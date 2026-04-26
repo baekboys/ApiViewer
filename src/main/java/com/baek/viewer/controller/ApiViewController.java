@@ -170,7 +170,7 @@ public class ApiViewController {
     private static final int MAX_UNPAGED_ROWS = 50_000;
 
     private static final List<String> BLOCK_TARGET_STATUSES =
-            List.of("최우선 차단대상", "후순위 차단대상", "추가검토필요 차단대상");
+            List.of("최우선 차단대상", "후순위 차단대상", "검토필요대상");
 
     /** DB에서 API 목록 조회 — 경량 프로젝션 (fullComment, controllerComment, blockedReason 제외)
      *
@@ -1035,7 +1035,7 @@ public class ApiViewController {
     }
 
     /**
-     * 배포일자 분포 통계 — 차단완료 + 차단대상(최우선/후순위/추가검토필요) 만 집계.
+     * 배포일자 분포 통계 — 차단완료 + 차단대상(최우선/후순위/검토필요대상) 만 집계.
      * 행: 팀/담당자/레포 별 (탭). 열: 배포일자(YYYY-MM-DD) + "예정"(차단대상 중 일자 미정) + "차단완료".
      * 담당자 컬럼은 deployManager 우선, 없으면 managerOverride → 매핑 → 팀대표 폴백.
      */

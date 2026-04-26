@@ -27,12 +27,12 @@ public class ApiStorageService {
     /**
      * 수동 판단 전용 상태값 — 자동 재계산(calculateStatus)에서 보존되며,
      * 일괄 수정 시 selecting 만으로 statusOverridden=true 가 자동 적용된다.
-     * 모두 의미상 "사용" 계열이지만, 원래 어떤 차단대상이었는지를 추적한다.
+     * 모두 의미상 "사용" 계열이며, 차단대상에서 사용으로 전환된 건과 검토필요에서
+     * 사용으로 전환된 건을 구분한다.
      */
     public static final List<String> MANUAL_STATUSES = List.of(
-            "최우선 차단대상 → 사용",
-            "후순위 차단대상 → 사용",
-            "현업요청 사용"
+            "차단대상 → 사용",
+            "검토필요 → 사용"
     );
 
     private final ApiRecordRepository repository;
@@ -469,12 +469,12 @@ public class ApiStorageService {
         // 2-b 이하: 최우선 아님 — 플래그 리셋 (잔여값 제거)
         r.setLogWorkExcluded(false);
 
-        // 3. 추가검토필요 차단대상: 호출 0건 + 1년 미만 OR 호출 1~N건 + 1년 경과
+        // 3. 검토필요대상: 호출 0건 + 1년 미만 OR 호출 1~N건 + 1년 경과
         if (callZero && !fullOld) {
-            return "추가검토필요 차단대상";
+            return "검토필요대상";
         }
         if (callLow && fullOld) {
-            return "추가검토필요 차단대상";
+            return "검토필요대상";
         }
         // 4. 사용: 그 외
         return "사용";

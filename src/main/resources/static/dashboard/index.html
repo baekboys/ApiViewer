@@ -310,7 +310,7 @@
         <div class="sum-sub" id="sBtLowPct"></div>
       </div>
       <div class="sum-card" style="border-left:4px solid #d97706;">
-        <div class="sum-label">③ 추가검토필요 차단대상</div>
+        <div class="sum-label">③ 검토필요대상</div>
         <div class="sum-value" id="sBtRev">0</div>
         <div class="sum-sub" id="sBtRevPct"></div>
       </div>
@@ -321,22 +321,17 @@
       </div>
     </div>
 
-    <!-- 수동 판단 카드 (담당자 결정) — 차단대상 → 사용 / 현업요청 사용 -->
+    <!-- 수동 판단 카드 (담당자 결정) — 차단대상 → 사용 / 검토필요 → 사용 -->
     <div class="summary-grid" style="margin-top:8px;">
       <div class="sum-card" style="border-left:4px solid #65a30d;">
-        <div class="sum-label">최우선 차단대상 → 사용 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(수동)</span></div>
-        <div class="sum-value" id="sManTop" style="color:#3f6212;">0</div>
-        <div class="sum-sub" id="sManTopPct"></div>
+        <div class="sum-label">차단대상 → 사용 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(수동, 최우선/후순위/담당자 판단 통합)</span></div>
+        <div class="sum-value" id="sManBtUse" style="color:#3f6212;">0</div>
+        <div class="sum-sub" id="sManBtUsePct"></div>
       </div>
       <div class="sum-card" style="border-left:4px solid #65a30d;">
-        <div class="sum-label">후순위 차단대상 → 사용 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(수동)</span></div>
-        <div class="sum-value" id="sManLow" style="color:#3f6212;">0</div>
-        <div class="sum-sub" id="sManLowPct"></div>
-      </div>
-      <div class="sum-card" style="border-left:4px solid #65a30d;">
-        <div class="sum-label">현업요청 사용 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(수동)</span></div>
-        <div class="sum-value" id="sManBiz" style="color:#3f6212;">0</div>
-        <div class="sum-sub" id="sManBizPct"></div>
+        <div class="sum-label">검토필요 → 사용 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(수동)</span></div>
+        <div class="sum-value" id="sManRevUse" style="color:#3f6212;">0</div>
+        <div class="sum-sub" id="sManRevUsePct"></div>
       </div>
     </div>
 
@@ -347,7 +342,7 @@
       <span style="background:#f1f5f9;padding:1px 6px;border-radius:3px;color:#64748b;">차단완료</span> @Deprecated + javadoc표기 + UnsupportedOperationException<br>
       <span style="background:#fee2e2;padding:1px 6px;border-radius:3px;color:#991b1b;">① 최우선 차단대상</span> 호출 0건 + 소스변경 1년 경과 (침해사고 로그작업은 이력에서 제외) &nbsp;|&nbsp;
       <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#ea580c;">② 후순위 차단대상</span> IT담당자 검토결과 미사용 또는 업무종료로 인지된 건 &nbsp;|&nbsp;
-      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">③ 추가검토필요 차단대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
+      <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">③ 검토필요대상</span> 호출 0건 + 소스변경 1년 미만, 호출 1~<span id="guideReviewThreshold">3</span>건 + 소스변경 1년 경과
     </div>
 
     <!-- ── 상태 분포 + HTTP Method ── -->
@@ -360,7 +355,7 @@
           <div class="legend-item"><div class="legend-dot seg-done"></div>차단완료</div>
           <div class="legend-item"><div class="legend-dot" style="background:#dc2626;"></div>① 최우선 차단대상</div>
           <div class="legend-item"><div class="legend-dot" style="background:#ea580c;"></div>② 후순위 차단대상</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#d97706;"></div>③ 추가검토필요 차단대상</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#d97706;"></div>③ 검토필요대상</div>
         </div>
         <div style="margin-top:16px;" id="distDetail"></div>
       </div>
@@ -389,7 +384,7 @@
               <th style="text-align:right;">차단완료</th>
               <th style="text-align:right;">① 최우선</th>
               <th style="text-align:right;">② 후순위</th>
-              <th style="text-align:right;">③ 추가검토필요</th>
+              <th style="text-align:right;">③ 검토필요대상</th>
               <th></th>
             </tr></thead>
             <tbody id="teamTbody"></tbody>
@@ -410,7 +405,7 @@
               <th style="text-align:right;">차단완료</th>
               <th style="text-align:right;">① 최우선</th>
               <th style="text-align:right;">② 후순위</th>
-              <th style="text-align:right;">③ 추가검토필요</th>
+              <th style="text-align:right;">③ 검토필요대상</th>
               <th>마지막 분석일</th>
               <th></th>
             </tr></thead>
@@ -431,7 +426,7 @@
               <th style="text-align:right;">차단완료</th>
               <th style="text-align:right;">① 최우선</th>
               <th style="text-align:right;">② 후순위</th>
-              <th style="text-align:right;">③ 추가검토필요</th>
+              <th style="text-align:right;">③ 검토필요대상</th>
               <th></th>
             </tr></thead>
             <tbody id="managerTbody"></tbody>
@@ -445,7 +440,7 @@
          ══════════════════════════════════════════════════════════════ -->
     <div class="section-header">
       <h3>📅 배포일자 분포</h3>
-      <span class="section-sub">차단대상(① 최우선 / ② 후순위 / ③ 추가검토필요) 의 배포 예정일 분포 — 일자 미정은 "예정", 차단완료는 별도 컬럼</span>
+      <span class="section-sub">차단대상(① 최우선 / ② 후순위 / ③ 검토필요대상) 의 배포 예정일 분포 — 일자 미정은 "예정", 차단완료는 별도 컬럼</span>
     </div>
     <div class="card">
       <div class="tabs">
@@ -655,10 +650,9 @@
     const done   = st['차단완료']         || 0;
     const btTop     = st['최우선 차단대상']      || 0;
     const btLow     = st['후순위 차단대상']      || 0;
-    const btRev     = st['추가검토필요 차단대상'] || 0;
-    const manTop    = st['최우선 차단대상 → 사용'] || 0;
-    const manLow    = st['후순위 차단대상 → 사용'] || 0;
-    const manBiz    = st['현업요청 사용']         || 0;
+    const btRev     = st['검토필요대상'] || 0;
+    const manBtUse  = st['차단대상 → 사용']  || 0;
+    const manRevUse = st['검토필요 → 사용']  || 0;
 
     // 요약 카드
     document.getElementById('sTotal').textContent  = total.toLocaleString();
@@ -675,12 +669,10 @@
     document.getElementById('sBtLowPct').textContent = pct(btLow, total);
     document.getElementById('sBtRev').textContent   = btRev.toLocaleString();
     document.getElementById('sBtRevPct').textContent = pct(btRev, total);
-    { const e = document.getElementById('sManTop'); if (e) { e.textContent = manTop.toLocaleString();
-        document.getElementById('sManTopPct').textContent = pct(manTop, total); } }
-    { const e = document.getElementById('sManLow'); if (e) { e.textContent = manLow.toLocaleString();
-        document.getElementById('sManLowPct').textContent = pct(manLow, total); } }
-    { const e = document.getElementById('sManBiz'); if (e) { e.textContent = manBiz.toLocaleString();
-        document.getElementById('sManBizPct').textContent = pct(manBiz, total); } }
+    { const e = document.getElementById('sManBtUse'); if (e) { e.textContent = manBtUse.toLocaleString();
+        document.getElementById('sManBtUsePct').textContent = pct(manBtUse, total); } }
+    { const e = document.getElementById('sManRevUse'); if (e) { e.textContent = manRevUse.toLocaleString();
+        document.getElementById('sManRevUsePct').textContent = pct(manRevUse, total); } }
 
     // 상태 분포 바
     const distData = [
@@ -688,7 +680,7 @@
       ['차단완료', done, '#6b7280'],
       ['① 최우선 차단대상', btTop, '#dc2626'],
       ['② 후순위 차단대상', btLow, '#ea580c'],
-      ['③ 추가검토필요 차단대상', btRev, '#d97706']
+      ['③ 검토필요대상', btRev, '#d97706']
     ];
     const bar = document.getElementById('distBar');
     bar.innerHTML = distData.filter(([,v]) => v > 0).map(([,v,c]) =>
@@ -738,7 +730,7 @@
       const done = sd['차단완료'] || 0;
       const btTop = bd['최우선 차단대상'] || 0;
       const btLow = bd['후순위 차단대상'] || 0;
-      const btRev = bd['추가검토필요 차단대상'] || 0;
+      const btRev = bd['검토필요대상'] || 0;
       const cnt = row.count || 0;
       const label = labelKey === 'repo' ? `[${esc(row.team||'-')}] ${esc(row.repo)} (${esc(row.businessName||'')})` : esc(row.team);
       const items = [
@@ -746,7 +738,7 @@
         ['차단완료', done, '#6b7280'],
         ['① 최우선', btTop, '#dc2626'],
         ['② 후순위', btLow, '#ea580c'],
-        ['③ 추가검토필요', btRev, '#d97706']
+        ['③ 검토필요대상', btRev, '#d97706']
       ];
       const bars = items.map(([label, v, color]) =>
         `<div style="display:flex;align-items:center;gap:4px;">
@@ -777,7 +769,7 @@
       const done = sd['차단완료'] || 0;
       const btTop = bd['최우선 차단대상'] || 0;
       const btLow = bd['후순위 차단대상'] || 0;
-      const btRev = bd['추가검토필요 차단대상'] || 0;
+      const btRev = bd['검토필요대상'] || 0;
       const cnt = row.count || 0;
       const label = labelKey === 'manager' ? `${esc(row.team||'-')} / ${esc(row[labelKey])}` : esc(row[labelKey]);
       const details = [
@@ -785,7 +777,7 @@
         done ? `<span class="st st-done" style="font-size:10px;">차단완료 ${done}</span>` : '',
         btTop? `<span style="font-size:10px;color:#dc2626;font-weight:600;">① 최우선 ${btTop}</span>` : '',
         btLow? `<span style="font-size:10px;color:#ea580c;font-weight:600;">② 후순위 ${btLow}</span>` : '',
-        btRev? `<span style="font-size:10px;color:#d97706;font-weight:600;">③ 추가검토필요 ${btRev}</span>` : ''
+        btRev? `<span style="font-size:10px;color:#d97706;font-weight:600;">③ 검토필요대상 ${btRev}</span>` : ''
       ].filter(Boolean).join(' ');
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <span style="width:140px;font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(row[labelKey])}">${label}</span>
@@ -807,7 +799,7 @@
       const bd = row.statusDetail || {};
       const use=sd['사용']||0, done=sd['차단완료']||0, cnt=row.count||0;
       const btTop=bd['최우선 차단대상']||0,
-            btLow=bd['후순위 차단대상']||0, btRev=bd['추가검토필요 차단대상']||0;
+            btLow=bd['후순위 차단대상']||0, btRev=bd['검토필요대상']||0;
       const qp = key === 'team' ? `team=${encodeURIComponent(row[key]||'')}` : `manager=${encodeURIComponent(row[key]||'')}`;
       return `<tr>
         <td><b>${esc(row[key])}</b></td>
@@ -832,7 +824,7 @@
       const bd = row.statusDetail || {};
       const use=sd['사용']||0, done=sd['차단완료']||0, cnt=row.count||0;
       const btTop=bd['최우선 차단대상']||0,
-            btLow=bd['후순위 차단대상']||0, btRev=bd['추가검토필요 차단대상']||0;
+            btLow=bd['후순위 차단대상']||0, btRev=bd['검토필요대상']||0;
       return `<tr>
         <td style="color:var(--text-muted);">${esc(row.team || '-')}</td>
         <td><b>${esc(row.manager)}</b></td>
@@ -857,7 +849,7 @@
       const bd = row.statusDetail || {};
       const use=sd['사용']||0, done=sd['차단완료']||0, cnt=row.count||0;
       const btTop=bd['최우선 차단대상']||0,
-            btLow=bd['후순위 차단대상']||0, btRev=bd['추가검토필요 차단대상']||0;
+            btLow=bd['후순위 차단대상']||0, btRev=bd['검토필요대상']||0;
       return `<tr>
         <td style="color:var(--text-muted);">${esc(row.team)}</td>
         <td><b>${esc(row.repo)}</b></td>

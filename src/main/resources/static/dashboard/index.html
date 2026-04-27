@@ -961,13 +961,14 @@
     //   2단 차단대상: 소계 | 비율 || 차단완료 || 잔여 | ①-① | ①-② || 제외 | ①-③ | ①-④
     //   2단 검토대상: 소계 | 비율 || ②-① | ②-② | ②-③
     const headerHtml = (firstSpan) => {
-      const yL    = 'background:#fde68a;color:#92400e;';   // 차단대상 1단 (그룹)
-      const ySum  = 'background:#fef3c7;color:#92400e;';   // 차단대상 소계/비율
+      // ① 차단대상 그룹/소계/비율 — 붉은 계열 (제외 노랑과 시각 구분)
+      const rGrp  = 'background:#fecaca;color:#991b1b;';   // ① 차단대상 그룹 헤더 (rose-200)
+      const rSum  = 'background:#fee2e2;color:#991b1b;';   // 소계/비율 (rose-100)
       const greyDone = 'background:#f1f5f9;color:#64748b;'; // 차단완료
-      const rSub  = 'background:#fee2e2;color:#991b1b;';   // 잔여 서브헤더
-      const rLeaf = 'background:#fef2f2;color:#dc2626;';   // 잔여 leaf
-      const eSub  = 'background:#fef3c7;color:#92400e;';   // 제외 서브헤더 (노랑 톤)
-      const eLeaf = 'background:#fffbeb;color:#b45309;';   // 제외 leaf
+      const rSub  = 'background:#fecaca;color:#991b1b;';   // 잔여 서브헤더 (rose-200, 진한 톤)
+      const rLeaf = 'background:#fef2f2;color:#dc2626;';   // 잔여 leaf (rose-50)
+      const eSub  = 'background:#fde68a;color:#92400e;';   // 제외 서브헤더 (yellow/amber-200, 노랑)
+      const eLeaf = 'background:#fef3c7;color:#92400e;';   // 제외 leaf (yellow-100)
       const bL    = 'background:#dbeafe;color:#1e40af;';   // 검토대상 1단
       const bSum  = 'background:#dbeafe;color:#1e40af;';   // 검토대상 소계/비율
       const bM    = 'background:#eff6ff;color:#1e40af;';   // 검토대상 leaf
@@ -980,20 +981,20 @@
         ${firstSpan.tier1}
         <th rowspan="2" style="text-align:right;font-weight:800;border-right:2px solid #999;">총합계</th>
         <th rowspan="2" style="${greenLight}text-align:right;border-right:2px solid #999;">사용</th>
-        <th colspan="9" style="${yL}text-align:center;border-right:2px solid #999;">① 차단대상</th>
+        <th colspan="9" style="${rGrp}text-align:center;border-right:2px solid #999;">① 차단대상</th>
         <th colspan="5" style="${bL}text-align:center;">② 검토대상</th>
       </tr>`;
       const tier2 = `<tr>
         ${firstSpan.tier2}
-        <th style="${ySum}text-align:right;">소계</th>
-        <th style="${ySum}text-align:right;${bdSub}">비율</th>
+        <th style="${rSum}text-align:right;">소계</th>
+        <th style="${rSum}text-align:right;${bdSub}">비율</th>
         <th style="${greyDone}text-align:right;${bdSub}">차단완료</th>
         <th style="${rSub}text-align:right;${bdSub}">잔여</th>
         <th style="${rLeaf}text-align:right;">①-①<br>차단대상</th>
         <th style="${rLeaf}text-align:right;">①-②<br>담당자<br>판단</th>
         <th style="${eSub}text-align:right;${bdSub}">제외</th>
         <th style="${eLeaf}text-align:right;">①-③<br>현업요청<br>제외</th>
-        <th style="${limeM}text-align:right;border-right:2px solid #999;">①-④<br>사용으로<br>변경</th>
+        <th style="${eLeaf}text-align:right;border-right:2px solid #999;">①-④<br>사용으로<br>변경</th>
         <th style="${bSum}text-align:right;">소계</th>
         <th style="${bSum}text-align:right;${bdSub}">비율</th>
         <th style="${bM}text-align:right;${bdSub}">②-①<br>호출0건<br>+변경있음</th>
@@ -1036,15 +1037,15 @@
       return `<tr style="${trStyle}">${firstCells}
         ${totalCell}
         ${useCell}
-        <td style="text-align:right;font-weight:700;color:#92400e;">${blockTotal.toLocaleString()}</td>
-        <td style="text-align:right;color:#92400e;border-left:2px solid #cbd5e1;">${pctF(blockTotal, total)}</td>
+        <td style="text-align:right;font-weight:700;color:#991b1b;">${blockTotal.toLocaleString()}</td>
+        <td style="text-align:right;color:#991b1b;border-left:2px solid #cbd5e1;">${pctF(blockTotal, total)}</td>
         ${cellNum(row.blockDone,         {color:'#64748b', borderLeft:true})}
         ${cellNum(blockResidualSum,      {color:'#991b1b', bold:true, borderLeft:true})}
         ${cellNum(row.blockResidual,     {color:'#dc2626'})}
         ${cellNum(row.blockExManager,    {color:'#dc2626'})}
         ${cellNum(blockExcludedSum,      {color:'#92400e', bold:true, borderLeft:true})}
         ${cellNum(row.blockExReview,     {color:'#b45309'})}
-        ${cellNum(row.blockExManUse,     {color:'#3f6212', borderRight:true})}
+        ${cellNum(row.blockExManUse,     {color:'#b45309', borderRight:true})}
         <td style="text-align:right;font-weight:700;color:#1e40af;">${reviewTotal.toLocaleString()}</td>
         <td style="text-align:right;color:#1e40af;border-left:2px solid #cbd5e1;">${pctF(reviewTotal, total)}</td>
         ${cellNum(row.review0Chg,  {color:'#d97706', borderLeft:true})}

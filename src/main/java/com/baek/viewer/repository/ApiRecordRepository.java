@@ -117,6 +117,12 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long>,
     @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.blockMarkingIncomplete = true AND r.repositoryName IN :repos")
     long countBlockMarkingIncompleteForRepos(@Param("repos") List<String> repos);
 
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> ''")
+    long countTestSuspect();
+
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> '' AND r.repositoryName IN :repos")
+    long countTestSuspectForRepos(@Param("repos") List<String> repos);
+
     // ── 전체 선택/벌크 작업용 ID 목록 조회 (경량) ─────────────────────────
     @Query("SELECT r.id FROM ApiRecord r")
     List<Long> findAllIds();

@@ -62,10 +62,16 @@
     .stat-pill.s-done    strong { color: #6b7280; }
     .stat-pill.s-use     strong { color: var(--success); }
     /* 그룹 색상 */
-    .sg-status { background:#f0fdf4; border-color:#86efac; }           /* 사용/차단완료 */
-    .sg-pri1   { background:#fef2f2; border-color:#fca5a5; }           /* ① 차단대상 */
+    .sg-status { background:#f0fdf4; border-color:#86efac; }           /* 사용 */
+    .sg-done   { background:#f1f5f9; border-color:#cbd5e1; }           /* 차단완료/차단처리미흡/테스트용 의심 */
+    .sg-done strong { color:#475569; }
+    .sg-pri1   { background:#fef2f2; border-color:#fca5a5; }           /* ① 차단대상 그룹 */
+    .sg-pri1 strong { color:#dc2626; }
+    .sg-pri1-sum { background:#fee2e2; border-color:#f87171; font-weight:700; }   /* ① 합계 강조 */
     .sg-pri2   { background:#fff7ed; border-color:#fdba74; }           /* (예비) */
-    .sg-pri3   { background:#fffbeb; border-color:#fcd34d; }           /* ② 추가검토대상 */
+    .sg-pri3   { background:#fffbeb; border-color:#fcd34d; }           /* ② 추가검토대상 그룹 */
+    .sg-pri3 strong { color:#d97706; }
+    .sg-pri3-sum { background:#fef3c7; border-color:#f59e0b; font-weight:700; }   /* ② 합계 강조 */
     .sg-review { background:#eff6ff; border-color:#93c5fd; }           /* 현업검토완료 */
     .sg-hist   { background:#f5f3ff; border-color:#c4b5fd; }           /* 신규/상태변경/삭제 */
     /* 메소드/deprecated — 소형 chip */
@@ -147,15 +153,12 @@
     /* 상태 배지 */
     .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 
-    /* 상태 셀 — 상위 카테고리(① 차단대상 / ② 추가검토대상)를 카드 헤더처럼 묶어 가시성 강화 */
-    .status-card { display:inline-flex; flex-direction:column; align-items:stretch; border:1px solid; border-radius:8px; overflow:hidden; min-width:130px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
-    .status-card .sc-head { font-size:10px; font-weight:700; padding:2px 8px; letter-spacing:.02em; line-height:1.4; border-bottom:1px solid; text-align:center; }
-    .status-card .sc-body { padding:3px 6px; background:var(--card); display:flex; justify-content:center; }
-    .status-card .sc-body .status-badge { box-shadow:none; }
-    .status-card.sc-block  { border-color:#fca5a5; }
-    .status-card.sc-block  .sc-head { background:#fef2f2; color:#b91c1c; border-bottom-color:#fecaca; }
-    .status-card.sc-review { border-color:#fcd34d; }
-    .status-card.sc-review .sc-head { background:#fffbeb; color:#b45309; border-bottom-color:#fde68a; }
+    /* 상태 셀 — 단일 라인 pill, 그룹 접두 + 구분자 + leaf */
+    .status-line { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:12px; border:1px solid transparent; font-size:11px; font-weight:700; white-space:nowrap; line-height:1.3; }
+    .status-line .sl-grp { font-size:10px; opacity:.8; font-weight:600; }
+    .status-line .sl-sep { opacity:.4; font-weight:400; }
+    .status-line.sl-block  { background:#fef2f2; border-color:#fca5a5; color:#b91c1c; }
+    .status-line.sl-review { background:#fffbeb; border-color:#fcd34d; color:#b45309; }
     .st-use      { background:#dcfce7; color:#166534; }
     .st-done     { background:#f1f5f9; color:#6b7280; }
     .st-del      { background:#fee2e2; color:#991b1b; text-decoration:line-through; }
@@ -410,30 +413,38 @@
     </div>
   </div>
 
-  <!-- 통계 (상태 필터 겸용) -->
+  <!-- 통계 (상태 필터 겸용) — 그룹별 색상 통일 -->
   <div class="stats-bar" id="statsBar" style="display:none">
-    <!-- 상태 그룹 -->
+    <!-- 전체 -->
     <div class="stat-pill" id="pill-all" onclick="setFilter('')"><span>전체</span><strong id="statTotal">0</strong></div>
-    <div class="stat-pill s-use sg-status" id="pill-사용"    onclick="setFilter('사용')"   ><span>사용</span><strong id="stat-사용">0</strong></div>
-    <div class="stat-pill s-done sg-status" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span><strong id="stat-차단완료">0</strong></div>
+    <!-- 사용 -->
+    <div class="stat-pill s-use sg-status" id="pill-사용" onclick="setFilter('사용')"><span>사용</span><strong id="stat-사용">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
-    <!-- 상위 카테고리 그룹 — ① 차단대상 / ② 추가검토대상 -->
-    <div class="stat-pill sg-pri1" id="pill-block"  onclick="setFilter('group:block')"  title="①-①~①-③ 합계 — 클릭 시 ① 차단대상 전체"><span>① 차단대상</span><strong id="stat-block"  style="color:#dc2626;">0</strong></div>
-    <div class="stat-pill sg-pri3" id="pill-review" onclick="setFilter('group:review')" title="②-①~②-② 합계 — 클릭 시 ② 추가검토대상 전체"><span>② 추가검토대상</span><strong id="stat-review" style="color:#d97706;">0</strong></div>
+    <!-- 차단완료 그룹 (회색 통일): 차단완료 / 차단처리미흡 / 테스트용 의심 -->
+    <div class="stat-pill sg-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span><strong id="stat-차단완료">0</strong></div>
+    <div class="stat-pill sg-done" id="pill-marking-incomplete" onclick="setFilter('marking-incomplete')" title="차단완료이지만 @Deprecated 또는 [URL차단작업] 주석 누락"><span>📝 차단처리미흡</span><strong id="stat-marking-incomplete">0</strong></div>
+    <div class="stat-pill sg-done" id="pill-test-suspect" onclick="setFilter('testSuspect')" title="URL/메소드/주석 등에 test, sample, mock 등 키워드가 포함된 의심 URL"><span>🧪 테스트용 의심</span><strong id="stat-test-suspect">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
-    <!-- 수동 판단 그룹 (담당자 수동 결정) -->
-    <div class="stat-pill" id="pill-bt-use" style="background:#ecfccb;border-color:#bef264;" onclick="setFilter('①-④ 사용으로 변경')" title="①-④ 사용으로 변경 (담당자 수동 판단)"><span>①-④ 사용으로 변경</span><strong id="stat-bt-use" style="color:#3f6212;">0</strong></div>
-    <div class="stat-pill" id="pill-rev-use" style="background:#ecfccb;border-color:#bef264;" onclick="setFilter('②-③ 사용으로 변경')" title="②-③ 사용으로 변경 (담당자 수동 판단)"><span>②-③ 사용으로 변경</span><strong id="stat-rev-use" style="color:#3f6212;">0</strong></div>
+    <!-- ① 차단대상 그룹 (빨강 통일): 합계 + ①-① ~ ①-④ -->
+    <div class="stat-pill sg-pri1 sg-pri1-sum" id="pill-block" onclick="setFilter('group:block')" title="①-①~①-④ 합계"><span>① 차단대상</span><strong id="stat-block">0</strong></div>
+    <div class="stat-pill sg-pri1" id="pill-leaf-1-1" onclick="setFilter('①-① 차단대상')" title="호출 0건 + 소스변경 1년 경과"><span>①-① 차단대상</span><strong id="stat-leaf-1-1">0</strong></div>
+    <div class="stat-pill sg-pri1" id="pill-leaf-1-2" onclick="setFilter('①-② 담당자 판단')" title="담당자 수동 판단"><span>①-② 담당자 판단</span><strong id="stat-leaf-1-2">0</strong></div>
+    <div class="stat-pill sg-pri1" id="pill-leaf-1-3" onclick="setFilter('①-③ 현업요청 제외대상')" title="현업요청에 의한 차단 제외"><span>①-③ 현업요청 제외대상</span><strong id="stat-leaf-1-3">0</strong></div>
+    <div class="stat-pill sg-pri1" id="pill-leaf-1-4" onclick="setFilter('①-④ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>①-④ 사용으로 변경</span><strong id="stat-leaf-1-4">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
-    <!-- 검토 그룹 -->
+    <!-- ② 추가검토대상 그룹 (노랑 통일): 합계 + ②-① ~ ②-③ -->
+    <div class="stat-pill sg-pri3 sg-pri3-sum" id="pill-review" onclick="setFilter('group:review')" title="②-①~②-③ 합계"><span>② 추가검토대상</span><strong id="stat-review">0</strong></div>
+    <div class="stat-pill sg-pri3" id="pill-leaf-2-1" onclick="setFilter('②-① 호출0건+변경있음')" title="호출 0건 + 1년 미만 변경"><span>②-① 호출0건+변경있음</span><strong id="stat-leaf-2-1">0</strong></div>
+    <div class="stat-pill sg-pri3" id="pill-leaf-2-2" onclick="setFilter('②-② 호출 3건 이하+변경없음')" title="호출 1~N건 + 1년 경과"><span>②-② 호출 3건 이하</span><strong id="stat-leaf-2-2">0</strong></div>
+    <div class="stat-pill sg-pri3" id="pill-leaf-2-3" onclick="setFilter('②-③ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>②-③ 사용으로 변경</span><strong id="stat-leaf-2-3">0</strong></div>
+    <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
+    <!-- 현업검토 -->
     <div class="stat-pill sg-review" id="pill-reviewed" onclick="setFilter('reviewed')"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
     <span style="border-left:2px solid var(--border);height:28px;margin:0 2px;"></span>
-    <!-- 변경이력 그룹 -->
+    <!-- 변경이력 그룹 (보라 통일): 신규 / 상태변경 / 삭제 -->
     <div class="stat-pill sg-hist" id="pill-new"     onclick="setFilter('new')"    ><span>신규</span><strong id="stat-new"     style="color:#6d28d9;">0</strong></div>
     <div class="stat-pill sg-hist" id="pill-changed" onclick="setFilter('changed')"><span>상태변경</span><strong id="stat-changed" style="color:#6d28d9;">0</strong></div>
     <div class="stat-pill sg-hist" id="pill-deleted" onclick="setFilter('deleted')"><span>삭제</span><strong id="stat-deleted" style="color:#6d28d9;">0</strong></div>
-    <div class="stat-pill" id="pill-marking-incomplete" style="background:#fff7ed;border-color:#fed7aa;" onclick="setFilter('marking-incomplete')" title="차단완료이지만 @Deprecated 또는 [URL차단작업] 주석 누락"><span>📝 차단처리미흡</span><strong id="stat-marking-incomplete" style="color:#b45309;">0</strong></div>
-    <div class="stat-pill" id="pill-test-suspect" style="background:#fdf4ff;border-color:#e9d5ff;" onclick="setFilter('testSuspect')" title="URL/메소드/주석 등에 test, sample, mock 등 키워드가 포함된 의심 URL"><span>🧪 테스트용 의심</span><strong id="stat-test-suspect" style="color:#9333ea;">0</strong></div>
     <!-- 메소드/Deprecated — 소형 chip, 별도 줄 -->
     <div style="width:100%;height:0;"></div>
     <div class="stat-chip" id="pill-GET"        onclick="setFilter('method:GET')"   ><span>GET</span><strong id="statGet">0</strong></div>
@@ -1389,8 +1400,14 @@
     document.getElementById('stat-차단완료').textContent   = get('차단완료');
     { const e = document.getElementById('stat-block');    if (e) e.textContent = blockSum; }
     { const e = document.getElementById('stat-review');   if (e) e.textContent = reviewSum; }
-    { const e1 = document.getElementById('stat-bt-use');  if (e1) e1.textContent = get('①-④ 사용으로 변경'); }
-    { const e2 = document.getElementById('stat-rev-use'); if (e2) e2.textContent = get('②-③ 사용으로 변경'); }
+    // 9 leaf v2 — ① 차단대상 / ② 추가검토대상 leaf 별 카운트
+    { const e = document.getElementById('stat-leaf-1-1'); if (e) e.textContent = get('①-① 차단대상'); }
+    { const e = document.getElementById('stat-leaf-1-2'); if (e) e.textContent = get('①-② 담당자 판단'); }
+    { const e = document.getElementById('stat-leaf-1-3'); if (e) e.textContent = get('①-③ 현업요청 제외대상'); }
+    { const e = document.getElementById('stat-leaf-1-4'); if (e) e.textContent = get('①-④ 사용으로 변경'); }
+    { const e = document.getElementById('stat-leaf-2-1'); if (e) e.textContent = get('②-① 호출0건+변경있음'); }
+    { const e = document.getElementById('stat-leaf-2-2'); if (e) e.textContent = get('②-② 호출 3건 이하+변경없음'); }
+    { const e = document.getElementById('stat-leaf-2-3'); if (e) e.textContent = get('②-③ 사용으로 변경'); }
     document.getElementById('stat-reviewed').textContent  = c.reviewedCount || 0;
     document.getElementById('stat-new').textContent       = c.newCount || 0;
     document.getElementById('stat-changed').textContent   = c.changedCount || 0;
@@ -1459,8 +1476,13 @@
     else if (val === '차단완료') { document.getElementById('pill-차단완료').classList.add('active-filter'); }
     else if (val === 'group:block')  { const e = document.getElementById('pill-block');  if (e) e.classList.add('active-filter'); }
     else if (val === 'group:review') { const e = document.getElementById('pill-review'); if (e) e.classList.add('active-filter'); }
-    else if (val === '①-④ 사용으로 변경') { const e = document.getElementById('pill-bt-use');  if (e) e.classList.add('active-filter'); }
-    else if (val === '②-③ 사용으로 변경') { const e = document.getElementById('pill-rev-use'); if (e) e.classList.add('active-filter'); }
+    else if (val === '①-① 차단대상')             { const e = document.getElementById('pill-leaf-1-1'); if (e) e.classList.add('active-filter'); }
+    else if (val === '①-② 담당자 판단')           { const e = document.getElementById('pill-leaf-1-2'); if (e) e.classList.add('active-filter'); }
+    else if (val === '①-③ 현업요청 제외대상')      { const e = document.getElementById('pill-leaf-1-3'); if (e) e.classList.add('active-filter'); }
+    else if (val === '①-④ 사용으로 변경')          { const e = document.getElementById('pill-leaf-1-4'); if (e) e.classList.add('active-filter'); }
+    else if (val === '②-① 호출0건+변경있음')       { const e = document.getElementById('pill-leaf-2-1'); if (e) e.classList.add('active-filter'); }
+    else if (val === '②-② 호출 3건 이하+변경없음') { const e = document.getElementById('pill-leaf-2-2'); if (e) e.classList.add('active-filter'); }
+    else if (val === '②-③ 사용으로 변경')          { const e = document.getElementById('pill-leaf-2-3'); if (e) e.classList.add('active-filter'); }
     else if (val === 'reviewed') { document.getElementById('pill-reviewed').classList.add('active-filter'); }
     else if (val === 'new') { document.getElementById('pill-new').classList.add('active-filter'); }
     else if (val === 'changed') { document.getElementById('pill-changed').classList.add('active-filter'); }
@@ -1633,22 +1655,20 @@
   }
   function statusBadge(status, logWorkExcluded) {
     const tip = STATUS_TIPS[status] || '';
-    const upper = upperOf(status);
-    const sty = statusInlineStyle(status);
-    const leafBadge = `<span class="status-badge" style="${sty}" title="${esc(tip)}">${esc(status || '사용')}</span>`;
-    // 상위 카테고리가 leaf 와 다를 때만 카드 스타일 (① 차단대상 / ② 추가검토대상)
-    if (upper && upper !== status) {
-      const cardCls = upper.startsWith('①') ? 'sc-block'
-                    : upper.startsWith('②') ? 'sc-review'
-                    : '';
-      if (cardCls) {
-        return `<div class="status-card ${cardCls}" title="${esc(tip)}">`
-             +   `<div class="sc-head">${esc(upper)}</div>`
-             +   `<div class="sc-body">${leafBadge}</div>`
-             + `</div>`;
-      }
+    // ①-* / ②-* leaf — 한 줄 pill: "① 차단대상 - ①-① 차단대상" 형태
+    if (status && (status.startsWith('①-') || status.startsWith('②-'))) {
+      const isBlock = status.startsWith('①-');
+      const grp = isBlock ? '① 차단대상' : '② 추가검토대상';
+      const cls = isBlock ? 'sl-block' : 'sl-review';
+      return `<span class="status-line ${cls}" title="${esc(tip)}">`
+           +   `<span class="sl-grp">${esc(grp)}</span>`
+           +   `<span class="sl-sep">-</span>`
+           +   `<span>${esc(status)}</span>`
+           + `</span>`;
     }
-    return leafBadge;
+    // 사용 / 차단완료 / 삭제 — 기존 단일 배지
+    const sty = statusInlineStyle(status);
+    return `<span class="status-badge" style="${sty}" title="${esc(tip)}">${esc(status || '사용')}</span>`;
   }
 
   function testSuspectBadge(reason) {

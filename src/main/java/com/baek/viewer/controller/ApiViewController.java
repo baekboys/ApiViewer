@@ -638,6 +638,9 @@ public class ApiViewController {
         long markingIncompleteCount = hasRepo
                 ? recordRepository.countBlockMarkingIncompleteForRepos(repoFilter)
                 : recordRepository.countBlockMarkingIncomplete();
+        long testSuspectCount = hasRepo
+                ? recordRepository.countTestSuspectForRepos(repoFilter)
+                : recordRepository.countTestSuspect();
         // ①-② 호출0건+변경없음 — 옛 "최우선 차단대상" + logWorkExcluded=false. 이제 status 자체가 leaf 이므로 단순 countByStatus.
         long priorityPureCount = byStatus.getOrDefault("①-① 차단대상", 0L);
 
@@ -666,6 +669,7 @@ public class ApiViewController {
         response.put("reviewedCount", reviewedCount);
         response.put("deprecated",   deprecatedCount);
         response.put("markingIncompleteCount", markingIncompleteCount);
+        response.put("testSuspectCount", testSuspectCount);
         response.put("byStatus",     byStatus);
         response.put("byCategory",   byCategory);  // 7카드 통합
         response.put("byMethod",     byMethod);

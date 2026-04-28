@@ -18,13 +18,6 @@ public class GlobalConfig {
     @Column(name = "review_threshold")
     private Integer reviewThreshold = 3;
 
-    /**
-     * 보류 호출 상한 — 호출 reviewThreshold+1 ~ reviewUpperThreshold 건 + 1년경과 도 검토필요대상으로 분류.
-     * 대시보드 "차단대상 진행사항" 표의 ⑦ 컬럼(호출 4건이상) 분류용. 기본 10.
-     */
-    @Column(name = "review_upper_threshold")
-    private Integer reviewUpperThreshold = 10;
-
     @Column(name = "password", length = 100)
     private String password;
 
@@ -155,8 +148,6 @@ public class GlobalConfig {
     public void setEndDate(String endDate) { this.endDate = endDate; }
     public Integer getReviewThreshold() { return reviewThreshold != null ? reviewThreshold : 3; }
     public void setReviewThreshold(Integer reviewThreshold) { this.reviewThreshold = reviewThreshold; }
-    public Integer getReviewUpperThreshold() { return reviewUpperThreshold != null ? reviewUpperThreshold : 10; }
-    public void setReviewUpperThreshold(Integer v) { this.reviewUpperThreshold = v; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
     public Integer getPageSize() { return pageSize != null ? pageSize : 200; }

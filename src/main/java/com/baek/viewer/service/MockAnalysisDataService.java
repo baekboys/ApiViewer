@@ -76,6 +76,11 @@ public class MockAnalysisDataService {
             "한소라", "오준혁", "장미경", "윤지훈", "조은영", "임도윤"
     };
 
+    /** 배포담당자 풀 — 일정이 있는 레코드 중 일부에만 지정 (폴백 동작 검증용). */
+    private static final String[] DEPLOY_MANAGERS = {
+            "김배포", "이릴리스", "박운영", "최CSR", "정배포", "한릴리즈"
+    };
+
     private final ApiRecordRepository repo;
     private final JdbcTemplate jdbc;
     private final TestSuspectMatcher testSuspectMatcher;
@@ -301,30 +306,54 @@ public class MockAnalysisDataService {
             r.setManagerOverridden(true);
         }
 
-        // CBO/배포 일정 — 차단대상/검토대상 leaf (①-*/②-*) 중 일부에만 설정
-        //   확률: 차단대상 50%, 검토대상 30%, 사용/차단완료 0%
-        //   CBO 범위: 오늘 -14일 ~ +49일 (지난 CBO 30% / 미래 CBO 70%)
-        //   배포일자 = CBO + 7일 (한 주 뒤) — 사용자 룰
-        //   최대 배포일자 = 오늘 + 56일 (~2개월). 초과분은 쳐냄 (CBO 미설정 처리)
-        //   CBO 있으면 배포근거 deployCsr = "OP-xxxxx" 랜덤 부여
+        // CBO/배포 일정 + 조치담당자(배포담당자)
+        // - 차단완료 / 잔여(①-①,①-②): 기본적으로 일정+담당자 세팅 (일부는 미세팅 → "일정수립필요" 케이스)
+        // - 그 외 ①-*/②-* leaf: 기존처럼 일부만 세팅
         boolean isBlockTarget  = status != null && status.startsWith("①-");
         boolean isReviewTarget = status != null && status.startsWith("②-");
-        int scheduleProb = isBlockTarget ? 50 : (isReviewTarget ? 30 : 0);
-        if (scheduleProb > 0 && rnd.nextInt(100) < scheduleProb) {
-            // 70% 미래(0~49일), 30% 과거(1~14일 전 — 이미 CBO 끝남)
+        boolean isResidual = "①-① 차단대상".equals(status) || "①-② 담당자 판단".equals(status);
+        boolean isBlockDone = "차단완료".equals(status);
+
+        int scheduleProb;
+        if (isBlockDone || isResidual) scheduleProb = 80;     // 대부분 일정 있음
+        else if (isBlockTarget)        scheduleProb = 50;
+        else if (isReviewTarget)       scheduleProb = 30;
+        else                           scheduleProb = 0;
+
+        boolean scheduled = (scheduleProb > 0 && rnd.nextInt(100) < scheduleProb);
+        if (scheduled) {
             LocalDate cbo;
-            if (rnd.nextInt(100) < 70) {
-                cbo = LocalDate.now().plusDays(rnd.nextInt(50));     // 오늘 ~ +49일
+            if (isBlockDone) {
+                // 차단완료: 과거 일정으로 세팅 (데이터 신뢰감)
+                cbo = LocalDate.now().minusDays(14 + rnd.nextInt(60));
+            } else if (isResidual) {
+                // 잔여: 대부분 미래(0~49일), 일부 과거(1~14일 전)
+                cbo = (rnd.nextInt(100) < 80)
+                        ? LocalDate.now().plusDays(rnd.nextInt(50))
+                        : LocalDate.now().minusDays(1 + rnd.nextInt(14));
             } else {
-                cbo = LocalDate.now().minusDays(1 + rnd.nextInt(14)); // -1 ~ -14일
+                // 기타: 70% 미래, 30% 과거
+                cbo = (rnd.nextInt(100) < 70)
+                        ? LocalDate.now().plusDays(rnd.nextInt(50))
+                        : LocalDate.now().minusDays(1 + rnd.nextInt(14));
             }
+
             LocalDate deploy = cbo.plusDays(7); // CBO + 1주
-            // 최대 배포일자 = 오늘 + 56일 (~2개월) — 초과 시 일정 미설정
-            if (!deploy.isAfter(LocalDate.now().plusDays(56))) {
+            if (isBlockDone || !deploy.isAfter(LocalDate.now().plusDays(56))) {
                 r.setCboScheduledDate(cbo);
                 r.setDeployScheduledDate(deploy);
                 r.setDeployCsr(String.format("OP-%05d", 10000 + rnd.nextInt(89999)));
+                // 조치담당자: 일정이 있는 건 중 대부분 지정 (일부 미지정으로 폴백 검증)
+                if (rnd.nextInt(100) < 80) {
+                    r.setDeployManager(DEPLOY_MANAGERS[rnd.nextInt(DEPLOY_MANAGERS.length)]);
+                }
             }
+        } else {
+            // 일정수립필요 케이스: 일정도, 조치담당자도 비워둔다
+            r.setCboScheduledDate(null);
+            r.setDeployScheduledDate(null);
+            r.setDeployCsr(null);
+            r.setDeployManager(null);
         }
 
         // git_history: 1~3개 커밋 (최근 2년 내 랜덤, 최우선 차단대상 후보는 1년 경과 커밋 보장)

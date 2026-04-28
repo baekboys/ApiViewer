@@ -204,6 +204,15 @@ public class ApiViewController {
             "②-② 호출 3건 이하+변경없음",
             "②-③ 사용으로 변경");
 
+    /** 대시보드 "배포일자 분포" 모수 — 진행사항의 잔여(①-①/①-②) + 차단완료만 */
+    private static final List<String> DEPLOY_SCHEDULE_PLANNED_STATUSES = List.of(
+            "①-① 차단대상",
+            "①-② 담당자 판단");
+    private static final List<String> DEPLOY_SCHEDULE_ALL_STATUSES = List.of(
+            "차단완료",
+            "①-① 차단대상",
+            "①-② 담당자 판단");
+
     /** DB에서 API 목록 조회 — 경량 프로젝션 (fullComment, controllerComment, blockedReason 제외)
      *
      * 파라미터:
@@ -240,6 +249,7 @@ public class ApiViewController {
                                      @RequestParam(required = false) String deployFrom,
                                      @RequestParam(required = false) String deployTo,
                                      @RequestParam(required = false) String deployManager,
+                                     @RequestParam(required = false) Boolean deployUnscheduled,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size,
                                      @RequestParam(required = false) String sort) {
@@ -273,7 +283,8 @@ public class ApiViewController {
                 || (cboTo != null && !cboTo.isBlank())
                 || (deployFrom != null && !deployFrom.isBlank())
                 || (deployTo != null && !deployTo.isBlank())
-                || (deployManager != null && !deployManager.isBlank());
+                || (deployManager != null && !deployManager.isBlank())
+                || (deployUnscheduled != null);
 
         if (paged || hasDynamicFilter) {
             int pageIdx  = paged ? Math.max(0, page) : 0;
@@ -283,7 +294,7 @@ public class ApiViewController {
 
             Specification<ApiRecord> spec = buildSpec(repository, repoList, blockTargetOnly,
                     status, statusGroup, testSuspect, logWorkExcluded, recentLogOnly, httpMethod, isDeprecated, q, alert, ids,
-                    modifiedFrom, modifiedTo, cboFrom, cboTo, deployFrom, deployTo, deployManager);
+                    modifiedFrom, modifiedTo, cboFrom, cboTo, deployFrom, deployTo, deployManager, deployUnscheduled);
 
             Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
             // 엔티티 → 경량 summary Map 변환 (TEXT 필드 강제 제외)
@@ -384,7 +395,7 @@ public class ApiViewController {
                                                 String ids, String modifiedFrom, String modifiedTo,
                                                 String cboFrom, String cboTo,
                                                 String deployFrom, String deployTo,
-                                                String deployManager) {
+                                                String deployManager, Boolean deployUnscheduled) {
         return (root, query, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             if (repository != null && !repository.isBlank()) {
@@ -407,6 +418,14 @@ public class ApiViewController {
                                 cb.equal(root.get("status"), "차단완료"),
                                 cb.like(root.get("status"), "①-%")));
                     case "review" -> ps.add(cb.like(root.get("status"), "②-%"));
+                    case "blockResidual" -> // 잔여(=①-① 차단대상 + ①-② 담당자 판단)
+                        ps.add(root.get("status").in("①-① 차단대상", "①-② 담당자 판단"));
+                    case "blockExcluded" -> // 제외(=①-③ 현업요청 제외대상 + ①-④ 사용으로 변경)
+                        ps.add(root.get("status").in("①-③ 현업요청 제외대상", "①-④ 사용으로 변경"));
+                    case "deployAll" -> // 배포일자 분포: 차단완료 + 잔여(①-①/①-②)
+                        ps.add(root.get("status").in(DEPLOY_SCHEDULE_ALL_STATUSES));
+                    case "deployPlanned" -> // 배포일자 분포(일자/일정수립필요): 잔여(①-①/①-②)만
+                        ps.add(root.get("status").in(DEPLOY_SCHEDULE_PLANNED_STATUSES));
                     default -> { }
                 }
             }
@@ -508,6 +527,10 @@ public class ApiViewController {
             }
             if (deployManager != null && !deployManager.isBlank()) {
                 ps.add(cb.like(cb.lower(root.get("deployManager")), "%" + deployManager.toLowerCase() + "%"));
+            }
+            if (deployUnscheduled != null) {
+                if (deployUnscheduled) ps.add(cb.isNull(root.get("deployScheduledDate")));
+                else ps.add(cb.isNotNull(root.get("deployScheduledDate")));
             }
             // alert!="deleted" 기본: 삭제 제외
             if (alert == null || !"deleted".equals(alert)) {
@@ -1136,9 +1159,7 @@ public class ApiViewController {
     public ResponseEntity<?> dbDeployScheduleStats() {
         long start = System.currentTimeMillis();
 
-        List<String> targetStatuses = new ArrayList<>(BLOCK_TARGET_STATUSES);
-        targetStatuses.add("차단완료");
-        List<DeployScheduleDto> all = recordRepository.findForDeploySchedule(targetStatuses);
+        List<DeployScheduleDto> all = recordRepository.findForDeploySchedule(DEPLOY_SCHEDULE_ALL_STATUSES);
 
         Map<String, RepoConfig> repoConfigMap = repoConfigRepository.findAll().stream()
                 .collect(Collectors.toMap(RepoConfig::getRepoName, r -> r, (a, b) -> a));
@@ -1159,9 +1180,9 @@ public class ApiViewController {
             return resolveManager(r.getManagerOverride(), r.getApiPath(), c, mappings);
         };
 
-        // 모든 차단대상 레코드의 deployScheduledDate (null 제외) 수집 → 정렬된 unique 컬럼
+        // 잔여(①-①/①-②) 레코드의 deployScheduledDate (null 제외) 수집 → 정렬된 unique 컬럼
         List<String> dateColumns = all.stream()
-                .filter(r -> BLOCK_TARGET_STATUSES.contains(r.getStatus()))
+                .filter(r -> DEPLOY_SCHEDULE_PLANNED_STATUSES.contains(r.getStatus()))
                 .map(DeployScheduleDto::getDeployScheduledDate)
                 .filter(Objects::nonNull)
                 .map(LocalDate::toString)

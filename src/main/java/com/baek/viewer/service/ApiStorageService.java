@@ -107,7 +107,6 @@ public class ApiStorageService {
         log.info("[DB 저장 시작] repo={}, 건수={}, ip={}", repositoryName, apis.size(), clientIp);
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int reviewThreshold = getReviewThreshold();
-        int reviewUpper = getReviewUpperThreshold();
 
         // 프로그램ID별 담당자 매핑 로드
         List<Map<String, String>> managerMappings = loadManagerMappings(repositoryName);
@@ -140,7 +139,7 @@ public class ApiStorageService {
                 applyManagerMapping(existing, managerMappings);
 
                 if (!existing.isStatusOverridden()) {
-                    String newStatus = calculateStatus(existing, reviewThreshold, reviewUpper);
+                    String newStatus = calculateStatus(existing, reviewThreshold);
                     if (!Objects.equals(oldStatus, newStatus)) {
                         if (!STATUS_DONE.equals(newStatus)) {
                             String logMsg = oldStatus + " → " + newStatus;
@@ -175,7 +174,7 @@ public class ApiStorageService {
                 r.setDataSource("ANALYSIS");
                 updateExtractedFields(r, a, now);
                 applyManagerMapping(r, managerMappings);
-                r.setStatus(calculateStatus(r, reviewThreshold, reviewUpper));
+                r.setStatus(calculateStatus(r, reviewThreshold));
                 if (STATUS_DONE.equals(r.getStatus())) {
                     r.setBlockedDate(parseBlockedDate(r.getFullComment()));
                     r.setBlockedReason(parseBlockedReason(r.getFullComment()));
@@ -329,7 +328,6 @@ public class ApiStorageService {
     public void updateCallCounts(String repoName, Map<String, Long> pathToCount) {
         log.info("[호출건수 반영] repo={}, 매핑건수={}", repoName, pathToCount.size());
         int reviewThreshold = getReviewThreshold();
-        int reviewUpper = getReviewUpperThreshold();
         List<ApiRecord> records = repository.findByRepositoryName(repoName);
 
         for (ApiRecord r : records) {
@@ -353,7 +351,7 @@ public class ApiStorageService {
 
             if (!r.isStatusOverridden()) {
                 String oldStatus = r.getStatus();
-                String newStatus = calculateStatus(r, reviewThreshold, reviewUpper);
+                String newStatus = calculateStatus(r, reviewThreshold);
                 if (!Objects.equals(oldStatus, newStatus)) {
                     appendChangeLog(r, oldStatus + "→" + newStatus + ": 호출건수 반영 시 상태 변경");
                 }
@@ -375,7 +373,6 @@ public class ApiStorageService {
     public int updateBulk(List<Long> ids, Map<String, Object> fields, String clientIp) {
         log.info("[일괄 변경] 대상={}건, 필드={}, ip={}", ids.size(), fields.keySet(), clientIp);
         int reviewThreshold = getReviewThreshold();
-        int reviewUpper = getReviewUpperThreshold();
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         int updated = 0;
 
@@ -406,7 +403,7 @@ public class ApiStorageService {
                     String status = fields.get("status") != null ? fields.get("status").toString() : null;
                     if (status == null || status.isBlank()) {
                         r.setStatusOverridden(false);
-                        r.setStatus(calculateStatus(r, reviewThreshold, reviewUpper));
+                        r.setStatus(calculateStatus(r, reviewThreshold));
                     } else {
                         r.setStatus(status);
                         // 수동 판단 상태는 자동 재계산되지 않도록 statusOverridden 자동 ON
@@ -485,11 +482,6 @@ public class ApiStorageService {
 
     // ── 상태 계산 ────────────────────────────────────────────────────────────
 
-    /** 기존 호환 — reviewUpperThreshold 미지정 시 reviewThreshold 와 동일하게 동작 */
-    String calculateStatus(ApiRecord r, int reviewThreshold) {
-        return calculateStatus(r, reviewThreshold, reviewThreshold);
-    }
-
     /**
      * 자동 상태 판정 v2 (umbrella sticky, 9 leaf).
      *
@@ -503,9 +495,9 @@ public class ApiStorageService {
      *   5. 현재 status가 사용/'차단완료'/null 등 umbrella 외부:
      *        - 조건에 따라 leaf 자유 할당
      *
-     * 옛 ②-④ 호출 reviewThreshold+1↑ 는 사용으로 흡수 — `upper` 파라미터 사실상 무시.
+     * 옛 ②-④ 호출 reviewThreshold+1↑ 는 사용으로 흡수.
      */
-    String calculateStatus(ApiRecord r, int reviewThreshold, int reviewUpperThreshold) {
+    String calculateStatus(ApiRecord r, int reviewThreshold) {
         // 1. 수동 판단 상태 보존
         if (MANUAL_STATUSES.contains(r.getStatus())) {
             return r.getStatus();
@@ -673,9 +665,4 @@ public class ApiStorageService {
                 .orElse(3);
     }
 
-    private int getReviewUpperThreshold() {
-        return globalConfigRepository.findById(1L)
-                .map(GlobalConfig::getReviewUpperThreshold)
-                .orElse(10);
-    }
 }

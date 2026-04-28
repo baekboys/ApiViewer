@@ -146,7 +146,7 @@ class ApiStorageServiceTest {
         LocalDate oldDate = LocalDate.now().minusYears(2);
         r.setGitHistory("[{\"date\":\"" + oldDate + "\",\"author\":\"a\",\"message\":\"m\"}]");
 
-        String status = service.calculateStatus(r, 3, 10);
+        String status = service.calculateStatus(r, 3);
         assertThat(status).isEqualTo("사용");
     }
 
@@ -187,7 +187,7 @@ class ApiStorageServiceTest {
         LocalDate oldDate = LocalDate.now().minusYears(2);
         r.setGitHistory("[{\"date\":\"" + oldDate + "\",\"author\":\"a\",\"message\":\"m\"}]");
 
-        String status = service.calculateStatus(r, 3, 10);
+        String status = service.calculateStatus(r, 3);
         assertThat(status).isEqualTo("①-① 차단대상");  // umbrella 내 보존
     }
 
@@ -200,7 +200,7 @@ class ApiStorageServiceTest {
         LocalDate recent = LocalDate.now().minusDays(10);
         r.setGitHistory("[{\"date\":\"" + recent + "\",\"author\":\"a\",\"message\":\"m\"}]");
 
-        String status = service.calculateStatus(r, 3, 10);
+        String status = service.calculateStatus(r, 3);
         assertThat(status).isEqualTo("사용");
     }
 

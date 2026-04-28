@@ -30,6 +30,52 @@
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
     .card-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
     .card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+    /* 접기/펼치기 (details 기반) */
+    details.card { padding: 0; }
+    details.card > summary.card-title {
+      padding: 14px 18px;
+      margin: 0;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      border-radius: 10px;
+    }
+    details.card > summary.card-title::-webkit-details-marker { display: none; }
+    .collapser {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: none;
+      letter-spacing: 0;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 10px;
+    }
+    .collapser.inline { margin-left: 6px; }
+    details[open] .collapser .c-label::after { content: "접기"; }
+    details:not([open]) .collapser .c-label::after { content: "펼치기"; }
+    details[open] .collapser .c-arrow { transform: rotate(180deg); }
+    .collapser .c-arrow { display: inline-block; transition: transform .12s ease; }
+    details.card .card-body { padding: 14px 18px 16px; }
+    .summary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .summary-btn:hover { background:#e2e8f0; }
 
     /* 조회 폼 */
     .query-layout { display: flex; gap: 16px; align-items: flex-end; }
@@ -89,6 +135,11 @@
     .filter-bar input:focus { border-color: var(--primary); }
     .filter-bar select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; background: var(--card); }
     .filter-count { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+    .filter-row { width: 100%; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .filter-row .label { font-size:12px; color: var(--text-muted); white-space: nowrap; }
+    .filter-row .date { font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:4px; height:28px; }
+    .filter-row .btn-mini { font-size:11px; padding:2px 7px; border:1px solid var(--border); border-radius:4px; background:#f8fafc; cursor:pointer; height:28px; }
+    .filter-row .btn-mini.muted { color:#6b7280; }
 
     /* 일괄 변경 바 */
     .bulk-bar { display: none; position: sticky; bottom: 0; background: #1e293b; color: #fff;
@@ -393,31 +444,47 @@
 <div class="main">
 
   <!-- 조회 조건 -->
-  <div class="card">
-    <div class="card-title">
+  <details class="card" id="queryCard" open>
+    <summary class="card-title">
       <span class="dot"></span>조회 조건
-    </div>
-    <div class="query-layout">
-      <label class="field">업무명 | 레포지토리
-        <div id="repoSelect"></div>
-      </label>
-      <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
-      <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;">⬇ 엑셀 다운로드</button>
-      <span id="uploadGroup" style="display:none;gap:0;">
-        <button class="btn" id="excelUploadBtn" onclick="triggerExcelUpload()" style="background:#7c3aed;color:#fff;border-color:#7c3aed;border-radius:6px 0 0 6px;margin:0;">⬆ 엑셀 업로드</button>
-        <button class="btn" id="sampleDownloadBtn" onclick="downloadViewerSample()" style="background:#ede9fe;color:#6d28d9;border-color:#7c3aed;border-left:1px solid #a78bfa;border-radius:0 6px 6px 0;margin:0;" title="업로드용 샘플 엑셀 파일 다운로드">📥 샘플</button>
+      <span class="collapser inline" aria-hidden="true">
+        <span class="c-label"></span>
+        <span class="c-arrow">▾</span>
       </span>
-      <input type="file" id="excelUploadInput" accept=".xlsx" style="display:none;" onchange="handleExcelUpload(event)">
-    </div>
+    </summary>
+    <div class="card-body">
+      <div class="query-layout">
+        <label class="field">업무명 | 레포지토리
+          <div id="repoSelect"></div>
+        </label>
+        <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
+        <button class="btn btn-green" id="excelBtn" onclick="downloadExcel()" style="display:none;">⬇ 엑셀 다운로드</button>
+        <span id="uploadGroup" style="display:none;gap:0;">
+          <button class="btn" id="excelUploadBtn" onclick="triggerExcelUpload()" style="background:#7c3aed;color:#fff;border-color:#7c3aed;border-radius:6px 0 0 6px;margin:0;">⬆ 엑셀 업로드</button>
+          <button class="btn" id="sampleDownloadBtn" onclick="downloadViewerSample()" style="background:#ede9fe;color:#6d28d9;border-color:#7c3aed;border-left:1px solid #a78bfa;border-radius:0 6px 6px 0;margin:0;" title="업로드용 샘플 엑셀 파일 다운로드">📥 샘플</button>
+        </span>
+        <input type="file" id="excelUploadInput" accept=".xlsx" style="display:none;" onchange="handleExcelUpload(event)">
+      </div>
 
-    <div class="db-meta" id="dbMeta" style="display:none">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-      레포지토리: <strong id="metaRepo">-</strong> &nbsp;|&nbsp; 마지막 분석일: <strong id="metaDate">-</strong> &nbsp;|&nbsp; 총 <strong id="metaTotal">0</strong>개 URL
+      <div class="db-meta" id="dbMeta" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        레포지토리: <strong id="metaRepo">-</strong> &nbsp;|&nbsp; 마지막 분석일: <strong id="metaDate">-</strong> &nbsp;|&nbsp; 총 <strong id="metaTotal">0</strong>개 URL
+      </div>
     </div>
-  </div>
+  </details>
 
-  <!-- 통계 (상태 필터 겸용) — 행 단위 그룹화 -->
-  <div class="stats-bar" id="statsBar" style="display:none">
+  <!-- 상태 카드 -->
+  <details class="card" id="statsCard" open style="display:none;">
+    <summary class="card-title">
+      <span class="dot"></span>상태 카드
+      <span class="collapser inline" aria-hidden="true">
+        <span class="c-label"></span>
+        <span class="c-arrow">▾</span>
+      </span>
+    </summary>
+    <div class="card-body">
+      <!-- 통계 (상태 필터 겸용) — 행 단위 그룹화 -->
+      <div class="stats-bar" id="statsBar" style="display:none;margin:0 0 10px 0;">
     <!-- ── 1행: 일반 상태 / 차단완료 그룹 / 현업검토 / 변경이력 ────────── -->
     <div class="stat-pill" id="pill-all" onclick="setFilter('')"><span>전체</span><strong id="statTotal">0</strong></div>
     <div class="stat-pill s-use sg-status" id="pill-사용" onclick="setFilter('사용')"><span>사용</span><strong id="stat-사용">0</strong></div>
@@ -456,34 +523,58 @@
     <div class="stat-chip" id="pill-deprecated" data-admin-only onclick="setFilter('deprecated')"   ><span>@Deprecated</span><strong id="stat-deprecated" style="color:#9333ea;">0</strong></div>
   </div>
 
-  <!-- 검색/필터 -->
-  <div class="filter-bar" id="filterBar" style="display:none;flex-wrap:wrap;gap:6px;">
-    <input type="text" id="searchInput" placeholder="URL, 메소드명, 메뉴명, 비고 검색" oninput="filterTable()" style="width:260px;">
-    <input type="text" id="searchTeam" placeholder="팀 검색" oninput="filterTable()" style="width:100px;">
-    <input type="text" id="searchManager" placeholder="담당자 검색" oninput="filterTable()" style="width:100px;">
-    <input type="text" id="searchDeployManager" placeholder="배포담당자 검색" oninput="filterTable()" style="width:120px;">
-    <span class="filter-count" id="filterCount"></span>
-    <!-- 일자 필터 — CBO일자 / 배포일자 / 변경일시 한 줄 정렬 -->
-    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">CBO일자</span>
-      <input type="date" id="cboFrom" onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
-      <span style="font-size:12px;color:var(--text-muted);">~</span>
-      <input type="date" id="cboTo"   onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
-      <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:6px;">배포일자</span>
-      <input type="date" id="deployFrom" onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
-      <span style="font-size:12px;color:var(--text-muted);">~</span>
-      <input type="date" id="deployTo"   onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
-      <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:6px;">변경일시</span>
-      <input type="datetime-local" id="modifiedFrom" onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
-      <span style="font-size:12px;color:var(--text-muted);">~</span>
-      <input type="datetime-local" id="modifiedTo" onchange="filterTable({immediate:true,page:0})" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;height:28px;">
-      <button type="button" onclick="setDatePreset(5,'minutes')" style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;">최근 5분</button>
-      <button type="button" onclick="setDatePreset(1,'hours')"   style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;">최근 1시간</button>
-      <button type="button" onclick="setDatePreset(0,'today')"   style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;">오늘</button>
-      <button type="button" onclick="clearDateFilter()"          style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;color:#6b7280;" title="변경일시 초기화">변경일시 초기화</button>
-      <button type="button" onclick="clearScheduleFilter()"      style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;height:28px;color:#6b7280;" title="CBO/배포일자 초기화">일자 초기화</button>
     </div>
+  </details>
+
+  <!-- 검색/필터 -->
+  <details class="card" id="filterCard" open style="display:none;">
+    <summary class="card-title">
+      <span class="dot"></span>검색 필터
+      <span class="collapser inline" aria-hidden="true">
+        <span class="c-label"></span>
+        <span class="c-arrow">▾</span>
+      </span>
+      <button class="summary-btn" type="button" onclick="resetAllFilters(event)">전체 리셋</button>
+    </summary>
+    <div class="card-body">
+      <div class="filter-bar" id="filterBar" style="display:none;flex-wrap:wrap;gap:6px;">
+        <div class="filter-row">
+          <input type="text" id="searchInput" placeholder="URL, 메소드명, 메뉴명, 비고 검색" oninput="filterTable()" style="width:260px;">
+          <input type="text" id="searchTeam" placeholder="팀 검색" oninput="filterTable()" style="width:100px;">
+          <input type="text" id="searchManager" placeholder="담당자 검색" oninput="filterTable()" style="width:100px;">
+          <span class="filter-count" id="filterCount"></span>
+        </div>
+
+        <!-- 변경일시: 한 줄 -->
+        <div class="filter-row">
+          <span class="label">변경일시</span>
+          <input class="date" type="datetime-local" id="modifiedFrom" onchange="filterTable({immediate:true,page:0})">
+          <span class="label">~</span>
+          <input class="date" type="datetime-local" id="modifiedTo" onchange="filterTable({immediate:true,page:0})">
+          <button class="btn-mini" type="button" onclick="setDatePreset(5,'minutes')">최근 5분</button>
+          <button class="btn-mini" type="button" onclick="setDatePreset(1,'hours')">최근 1시간</button>
+          <button class="btn-mini" type="button" onclick="setDatePreset(0,'today')">오늘</button>
+          <button class="btn-mini muted" type="button" onclick="clearDateFilter()" title="변경일시 초기화">변경일시 초기화</button>
+        </div>
+
+        <!-- CBO/배포/배포담당자: 한 줄 -->
+        <div class="filter-row">
+          <span class="label">CBO일자</span>
+          <input class="date" type="date" id="cboFrom" onchange="filterTable({immediate:true,page:0})">
+          <span class="label">~</span>
+          <input class="date" type="date" id="cboTo" onchange="filterTable({immediate:true,page:0})">
+
+          <span class="label" style="margin-left:6px;">배포일자</span>
+          <input class="date" type="date" id="deployFrom" onchange="filterTable({immediate:true,page:0})">
+          <span class="label">~</span>
+          <input class="date" type="date" id="deployTo" onchange="filterTable({immediate:true,page:0})">
+
+          <input type="text" id="searchDeployManager" placeholder="배포담당자 검색" oninput="filterTable()" style="width:120px;">
+          <button class="btn-mini muted" type="button" onclick="clearScheduleFilter()" title="CBO/배포일자 초기화">일자 초기화</button>
+        </div>
   </div>
+    </div>
+  </details>
 
   <!-- 엑셀 업로드 필터 칩 (업로드 직후 자동 표시) -->
   <div id="uploadedChipWrap" style="display:none;margin:4px 0 6px;">
@@ -847,6 +938,12 @@
     const urlRepo = qs.get('repo');
     const urlTeam = qs.get('team');
     const urlManager = qs.get('manager');
+    const urlStatus = qs.get('status');
+    const urlStatusGroup = qs.get('statusGroup');
+    const urlDeployFrom = qs.get('deployFrom');
+    const urlDeployTo = qs.get('deployTo');
+    const urlDeployMgr = qs.get('deployManager');
+    const urlDeployUnscheduled = qs.get('deployUnscheduled');
     let shouldAutoLoad = false;
     if (urlRepo && window._repoSel) {
       window._repoSel.setSelected([urlRepo]);
@@ -859,6 +956,24 @@
     if (urlManager) {
       document.getElementById('searchManager').value = urlManager;
       shouldAutoLoad = true;
+    }
+    if (urlDeployFrom) { const el = document.getElementById('deployFrom'); if (el) el.value = urlDeployFrom; shouldAutoLoad = true; }
+    if (urlDeployTo)   { const el = document.getElementById('deployTo');   if (el) el.value = urlDeployTo;   shouldAutoLoad = true; }
+    if (urlDeployMgr)  { const el = document.getElementById('searchDeployManager'); if (el) el.value = urlDeployMgr; shouldAutoLoad = true; }
+    if (urlDeployUnscheduled === 'true') {
+      window._deployUnscheduledFilter = true;
+      shouldAutoLoad = true;
+    }
+    if (urlStatus) {
+      window._initialActiveFilter = urlStatus;
+      shouldAutoLoad = true;
+    } else if (urlStatusGroup) {
+      window._initialActiveFilter = (urlStatusGroup === 'block') ? 'group:block'
+        : (urlStatusGroup === 'review') ? 'group:review'
+        : (urlStatusGroup === 'blockResidual') ? 'group:blockResidual'
+        : (urlStatusGroup === 'blockExcluded') ? 'group:blockExcluded'
+        : '';
+      if (window._initialActiveFilter) shouldAutoLoad = true;
     }
     // 대시보드에서 필터 지정으로 들어온 경우 자동 조회
     if (shouldAutoLoad) loadApis();
@@ -886,7 +1001,9 @@
       '<tr><td colspan="31"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
     vCurrentPage = 0;
-    activeFilter = '';
+    // 대시보드 딥링크 등에서 초기 필터가 있으면 유지
+    activeFilter = (window._initialActiveFilter != null) ? window._initialActiveFilter : '';
+    window._initialActiveFilter = null;
     uploadedIdsFilter = null;
     renderUploadedFilterChip();
 
@@ -905,6 +1022,8 @@
       updateChangedNotice(true);
       updateNewNotice(true);
       updateDeletedNotice(true);
+      document.getElementById('statsCard').style.display = 'block';
+      document.getElementById('filterCard').style.display = 'block';
       document.getElementById('statsBar').style.display = 'flex';
       if (!isNoticeDismissed('noticeBar')) document.getElementById('noticeBar').style.display = 'block';
       document.getElementById('filterBar').style.display = 'flex';
@@ -923,6 +1042,24 @@
       document.getElementById('loadBtn').disabled = false;
     }
   }
+
+  // ── UI 접기/펼치기 상태 유지 (localStorage) ─────────────────
+  function initDetailsState(id, storageKey, defaultOpen) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const saved = localStorage.getItem(storageKey);
+    if (saved === 'open') el.open = true;
+    else if (saved === 'closed') el.open = false;
+    else el.open = !!defaultOpen;
+    el.addEventListener('toggle', () => {
+      localStorage.setItem(storageKey, el.open ? 'open' : 'closed');
+    });
+  }
+  // 기본: 조회 조건은 펼침, 상태/검색은 펼침(표 공간 확보 위해 사용자가 접을 수 있게)
+  initDetailsState('queryCard', 'viewer.ui.queryCard', true);
+  // UX: 초기 진입 시 화면 점유가 커서 기본은 접힘(사용자가 열어두면 localStorage 상태 유지)
+  initDetailsState('statsCard', 'viewer.ui.statsCard', false);
+  initDetailsState('filterCard', 'viewer.ui.filterCard', false);
 
   // ── 전체 재로드 (카운트 + 현재 페이지) ────────────────────
   // 변경 작업(편집/일괄/알림해제 등) 이후 서버 상태와 UI 동기화
@@ -1092,6 +1229,30 @@
     filterTable({immediate: true, page: 0});
   }
 
+  function resetAllFilters(evt) {
+    // summary 클릭(토글)과 분리: 버튼 클릭 시 접기/펼치기 토글 방지
+    if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+    // 텍스트/일자 입력값 초기화
+    [
+      'searchInput','searchTeam','searchManager','searchDeployManager',
+      'modifiedFrom','modifiedTo',
+      'cboFrom','cboTo','deployFrom','deployTo'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    // 상태 카드(배지) 필터 + 업로드 칩 필터까지 모두 해제
+    vCurrentPage = 0;
+    activeFilter = '';
+    uploadedIdsFilter = null;
+    window._deployUnscheduledFilter = false;
+    renderUploadedFilterChip();
+    document.querySelectorAll('.stat-pill, .stat-chip').forEach(p => p.classList.remove('active-filter'));
+    const allPill = document.getElementById('pill-all');
+    if (allPill) allPill.classList.add('active-filter');
+    filterTable({immediate: true, page: 0});
+  }
+
   async function refreshAll() {
     await Promise.all([ loadCounts(getSelectedReposCsv()), loadPage(vCurrentPage) ]);
     renderStats();
@@ -1174,6 +1335,7 @@
     if (depF) params.set('deployFrom', depF);
     if (depT) params.set('deployTo',   depT);
     if (depMgr) params.set('deployManager', depMgr);
+    if (window._deployUnscheduledFilter) params.set('deployUnscheduled', 'true');
 
     // activeFilter → status 또는 alert 또는 method/deprecated
     if (activeFilter === 'new')           params.set('alert', 'new');
@@ -1186,6 +1348,8 @@
     else if (activeFilter.startsWith('method:')) params.set('httpMethod', activeFilter.slice(7));
     else if (activeFilter === 'group:block')  params.set('statusGroup', 'block');
     else if (activeFilter === 'group:review') params.set('statusGroup', 'review');
+    else if (activeFilter === 'group:blockResidual') params.set('statusGroup', 'blockResidual');
+    else if (activeFilter === 'group:blockExcluded') params.set('statusGroup', 'blockExcluded');
     else if (
       activeFilter === '사용' ||
       activeFilter === '차단완료' ||
@@ -1422,6 +1586,7 @@
 
   let activeFilter = '';
   let uploadedIdsFilter = null;        // 배열이면 엑셀업로드 필터 활성, null이면 비활성
+  window._deployUnscheduledFilter = false;
   const UPLOADED_FILTER_MAX = 5000;   // 이 이상이면 IN 절 성능 저하 우려 → 필터 미적용
   // ── 담당자 매핑 해석 (managerOverride > programId매핑 > 팀 대표) ──
   function resolveManager(a) {

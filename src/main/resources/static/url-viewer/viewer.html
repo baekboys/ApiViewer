@@ -98,6 +98,18 @@
 
     /* 통계 */
     .stats-bar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+    .stat-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+    }
+    .stat-group.tight { padding: 5px; }
+    .stat-group .stat-pill,
+    .stat-group .stat-chip { box-shadow: none; }
     .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s, background .15s; }
     .stat-pill:hover { border-color: var(--primary); }
     .stat-pill.active-filter { border-color: var(--primary); background: #eff6ff; }
@@ -109,7 +121,7 @@
     .stat-pill.s-use     strong { color: var(--success); }
     /* stats-bar 행 구분/구분자 */
     .stat-row-break { flex-basis:100%; height:0; }
-    .stat-sep { border-left:2px solid var(--border); height:28px; margin:0 2px; align-self:center; }
+    .stat-sep { display:none; }
     /* 그룹 색상 */
     .sg-status { background:#f0fdf4; border-color:#86efac; }           /* 사용 */
     .sg-done   { background:#f1f5f9; border-color:#cbd5e1; }           /* 차단완료/차단처리미흡/테스트용 의심 */
@@ -378,6 +390,9 @@
     [data-theme="dark"] .sg-status{background:#1e293b!important;border-color:#334155!important;}
     [data-theme="dark"] .stat-pill{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important;}
     [data-theme="dark"] .stat-pill:hover{background:#293548!important;}
+    [data-theme="dark"] .stat-group{background:#1f2a3a!important;border-color:#334155!important;}
+    [data-theme="dark"] .stat-group .stat-pill,
+    [data-theme="dark"] .stat-group .stat-chip{background:#293548!important;border-color:#334155!important;}
     [data-theme="dark"] table{border-color:var(--border)!important;}
     [data-theme="dark"] th{background:#293548!important;color:var(--text-muted)!important;border-color:var(--border)!important;}
     [data-theme="dark"] td{border-color:var(--border)!important;}
@@ -486,41 +501,52 @@
       <!-- 통계 (상태 필터 겸용) — 행 단위 그룹화 -->
       <div class="stats-bar" id="statsBar" style="display:none;margin:0 0 10px 0;">
     <!-- ── 1행: 일반 상태 / 차단완료 그룹 / 현업검토 / 변경이력 ────────── -->
-    <div class="stat-pill" id="pill-all" onclick="setFilter('')"><span>전체</span><strong id="statTotal">0</strong></div>
-    <div class="stat-pill s-use sg-status" id="pill-사용" onclick="setFilter('사용')"><span>사용</span><strong id="stat-사용">0</strong></div>
-    <span class="stat-sep"></span>
-    <div class="stat-pill sg-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span><strong id="stat-차단완료">0</strong></div>
-    <div class="stat-pill sg-done" id="pill-marking-incomplete" onclick="setFilter('marking-incomplete')" title="차단완료이지만 @Deprecated 또는 [URL차단작업] 주석 누락"><span>📝 차단처리미흡</span><strong id="stat-marking-incomplete">0</strong></div>
-    <div class="stat-pill sg-done" id="pill-test-suspect" onclick="setFilter('testSuspect')" title="URL/메소드/주석 등에 test, sample, mock 등 키워드가 포함된 의심 URL"><span>🧪 테스트용 의심</span><strong id="stat-test-suspect">0</strong></div>
-    <span class="stat-sep"></span>
-    <div class="stat-pill sg-review" id="pill-reviewed" onclick="setFilter('reviewed')"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
-    <span class="stat-sep"></span>
-    <div class="stat-pill sg-hist" id="pill-new"     onclick="setFilter('new')"    ><span>신규</span><strong id="stat-new"     style="color:#6d28d9;">0</strong></div>
-    <div class="stat-pill sg-hist" id="pill-changed" onclick="setFilter('changed')"><span>상태변경</span><strong id="stat-changed" style="color:#6d28d9;">0</strong></div>
-    <div class="stat-pill sg-hist" id="pill-deleted" onclick="setFilter('deleted')"><span>삭제</span><strong id="stat-deleted" style="color:#6d28d9;">0</strong></div>
+    <div class="stat-group tight">
+      <div class="stat-pill" id="pill-all" onclick="setFilter('')"><span>전체</span><strong id="statTotal">0</strong></div>
+      <div class="stat-pill s-use sg-status" id="pill-사용" onclick="setFilter('사용')"><span>사용</span><strong id="stat-사용">0</strong></div>
+    </div>
+    <div class="stat-group tight sg-done">
+      <div class="stat-pill sg-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span><strong id="stat-차단완료">0</strong></div>
+      <div class="stat-pill sg-done" id="pill-marking-incomplete" onclick="setFilter('marking-incomplete')" title="차단완료이지만 @Deprecated 또는 [URL차단작업] 주석 누락"><span>📝 차단처리미흡</span><strong id="stat-marking-incomplete">0</strong></div>
+      <div class="stat-pill sg-done" id="pill-test-suspect" onclick="setFilter('testSuspect')" title="URL/메소드/주석 등에 test, sample, mock 등 키워드가 포함된 의심 URL"><span>🧪 테스트용 의심</span><strong id="stat-test-suspect">0</strong></div>
+    </div>
+    <div class="stat-group tight sg-review">
+      <div class="stat-pill sg-review" id="pill-reviewed" onclick="setFilter('reviewed')"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
+    </div>
+    <div class="stat-group tight sg-hist">
+      <div class="stat-pill sg-hist" id="pill-new"     onclick="setFilter('new')"    ><span>신규</span><strong id="stat-new"     style="color:#6d28d9;">0</strong></div>
+      <div class="stat-pill sg-hist" id="pill-changed" onclick="setFilter('changed')"><span>상태변경</span><strong id="stat-changed" style="color:#6d28d9;">0</strong></div>
+      <div class="stat-pill sg-hist" id="pill-deleted" onclick="setFilter('deleted')"><span>삭제</span><strong id="stat-deleted" style="color:#6d28d9;">0</strong></div>
+    </div>
 
     <!-- ── 2행: ① 차단대상 그룹 (빨강 통일) ──────────────────────────── -->
     <div class="stat-row-break"></div>
-    <div class="stat-pill sg-pri1 sg-pri1-sum" id="pill-block" onclick="setFilter('group:block')" title="①-①~①-④ 합계"><span>① 차단대상</span><strong id="stat-block">0</strong></div>
-    <div class="stat-pill sg-pri1" id="pill-leaf-1-1" onclick="setFilter('①-① 차단대상')" title="호출 0건 + 소스변경 1년 경과"><span>①-① 차단대상</span><strong id="stat-leaf-1-1">0</strong></div>
-    <div class="stat-pill sg-pri1" id="pill-leaf-1-2" onclick="setFilter('①-② 담당자 판단')" title="담당자 수동 판단"><span>①-② 담당자 판단</span><strong id="stat-leaf-1-2">0</strong></div>
-    <div class="stat-pill sg-pri1" id="pill-leaf-1-3" onclick="setFilter('①-③ 현업요청 제외대상')" title="현업요청에 의한 차단 제외"><span>①-③ 현업요청 제외대상</span><strong id="stat-leaf-1-3">0</strong></div>
-    <div class="stat-pill sg-pri1" id="pill-leaf-1-4" onclick="setFilter('①-④ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>①-④ 사용으로 변경</span><strong id="stat-leaf-1-4">0</strong></div>
+    <div class="stat-group sg-pri1">
+      <div class="stat-pill sg-pri1 sg-pri1-sum" id="pill-block" onclick="setFilter('group:block')" title="①-①~①-④ 합계"><span>① 차단대상</span><strong id="stat-block">0</strong></div>
+      <div class="stat-pill sg-pri1" id="pill-leaf-1-1" onclick="setFilter('①-① 차단대상')" title="호출 0건 + 소스변경 1년 경과"><span>①-① 차단대상</span><strong id="stat-leaf-1-1">0</strong></div>
+      <div class="stat-pill sg-pri1" id="pill-leaf-1-2" onclick="setFilter('①-② 담당자 판단')" title="담당자 수동 판단"><span>①-② 담당자 판단</span><strong id="stat-leaf-1-2">0</strong></div>
+      <div class="stat-pill sg-pri1" id="pill-leaf-1-3" onclick="setFilter('①-③ 현업요청 제외대상')" title="현업요청에 의한 차단 제외"><span>①-③ 현업요청 제외대상</span><strong id="stat-leaf-1-3">0</strong></div>
+      <div class="stat-pill sg-pri1" id="pill-leaf-1-4" onclick="setFilter('①-④ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>①-④ 사용으로 변경</span><strong id="stat-leaf-1-4">0</strong></div>
+    </div>
 
     <!-- ── 3행: ② 추가검토대상 그룹 (노랑 통일) ─────────────────────── -->
     <div class="stat-row-break"></div>
-    <div class="stat-pill sg-pri3 sg-pri3-sum" id="pill-review" onclick="setFilter('group:review')" title="②-①~②-③ 합계"><span>② 추가검토대상</span><strong id="stat-review">0</strong></div>
-    <div class="stat-pill sg-pri3" id="pill-leaf-2-1" onclick="setFilter('②-① 호출0건+변경있음')" title="호출 0건 + 1년 미만 변경"><span>②-① 호출0건+변경있음</span><strong id="stat-leaf-2-1">0</strong></div>
-    <div class="stat-pill sg-pri3" id="pill-leaf-2-2" onclick="setFilter('②-② 호출 3건 이하+변경없음')" title="호출 1~N건 + 1년 경과"><span>②-② 호출 3건 이하</span><strong id="stat-leaf-2-2">0</strong></div>
-    <div class="stat-pill sg-pri3" id="pill-leaf-2-3" onclick="setFilter('②-③ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>②-③ 사용으로 변경</span><strong id="stat-leaf-2-3">0</strong></div>
+    <div class="stat-group sg-pri3">
+      <div class="stat-pill sg-pri3 sg-pri3-sum" id="pill-review" onclick="setFilter('group:review')" title="②-①~②-③ 합계"><span>② 추가검토대상</span><strong id="stat-review">0</strong></div>
+      <div class="stat-pill sg-pri3" id="pill-leaf-2-1" onclick="setFilter('②-① 호출0건+변경있음')" title="호출 0건 + 1년 미만 변경"><span>②-① 호출0건+변경있음</span><strong id="stat-leaf-2-1">0</strong></div>
+      <div class="stat-pill sg-pri3" id="pill-leaf-2-2" onclick="setFilter('②-② 호출 3건 이하+변경없음')" title="호출 1~N건 + 1년 경과"><span>②-② 호출 3건 이하</span><strong id="stat-leaf-2-2">0</strong></div>
+      <div class="stat-pill sg-pri3" id="pill-leaf-2-3" onclick="setFilter('②-③ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>②-③ 사용으로 변경</span><strong id="stat-leaf-2-3">0</strong></div>
+    </div>
 
     <!-- ── 4행: 메소드 / @Deprecated — 관리자 전용 ───────────────────── -->
     <div class="stat-row-break" data-admin-only></div>
-    <div class="stat-chip" id="pill-GET"        data-admin-only onclick="setFilter('method:GET')"   ><span>GET</span><strong id="statGet">0</strong></div>
-    <div class="stat-chip" id="pill-POST"       data-admin-only onclick="setFilter('method:POST')"  ><span>POST</span><strong id="statPost">0</strong></div>
-    <div class="stat-chip" id="pill-PUT"        data-admin-only onclick="setFilter('method:PUT')"   ><span>PUT</span><strong id="statPut">0</strong></div>
-    <div class="stat-chip" id="pill-DELETE"     data-admin-only onclick="setFilter('method:DELETE')"><span>DELETE</span><strong id="statDelete">0</strong></div>
-    <div class="stat-chip" id="pill-deprecated" data-admin-only onclick="setFilter('deprecated')"   ><span>@Deprecated</span><strong id="stat-deprecated" style="color:#9333ea;">0</strong></div>
+    <div class="stat-group tight" data-admin-only>
+      <div class="stat-chip" id="pill-GET"        data-admin-only onclick="setFilter('method:GET')"   ><span>GET</span><strong id="statGet">0</strong></div>
+      <div class="stat-chip" id="pill-POST"       data-admin-only onclick="setFilter('method:POST')"  ><span>POST</span><strong id="statPost">0</strong></div>
+      <div class="stat-chip" id="pill-PUT"        data-admin-only onclick="setFilter('method:PUT')"   ><span>PUT</span><strong id="statPut">0</strong></div>
+      <div class="stat-chip" id="pill-DELETE"     data-admin-only onclick="setFilter('method:DELETE')"><span>DELETE</span><strong id="statDelete">0</strong></div>
+      <div class="stat-chip" id="pill-deprecated" data-admin-only onclick="setFilter('deprecated')"   ><span>@Deprecated</span><strong id="stat-deprecated" style="color:#9333ea;">0</strong></div>
+    </div>
   </div>
 
     </div>

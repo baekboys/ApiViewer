@@ -69,6 +69,8 @@
     tbody tr.bot-row{background:#fff7ed;}
     tbody tr.bot-row:hover{background:#ffedd5;}
     .col-svc{font-family:'Consolas',monospace;font-size:11px;color:#1e40af;max-width:280px;overflow:hidden;text-overflow:ellipsis;}
+    .svc-link{color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;cursor:pointer;}
+    .svc-link:hover{text-decoration-style:solid;opacity:.85;}
     .col-err{color:#b91c1c;font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
     .col-ua{max-width:200px;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;color:var(--text-muted);}
     .col-time{font-variant-numeric:tabular-nums;color:var(--text-muted);}
@@ -241,6 +243,18 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- URL 현황 상세 모달 (차단 모니터링 내장) -->
+<div id="apiDetailModal" style="display:none;position:fixed;inset:0;z-index:10001;align-items:center;justify-content:center;">
+  <div id="apiDetailOverlay" style="position:absolute;inset:0;background:rgba(15,23,42,.55);"></div>
+  <div style="position:relative;z-index:10002;width:92%;max-width:980px;max-height:88vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.35);">
+    <div style="position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--card);">
+      <div style="font-size:13px;font-weight:800;color:var(--text);">URL 현황 상세</div>
+      <button class="btn btn-ghost" type="button" style="height:30px;padding:6px 10px;" onclick="closeApiDetailModal()">닫기</button>
+    </div>
+    <div id="apiDetailBody" style="padding:16px 18px;"></div>
+  </div>
+</div>
 
 <script>
   // 공통설정의 pageSize 를 초기값으로 사용. /api/config/global 응답 후 갱신됨 (아래 loadPageSize)
@@ -535,7 +549,13 @@
           <td class="col-time">${esc(r.endtime)}</td>
           <td><span class="badge badge-repo">${esc(r.repoName)}</span></td>
           <td>${r.okindName ? `<span class="badge badge-okd">${esc(r.okindName)}</span>` : ''}</td>
-          <td class="col-svc" title="${esc(r.service)}">${esc(r.service)}</td>
+          <td class="col-svc" title="${esc(r.service)}">
+            <span class="svc-link"
+                  data-repo-name="${esc(r.repoName)}"
+                  data-api-path="${esc(r.service)}"
+                  data-http-method="${esc(r.method||'')}"
+                  onclick="openApiRecordModalFromEl(this)">${esc(r.service)}</span>
+          </td>
           <td>${r.method ? `<span class="badge badge-method">${esc(r.method)}</span>` : ''}</td>
           <td>${esc(r.domain)}</td>
           <td>${esc(r.podName)}</td>
@@ -572,6 +592,109 @@
   }
 
   function gotoPage(p){ currentPage = p; renderTable(); window.scrollTo({top: document.querySelector('.table-wrap').offsetTop - 60, behavior: 'smooth'}); }
+
+  // ── URL 현황 상세 모달 ──────────────────────────────────
+  function openApiDetailModalLoading(repoName, apiPath, httpMethod){
+    const m = document.getElementById('apiDetailModal');
+    const body = document.getElementById('apiDetailBody');
+    m.style.display = 'flex';
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="spinner"></span>
+        <div style="font-size:12px;color:var(--text);font-weight:700;">상세 조회 중...</div>
+      </div>
+      <div style="margin-top:10px;font-family:Consolas,monospace;font-size:11px;color:var(--text-muted);line-height:1.6;">
+        repo=${esc(repoName)}<br>
+        method=${esc(httpMethod)}<br>
+        path=${esc(apiPath)}
+      </div>`;
+  }
+  function closeApiDetailModal(){
+    document.getElementById('apiDetailModal').style.display = 'none';
+  }
+  // overlay 클릭 닫기
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'apiDetailOverlay') closeApiDetailModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('apiDetailModal').style.display === 'flex') closeApiDetailModal();
+  });
+
+  function renderApiDetailNotFound(repoName, apiPath, httpMethod){
+    const body = document.getElementById('apiDetailBody');
+    body.innerHTML = `
+      <div style="font-size:13px;font-weight:800;color:#b91c1c;">관련 URL 없음</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+        차단 모니터링 데이터의 URL(service)가 URL 현황(DB)에 존재하지 않습니다.
+      </div>
+      <div style="margin-top:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--card);">
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:6px 10px;font-size:12px;">
+          <div style="color:var(--text-muted);font-weight:700;">레포</div><div style="color:var(--text);font-weight:700;">${esc(repoName||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">HTTP Method</div><div style="color:var(--text);font-weight:700;">${esc(httpMethod||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">URL 경로</div><div style="color:var(--text);font-family:Consolas,monospace;">${esc(apiPath||'-')}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderApiDetail(record){
+    const body = document.getElementById('apiDetailBody');
+    const r = record || {};
+    const pill = (label, value) => `<span style="display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:#f8fafc;font-size:11px;color:var(--text-muted);font-weight:700;">${esc(label)}<b style="color:var(--text);font-weight:800;">${esc(value ?? '-')}</b></span>`;
+    body.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+        ${pill('레포', r.repositoryName)}
+        ${pill('Method', r.httpMethod)}
+        ${pill('상태', r.status)}
+        ${pill('호출(총)', (r.callCount ?? 0).toLocaleString())}
+        ${pill('호출(월)', (r.callCountMonth ?? 0).toLocaleString())}
+        ${pill('호출(주)', (r.callCountWeek ?? 0).toLocaleString())}
+      </div>
+      <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div style="padding:10px 12px;background:#f1f5f9;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;color:var(--text-muted);">기본 정보</div>
+        <div style="padding:12px 12px;display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:12px;">
+          <div style="color:var(--text-muted);font-weight:700;">URL 경로</div><div style="color:var(--text);font-family:Consolas,monospace;word-break:break-all;">${esc(r.apiPath||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">메소드명</div><div style="color:var(--text);">${esc(r.methodName||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">컨트롤러</div><div style="color:var(--text);">${esc(r.controllerName||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">팀/담당자</div><div style="color:var(--text);">${esc((r.teamOverride||'') + ((r.managerOverride||'') ? ' / '+(r.managerOverride||'') : '')) || '-'}</div>
+          <div style="color:var(--text-muted);font-weight:700;">CBO 예정</div><div style="color:var(--text);">${esc(r.cboScheduledDate||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">배포 예정</div><div style="color:var(--text);">${esc(r.deployScheduledDate||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">배포담당자</div><div style="color:var(--text);">${esc(r.deployManager||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">현업검토결과</div><div style="color:var(--text);">${esc(r.reviewResult||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">현업검토의견</div><div style="color:var(--text);white-space:pre-wrap;">${esc(r.reviewOpinion||'-')}</div>
+          <div style="color:var(--text-muted);font-weight:700;">비고</div><div style="color:var(--text);white-space:pre-wrap;">${esc(r.memo||'-')}</div>
+        </div>
+      </div>`;
+  }
+
+  async function openApiRecordModal(repoName, apiPath, httpMethod){
+    // method가 없으면 조회 불가 → 관련 없음 모달
+    if (!repoName || !apiPath || !httpMethod) {
+      document.getElementById('apiDetailModal').style.display = 'flex';
+      renderApiDetailNotFound(repoName, apiPath, httpMethod);
+      return;
+    }
+    openApiDetailModalLoading(repoName, apiPath, httpMethod);
+    try {
+      const url = `/api/db/record-by-key?repositoryName=${encodeURIComponent(repoName)}&apiPath=${encodeURIComponent(apiPath)}&httpMethod=${encodeURIComponent(httpMethod)}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        renderApiDetailNotFound(repoName, apiPath, httpMethod);
+        return;
+      }
+      renderApiDetail(data);
+    } catch(e) {
+      renderApiDetailNotFound(repoName, apiPath, httpMethod);
+    }
+  }
+
+  // data-* 기반 호출 (inline quote 깨짐 방지)
+  function openApiRecordModalFromEl(el){
+    const repoName = el?.dataset?.repoName || '';
+    const apiPath = el?.dataset?.apiPath || '';
+    const httpMethod = el?.dataset?.httpMethod || '';
+    openApiRecordModal(repoName, apiPath, httpMethod);
+  }
 
   async function downloadExcel(){
     if (!visibleRows().length) { showToast('내보낼 데이터가 없습니다', 'error'); return; }

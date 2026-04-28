@@ -729,6 +729,27 @@ public class ApiViewController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /** 레포+URL+메소드 키로 단건 조회 — 모니터링/딥링크용 */
+    @GetMapping("/db/record-by-key")
+    public ResponseEntity<?> getRecordByKey(@RequestParam String repositoryName,
+                                            @RequestParam String apiPath,
+                                            @RequestParam String httpMethod) {
+        log.info("[단건 조회] GET /api/db/record-by-key repo={}, method={}, path={}", repositoryName, httpMethod, apiPath);
+        if (repositoryName == null || repositoryName.isBlank()
+                || apiPath == null || apiPath.isBlank()
+                || httpMethod == null || httpMethod.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "repositoryName, apiPath, httpMethod 가 필요합니다."));
+        }
+        return recordRepository.findByRepositoryNameAndApiPathAndHttpMethod(repositoryName, apiPath, httpMethod)
+                .<ResponseEntity<?>>map(r -> ResponseEntity.ok(toSummaryMap(r)))
+                .orElseGet(() -> ResponseEntity.status(404).body(Map.of(
+                        "error", "레코드를 찾을 수 없습니다.",
+                        "repositoryName", repositoryName,
+                        "apiPath", apiPath,
+                        "httpMethod", httpMethod
+                )));
+    }
+
     /** 일괄 변경 (상태/차단대상/차단대상기준/현업검토 등)
      * Body: { "ids": [1,2,3], "status": "차단완료", "blockTarget": "최우선 차단대상", "logWorkExcluded": true, ... }
      * ids 외 필드가 존재하면 해당 필드를 변경합니다. null/빈값은 해제.

@@ -204,12 +204,11 @@ public class ApiViewController {
             "②-② 호출 3건 이하+변경없음",
             "②-③ 사용으로 변경");
 
-    /** 대시보드 "배포일자 분포" 모수 — 진행사항의 잔여(①-①/①-②) + 차단완료만 */
+    /** 대시보드 "배포일자 분포" 모수 — 진행사항의 잔여(①-①/①-②)만 */
     private static final List<String> DEPLOY_SCHEDULE_PLANNED_STATUSES = List.of(
             "①-① 차단대상",
             "①-② 담당자 판단");
     private static final List<String> DEPLOY_SCHEDULE_ALL_STATUSES = List.of(
-            "차단완료",
             "①-① 차단대상",
             "①-② 담당자 판단");
 
@@ -1172,8 +1171,8 @@ public class ApiViewController {
     }
 
     /**
-     * 배포일자 분포 통계 — 차단완료 + 차단대상(최우선/후순위/검토필요대상) 만 집계.
-     * 행: 팀/담당자/레포 별 (탭). 열: 배포일자(YYYY-MM-DD) + "예정"(차단대상 중 일자 미정) + "차단완료".
+     * 배포일자 분포 통계 — 잔여(①-①/①-②)만 집계.
+     * 행: 팀/담당자/레포 별 (탭). 열: 배포일자(YYYY-MM-DD) + "일정수립필요"(일자 미정).
      * 담당자 컬럼은 deployManager 우선, 없으면 managerOverride → 매핑 → 팀대표 폴백.
      */
     @GetMapping("/db/stats/deploy-schedule")
@@ -1211,7 +1210,7 @@ public class ApiViewController {
                 .sorted()
                 .collect(Collectors.toList());
 
-        // 그룹별 집계 헬퍼 — keyFn 으로 그룹 키 추출 후 byDate / scheduled / completed / total 누적
+        // 그룹별 집계 헬퍼 — keyFn 으로 그룹 키 추출 후 byDate / scheduled(=일정수립필요) / total 누적
         java.util.function.BiFunction<java.util.function.Function<DeployScheduleDto, String>,
                 List<DeployScheduleDto>,
                 Map<String, Map<String, Object>>> aggregate = (keyFn, records) -> {
@@ -1222,14 +1221,11 @@ public class ApiViewController {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("byDate", new LinkedHashMap<String, Long>());
                     m.put("scheduled", 0L);
-                    m.put("completed", 0L);
                     m.put("total", 0L);
                     return m;
                 });
                 bucket.put("total", (Long) bucket.get("total") + 1L);
-                if ("차단완료".equals(r.getStatus())) {
-                    bucket.put("completed", (Long) bucket.get("completed") + 1L);
-                } else if (r.getDeployScheduledDate() == null) {
+                if (r.getDeployScheduledDate() == null) {
                     bucket.put("scheduled", (Long) bucket.get("scheduled") + 1L);
                 } else {
                     @SuppressWarnings("unchecked")

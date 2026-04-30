@@ -301,7 +301,7 @@
     .coming-soon .icon { font-size:36px; margin-bottom:8px; opacity:.75; }
     .coming-soon .title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; }
 
-    /* 배포일자 분포: 기간 버튼 + 체크박스 */
+    /* 배포일자 분포: 기간 버튼 */
     .range-btns { margin-left:auto; display:flex; align-items:center; gap:6px; }
     .range-btn {
       border:1px solid var(--border); background:#f8fafc; color:var(--text-muted);
@@ -472,16 +472,12 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════
-         섹션 1.5 : 배포일자 분포 (차단대상 / 차단완료)
+         섹션 1.5 : 배포일자 분포 (잔여)
          ══════════════════════════════════════════════════════════════ -->
     <div class="section-header">
       <h3>📅 배포일자 분포</h3>
-      <span class="section-sub">차단대상(①-①/②/③/④) · 검토대상(②-①/②/③) 의 배포 예정일 분포 — 일자 미정은 "예정", 차단완료는 별도 컬럼</span>
+      <span class="section-sub">차단대상 잔여(①-①/①-②)만 배포 예정일 분포를 표시합니다. 일자 미정은 "일정수립필요"로 집계됩니다.</span>
       <div class="range-btns" id="deployRangeBtns">
-        <label class="range-check" title="체크 시 일자 미정(일정수립필요)도 합계에 포함">
-          <input type="checkbox" id="deployIncludeAll" onchange="setDeployIncludeAll(this.checked)">
-          차단대상 전체
-        </label>
         <button class="range-btn" data-range="1w"  onclick="setDeployRange('1w', this)">1주</button>
         <button class="range-btn" data-range="2w"  onclick="setDeployRange('2w', this)">2주</button>
         <button class="range-btn" data-range="1m"  onclick="setDeployRange('1m', this)">1달</button>
@@ -592,7 +588,6 @@
   let stats = null;
   let deployScheduleData = null;
   let deployRangeMode = localStorage.getItem('dashboard.deployRangeMode') || '1w';
-  let deployIncludeAll = (localStorage.getItem('dashboard.deployIncludeAll') || 'true') === 'true';
 
   function setDeployRange(mode, btnEl) {
     deployRangeMode = mode || '1w';
@@ -604,12 +599,6 @@
       if (btnEl) btnEl.classList.add('active');
     } catch(e) {}
     // 데이터가 있으면 즉시 재렌더
-    if (deployScheduleData) renderDeploySchedule(deployScheduleData);
-  }
-
-  function setDeployIncludeAll(checked) {
-    deployIncludeAll = !!checked;
-    localStorage.setItem('dashboard.deployIncludeAll', deployIncludeAll ? 'true' : 'false');
     if (deployScheduleData) renderDeploySchedule(deployScheduleData);
   }
 
@@ -1174,10 +1163,6 @@
       const wrap = document.getElementById('deployRangeBtns');
       if (wrap) wrap.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.range === deployRangeMode));
     } catch(e) {}
-    try {
-      const cb = document.getElementById('deployIncludeAll');
-      if (cb) cb.checked = !!deployIncludeAll;
-    } catch(e) {}
 
     const allDates = d.dates || [];
     const today = new Date();
@@ -1210,19 +1195,14 @@
     const renderFooter = (firstLabelCells, totals, scopeQs) => {
       const sp = scopeQs ? (scopeQs + '&') : '';
       const sched = totals.scheduled || 0;
-      const totalRaw = totals.total || 0;
-      const total = deployIncludeAll ? totalRaw : Math.max(0, totalRaw - sched);
-      const compl = totals.completed || 0;
+      const total = totals.total || 0;
       const byDate = totals.byDate || {};
       const dateCells = dates.map(dt => tdLink(byDate[dt] || 0, `${viewerBase}?${sp}statusGroup=deployPlanned&deployFrom=${encodeURIComponent(dt)}&deployTo=${encodeURIComponent(dt)}`)).join('');
-      const needCell = deployIncludeAll
-        ? tdLink(sched, `${viewerBase}?${sp}statusGroup=deployPlanned&deployUnscheduled=true`, 'color:#7c3aed;font-weight:800;')
-        : '';
+      const needCell = tdLink(sched, `${viewerBase}?${sp}statusGroup=deployPlanned&deployUnscheduled=true`, 'color:#7c3aed;font-weight:800;');
       return `<tr style="background:#f8fafc;font-weight:800;">
         ${firstLabelCells}
-        ${tdLink(total, `${viewerBase}?${sp}statusGroup=deployAll`, 'font-weight:800;')}
-        ${tdLink(compl, `${viewerBase}?${sp}status=${encodeURIComponent('차단완료')}`, 'color:#64748b;font-weight:800;')}
         ${needCell}
+        ${tdLink(total, `${viewerBase}?${sp}statusGroup=deployPlanned`, 'font-weight:800;')}
         ${dateCells}
       </tr>`;
     };
@@ -1231,23 +1211,17 @@
       const sp = scopeQs ? (scopeQs + '&') : '';
       const byDate = row.byDate || {};
       const sched = row.scheduled || 0;
-      const compl = row.completed || 0;
-      const totalRaw = row.total || 0;
-      const total = deployIncludeAll ? totalRaw : Math.max(0, totalRaw - sched);
-      const totalCell = tdLink(total, `${viewerBase}?${sp}statusGroup=deployAll`, 'font-weight:800;');
-      const complCell = tdLink(compl, `${viewerBase}?${sp}status=${encodeURIComponent('차단완료')}`, 'color:#64748b;');
+      const total = row.total || 0;
+      const totalCell = tdLink(total, `${viewerBase}?${sp}statusGroup=deployPlanned`, 'font-weight:800;');
       const dateCells = dates.map(dt => tdLink(byDate[dt] || 0, `${viewerBase}?${sp}statusGroup=deployPlanned&deployFrom=${encodeURIComponent(dt)}&deployTo=${encodeURIComponent(dt)}`)).join('');
-      const needCell = deployIncludeAll
-        ? tdLink(sched, `${viewerBase}?${sp}statusGroup=deployPlanned&deployUnscheduled=true`, 'color:#7c3aed;')
-        : '';
-      return `<tr>${firstCells}${totalCell}${complCell}${needCell}${dateCells}</tr>`;
+      const needCell = tdLink(sched, `${viewerBase}?${sp}statusGroup=deployPlanned&deployUnscheduled=true`, 'color:#7c3aed;');
+      return `<tr>${firstCells}${needCell}${totalCell}${dateCells}</tr>`;
     };
 
     const sumAgg = (rows) => {
-      const t = { total:0, completed:0, scheduled:0, byDate:{} };
+      const t = { total:0, scheduled:0, byDate:{} };
       (rows || []).forEach(r => {
         t.total += (r.total || 0);
-        t.completed += (r.completed || 0);
         t.scheduled += (r.scheduled || 0);
         const bd = r.byDate || {};
         Object.keys(bd).forEach(k => { t.byDate[k] = (t.byDate[k] || 0) + (bd[k] || 0); });
@@ -1257,9 +1231,8 @@
 
     // 일자 컬럼 헤더 (YYYY-MM-DD → MM/DD 단축 표시, 툴팁에 풀일자)
     const dateThs = dates.map(dt => `<th title="${dt}" style="text-align:right;white-space:nowrap;font-size:10px;">${mmdd(dt)}</th>`).join('');
-    const fixedHead = `<th style="text-align:right;white-space:nowrap;">합계</th>
-                       <th style="text-align:right;white-space:nowrap;color:#64748b;">차단완료</th>` +
-                      (deployIncludeAll ? `<th style="text-align:right;white-space:nowrap;color:#7c3aed;">일정수립필요</th>` : ``);
+    const fixedHead = `<th style="text-align:right;white-space:nowrap;color:#7c3aed;">일정수립필요</th>
+                       <th style="text-align:right;white-space:nowrap;">합계</th>`;
 
     // 팀별
     document.getElementById('deployTeamThead').innerHTML =

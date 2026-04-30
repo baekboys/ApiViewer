@@ -82,7 +82,8 @@
       onChange: typeof opts.onChange === 'function' ? opts.onChange : function () {},
       placeholder: opts.placeholder || (useItems ? '선택' : '(전체 활성 레포)'),
       variant,
-      singleMode: !!opts.singleMode,
+      // singleMode는 명시적 true만 허용 (문자열 등 truthy 오염 방어)
+      singleMode: opts.singleMode === true,
       itemMode: useItems,
       open: false,
       _outsideHandler: null,

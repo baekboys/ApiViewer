@@ -559,6 +559,12 @@
   // ── 레포 설정 목록 로드 ───────────────────────────────────
   async function initRepoConfigs() {
     try {
+      if (!window.MultiSelect || !window.RepoSelect) {
+        // 의존 스크립트 로드 순서/캐시 문제로 초기화가 조용히 실패하면 UI가 빈 것처럼 보일 수 있어 즉시 알림
+        showToast('레포 셀렉터 초기화 실패: 공용 스크립트 로드가 누락되었습니다. 새로고침 후 재시도하세요.', 'error');
+        console.warn('[initRepoConfigs] MultiSelect/RepoSelect not ready', { MultiSelect: !!window.MultiSelect, RepoSelect: !!window.RepoSelect });
+        return;
+      }
       const res = await fetch('/api/config/repos');
       allRepos = await res.json();
 
@@ -581,6 +587,11 @@
         placeholder: '-- 레포 선택 --',
         onChange: () => onRepoSelect()
       });
+      // 마운트 결과 self-check: API 형태가 예상과 다르면 즉시 경고
+      if (!window._repoConfigSel || typeof window._repoConfigSel.getSelected !== 'function') {
+        showToast('레포 셀렉터 초기화 실패: 컴포넌트가 정상 로드되지 않았습니다. 새로고침 후 재시도하세요.', 'error');
+        console.warn('[initRepoConfigs] invalid selector instance', window._repoConfigSel);
+      }
 
       // ── ② APM 호출건수 수집 (단일 native — 기존 유지: APM 종류/기간 폼 연동) ──
       const apmSel = document.getElementById('apmCollectRepo');
@@ -615,6 +626,7 @@
       }
     } catch(e) {
       console.warn('[initRepoConfigs] 실패', e);
+      showToast('레포 목록 로드 실패 — 새로고침 후 다시 시도하세요.', 'error');
     }
   }
 

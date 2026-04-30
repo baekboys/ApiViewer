@@ -43,6 +43,19 @@
   font-weight: 500;
   letter-spacing: 0.01em;
 }
+.app-nav-top .brand h1 .brand-ver {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  padding: 0px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  line-height: 16px;
+}
 .app-nav-top .brand:hover h1 { opacity: .75; }
 .app-nav-top .brand-sub {
   font-size: var(--fs-base);

@@ -11,6 +11,9 @@
  * adminOnly: true 항목은 AuthState 구독해 자동 숨김/표시.
  * ═══════════════════════════════════════════════════════════════ */
 (function () {
+  // UI 버전 표기 (캐시/반영 여부 확인용) — 변경 시 이 값만 갱신
+  const APP_UI_VERSION = 'ver1.1.002';
+
   const SEGMENTS = [
     {
       id: 'dashboard',
@@ -97,7 +100,12 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
         </svg>
-        <a class="brand" href="/dashboard/"><h1>IT소스 관리포털 <small>— IT Source Management Portal</small></h1></a>
+        <a class="brand" href="/dashboard/">
+          <h1>
+            IT소스 관리포털 <small>— IT Source Management Portal</small>
+            <span class="brand-ver">${esc(APP_UI_VERSION)}</span>
+          </h1>
+        </a>
         <span class="brand-sub">${esc(brandSub)}</span>
         <div class="utils">
           <button class="dark-toggle" onclick="toggleDarkMode && toggleDarkMode()">🌙 다크모드</button>

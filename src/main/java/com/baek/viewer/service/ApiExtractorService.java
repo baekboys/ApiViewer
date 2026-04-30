@@ -35,14 +35,17 @@ public class ApiExtractorService {
     private final ApmCollectionService apmCollectionService;
     private final com.baek.viewer.repository.RepoConfigRepository repoConfigRepository;
     private final com.baek.viewer.repository.GlobalConfigRepository globalConfigRepository;
+    private final SnapshotService snapshotService;
 
     public ApiExtractorService(ApiStorageService storageService, ApmCollectionService apmCollectionService,
                                com.baek.viewer.repository.RepoConfigRepository repoConfigRepository,
-                               com.baek.viewer.repository.GlobalConfigRepository globalConfigRepository) {
+                               com.baek.viewer.repository.GlobalConfigRepository globalConfigRepository,
+                               SnapshotService snapshotService) {
         this.storageService = storageService;
         this.apmCollectionService = apmCollectionService;
         this.repoConfigRepository = repoConfigRepository;
         this.globalConfigRepository = globalConfigRepository;
+        this.snapshotService = snapshotService;
     }
 
     private volatile List<ApiInfo> cachedApis = new ArrayList<>();
@@ -225,6 +228,20 @@ public class ApiExtractorService {
                 }
             } catch (Exception e) {
                 addLog("WARN", "호출건수 집계 실패 (분석 결과에 영향 없음): " + e.getMessage());
+            }
+
+            // 스냅샷 자동 생성 (수동 Extract 완료 시점)
+            // - DB 저장이 성공한 경우에만 생성
+            try {
+                if (savedCount >= 0) {
+                    String label = "Extract " + repoName.trim() + " " + java.time.LocalDateTime.now().toString().replace("T", " ").substring(0, 19);
+                    snapshotService.createSnapshot("EXTRACT_MANUAL", label, repoName.trim(), req.getClientIp());
+                    addLog("OK", "스냅샷 생성 완료");
+                } else {
+                    addLog("WARN", "스냅샷 생성 건너뜀 (DB 저장 실패)");
+                }
+            } catch (Exception e) {
+                addLog("WARN", "스냅샷 생성 실패 (분석 결과에 영향 없음): " + e.getMessage());
             }
         }
 

@@ -573,7 +573,7 @@
       <div class="arrow">›</div>
       <div class="step">
         <div class="step-head"><span class="step-num">5</span>자동 백업</div>
-        <div class="step-desc">매일 새벽 2시 30분에 전체 URL 데이터와 호출 이력을 자동으로 백업합니다. 필요 시 설정 화면에서 복구할 수 있습니다.</div>
+        <div class="step-desc">매일 새벽 2시 30분에 전체 URL 데이터와 호출 이력을 자동으로 백업합니다(복구 목적, 덮어쓰기). <b>Extract 스냅샷(시점별 누적 보관/비교)</b>은 별도 기능이며 설정 화면의 “URL 스냅샷/비교”에서 관리합니다.</div>
         <a href="/settings.html#data" class="step-tag">💾 설정 화면</a>
       </div>
     </div>
@@ -1527,6 +1527,7 @@ flowchart TD
           <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">mail_to</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">수신자 목록</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT, 콤마 구분</td></tr>
           <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">whatap_ptotal / whatap_psize</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">와탭 조회 파라미터</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">INT</td></tr>
           <tr style="background:#f8fafc;"><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">test_suspect_keywords</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">테스트용 의심 키워드</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">TEXT, 콤마 구분. 기본 9종(test,sample,mock,테스트,샘플,demo,dummy,fixture,스텁) — 분석 추출 시 대소문자 무시. 영문·숫자만 2~3자 키워드는 경계+camel 토큰(메소드/컨트롤러), 그 외 부분일치</td></tr>
+          <tr><td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">snapshot_retention_days</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">URL 스냅샷 보관일수</td><td style="padding:5px 10px;border:1px solid #e2e8f0;">INT (null이면 YML 기본값 사용)</td></tr>
         </tbody>
       </table>
       </div>
@@ -1562,6 +1563,35 @@ flowchart TD
         </tbody>
       </table>
       </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title" style="margin-bottom:10px;"><span class="dot dot-blue"></span>api_record_snapshot / api_record_snapshot_row — Extract 스냅샷(시점별 누적)</div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.65;margin-bottom:10px;">
+      Extract(수동) 실행 완료 시점마다 <b>api_record 전체(TEXT 포함)</b>를 타임스탬프 기반으로 저장합니다.
+      같은 날짜에 여러 번 실행해도 모두 보관되며, A/B 스냅샷을 선택해 신규/삭제/변경 diff를 확인할 수 있습니다.
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;white-space:nowrap;">테이블</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">핵심 컬럼</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0;">비고</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">api_record_snapshot</td>
+            <td style="padding:5px 10px;border:1px solid #e2e8f0;">id(PK), snapshot_at, snapshot_type, label, source_repo, record_count</td>
+            <td style="padding:5px 10px;border:1px solid #e2e8f0;">목록/선택 UI의 기준</td>
+          </tr>
+          <tr style="background:#f8fafc;">
+            <td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;">api_record_snapshot_row</td>
+            <td style="padding:5px 10px;border:1px solid #e2e8f0;">snapshot_id + (repository_name, api_path, http_method)</td>
+            <td style="padding:5px 10px;border:1px solid #e2e8f0;">api_record 컬럼 대부분(TEXT 포함) 복제 + source_id(api_record.id)</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 

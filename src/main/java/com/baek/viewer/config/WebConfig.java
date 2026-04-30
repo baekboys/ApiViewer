@@ -57,6 +57,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(adminInterceptor)
                 .addPathPatterns(
                         "/api/extract",           // 추출
+                        "/api/snapshots/**",      // 스냅샷 관리
                         "/api/db/delete-all",      // 데이터 삭제
                         "/api/db/backup/**",       // 데이터 백업
                         "/api/db/restore/**",      // 데이터 복구

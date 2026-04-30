@@ -44,12 +44,15 @@ class ApiExtractorServiceTest {
     @Mock
     private GlobalConfigRepository globalConfigRepository;
 
+    @Mock
+    private SnapshotService snapshotService;
+
     private ApiExtractorService service;
 
     @BeforeEach
     void setUp() {
         service = new ApiExtractorService(storageService, apmCollectionService,
-                repoConfigRepository, globalConfigRepository);
+                repoConfigRepository, globalConfigRepository, snapshotService);
         ReflectionTestUtils.setField(service, "defaultGitBinPath", "/bin/false");
     }
 

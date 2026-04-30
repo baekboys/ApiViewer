@@ -1201,9 +1201,9 @@
       const needCell = tdLink(sched, `${viewerBase}?${sp}statusGroup=deployPlanned&deployUnscheduled=true`, 'color:#7c3aed;font-weight:800;');
       return `<tr style="background:#f8fafc;font-weight:800;">
         ${firstLabelCells}
-        ${needCell}
-        ${tdLink(total, `${viewerBase}?${sp}statusGroup=deployPlanned`, 'font-weight:800;')}
         ${dateCells}
+        ${tdLink(total, `${viewerBase}?${sp}statusGroup=deployPlanned`, 'font-weight:800;')}
+        ${needCell}
       </tr>`;
     };
 
@@ -1215,7 +1215,7 @@
       const totalCell = tdLink(total, `${viewerBase}?${sp}statusGroup=deployPlanned`, 'font-weight:800;');
       const dateCells = dates.map(dt => tdLink(byDate[dt] || 0, `${viewerBase}?${sp}statusGroup=deployPlanned&deployFrom=${encodeURIComponent(dt)}&deployTo=${encodeURIComponent(dt)}`)).join('');
       const needCell = tdLink(sched, `${viewerBase}?${sp}statusGroup=deployPlanned&deployUnscheduled=true`, 'color:#7c3aed;');
-      return `<tr>${firstCells}${needCell}${totalCell}${dateCells}</tr>`;
+      return `<tr>${firstCells}${dateCells}${totalCell}${needCell}</tr>`;
     };
 
     const sumAgg = (rows) => {
@@ -1231,22 +1231,23 @@
 
     // 일자 컬럼 헤더 (YYYY-MM-DD → MM/DD 단축 표시, 툴팁에 풀일자)
     const dateThs = dates.map(dt => `<th title="${dt}" style="text-align:right;white-space:nowrap;font-size:10px;">${mmdd(dt)}</th>`).join('');
-    const fixedHead = `<th style="text-align:right;white-space:nowrap;color:#7c3aed;">일정수립필요</th>
-                       <th style="text-align:right;white-space:nowrap;">합계</th>`;
+    const fixedHead = `<th style="text-align:right;white-space:nowrap;">합계</th>
+                       <th style="text-align:right;white-space:nowrap;color:#7c3aed;">일정수립필요</th>`;
 
     // 팀별
     document.getElementById('deployTeamThead').innerHTML =
-      `<tr><th style="text-align:left;">팀명</th>${fixedHead}${dateThs}</tr>`;
+      `<tr><th style="text-align:left;">팀명</th>${dateThs}${fixedHead}</tr>`;
     {
       const rows = (d.byTeam || []);
       const body = rows.map(r => renderRow(`<td><b>${esc(r.team)}</b></td>`, r, `team=${encodeURIComponent(r.team||'')}`)).join('');
       const footer = rows.length ? renderFooter(`<td><b>합계</b></td>`, sumAgg(rows), ``) : '';
-      document.getElementById('deployTeamTbody').innerHTML = (body + footer) || empty;
+      // 합계가 가장 먼저 보이도록 footer를 상단에 렌더
+      document.getElementById('deployTeamTbody').innerHTML = (footer + body) || empty;
     }
 
     // 레포별
     document.getElementById('deployRepoThead').innerHTML =
-      `<tr><th style="text-align:left;">팀</th><th style="text-align:left;">레포지토리</th><th style="text-align:left;">업무명</th>${fixedHead}${dateThs}</tr>`;
+      `<tr><th style="text-align:left;">팀</th><th style="text-align:left;">레포지토리</th><th style="text-align:left;">업무명</th>${dateThs}${fixedHead}</tr>`;
     {
       const rows = (d.byRepo || []);
       const body = rows.map(r => renderRow(
@@ -1256,12 +1257,13 @@
         `repo=${encodeURIComponent(r.repo||'')}`
       )).join('');
       const footer = rows.length ? renderFooter(`<td colspan="3"><b>합계</b></td>`, sumAgg(rows), ``) : '';
-      document.getElementById('deployRepoTbody').innerHTML = (body + footer) || empty;
+      // 합계가 가장 먼저 보이도록 footer를 상단에 렌더
+      document.getElementById('deployRepoTbody').innerHTML = (footer + body) || empty;
     }
 
     // 담당자별 (배포담당자 우선, 없으면 폴백)
     document.getElementById('deployManagerThead').innerHTML =
-      `<tr><th style="text-align:left;">팀</th><th style="text-align:left;">담당자<span style="font-weight:400;color:var(--text-muted);font-size:10px;margin-left:4px;">(배포담당자 우선)</span></th>${fixedHead}${dateThs}</tr>`;
+      `<tr><th style="text-align:left;">팀</th><th style="text-align:left;">담당자<span style="font-weight:400;color:var(--text-muted);font-size:10px;margin-left:4px;">(배포담당자 우선)</span></th>${dateThs}${fixedHead}</tr>`;
     {
       const rows = (d.byManager || []);
       const body = rows.map(r => renderRow(
@@ -1270,7 +1272,8 @@
         `manager=${encodeURIComponent(r.manager||'')}`
       )).join('');
       const footer = rows.length ? renderFooter(`<td colspan="2"><b>합계</b></td>`, sumAgg(rows), ``) : '';
-      document.getElementById('deployManagerTbody').innerHTML = (body + footer) || empty;
+      // 합계가 가장 먼저 보이도록 footer를 상단에 렌더
+      document.getElementById('deployManagerTbody').innerHTML = (footer + body) || empty;
     }
   }
 

@@ -140,6 +140,10 @@ public class GlobalConfig {
     @Column(name = "test_suspect_keywords", columnDefinition = "TEXT")
     private String testSuspectKeywords;
 
+    /** URL 스냅샷 보관일수 (null이면 YML 기본값 사용) */
+    @Column(name = "snapshot_retention_days")
+    private Integer snapshotRetentionDays;
+
 
     public Long getId() { return id; }
     public String getStartDate() { return startDate; }
@@ -222,4 +226,7 @@ public class GlobalConfig {
                 : "test,sample,mock,테스트,샘플,demo,dummy,fixture,스텁";
     }
     public void setTestSuspectKeywords(String v) { this.testSuspectKeywords = v; }
+
+    public Integer getSnapshotRetentionDays() { return snapshotRetentionDays; }
+    public void setSnapshotRetentionDays(Integer v) { this.snapshotRetentionDays = v; }
 }

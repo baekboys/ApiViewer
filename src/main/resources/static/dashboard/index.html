@@ -376,12 +376,12 @@
         <div class="sum-sub" id="sDonePct"></div>
       </div>
       <div class="sum-card c-bt-top">
-        <div class="sum-label">차단대상 잔여 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(①-①)</span></div>
+        <div class="sum-label">차단대상 잔여 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(①-①/②)</span></div>
         <div class="sum-value" id="sBtTop">0</div>
         <div class="sum-sub" id="sBtTopPct"></div>
       </div>
       <div class="sum-card c-bt-low">
-        <div class="sum-label">차단대상 제외건 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(①-②/③/④)</span></div>
+        <div class="sum-label">차단대상 제외건 <span style="font-weight:400;color:var(--text-muted);font-size:10px;">(①-③/④)</span></div>
         <div class="sum-value" id="sBtLow">0</div>
         <div class="sum-sub" id="sBtLowPct"></div>
       </div>
@@ -417,8 +417,8 @@
         <div class="status-legend">
           <div class="legend-item"><div class="legend-dot seg-use"></div>사용</div>
           <div class="legend-item"><div class="legend-dot seg-done"></div>차단완료</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#dc2626;"></div>차단대상 잔여 (①-①)</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#eab308;"></div>차단대상 제외건 (①-②/③/④)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#dc2626;"></div>차단대상 잔여 (①-①/②)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#eab308;"></div>차단대상 제외건 (①-③/④)</div>
           <div class="legend-item"><div class="legend-dot" style="background:#d97706;"></div>검토대상 (②-①/②/③)</div>
         </div>
         <div style="margin-top:16px;" id="distDetail"></div>
@@ -726,9 +726,12 @@
     // byCategory 가 백엔드에 있으면 우선, 없으면 byStatus 9 leaf 합산으로 폴백
     const use      = (cat.use      != null) ? cat.use      : (st['사용'] || 0);
     const done     = (cat.blockDone!= null) ? cat.blockDone: (st['차단완료'] || 0);
-    const btTop    = (cat.blockResidual    != null) ? cat.blockResidual    : (st['①-① 차단대상'] || 0);
-    const btLow    = (cat.blockException   != null) ? cat.blockException
-                       : ((st['①-② 담당자 판단'] || 0) + (st['①-③ 현업요청 제외대상'] || 0) + (st['①-④ 사용으로 변경'] || 0));
+    // 차단대상 잔여 = ①-① + ①-② (담당자 판단까지 포함)
+    // 차단대상 제외건 = ①-③ + ①-④
+    const btTop    = (cat.blockResidualSum != null) ? cat.blockResidualSum
+                      : ((st['①-① 차단대상'] || 0) + (st['①-② 담당자 판단'] || 0));
+    const btLow    = (cat.blockExcludedSum != null) ? cat.blockExcludedSum
+                      : ((st['①-③ 현업요청 제외대상'] || 0) + (st['①-④ 사용으로 변경'] || 0));
     const btRev    = (cat.review   != null) ? cat.review
                        : ((st['②-① 호출0건+변경있음'] || 0) + (st['②-② 호출 3건 이하+변경없음'] || 0) + (st['②-③ 사용으로 변경'] || 0));
     const totalExcludingDeleted = (cat.totalExcludingDeleted != null) ? cat.totalExcludingDeleted : total;
@@ -804,8 +807,8 @@
       const cd  = row.byCategory || {};
       const use = (cd.use != null) ? cd.use : (sd['사용'] || 0);
       const done = (cd.blockDone != null) ? cd.blockDone : (sd['차단완료'] || 0);
-      const btTop = (cd.blockResidual != null) ? cd.blockResidual : (sd['①-① 차단대상'] || 0);
-      const btLow = (cd.blockException != null) ? cd.blockException : ((sd['①-② 담당자 판단']||0) + (sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
+      const btTop = (cd.blockResidualSum != null) ? cd.blockResidualSum : ((sd['①-① 차단대상']||0) + (sd['①-② 담당자 판단']||0));
+      const btLow = (cd.blockExcludedSum != null) ? cd.blockExcludedSum : ((sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
       const btRev = (cd.review != null) ? cd.review : ((sd['②-① 호출0건+변경있음']||0) + (sd['②-② 호출 3건 이하+변경없음']||0) + (sd['②-③ 사용으로 변경']||0));
       const cnt = row.count || 0;
       const label = labelKey === 'repo' ? `[${esc(row.team||'-')}] ${esc(row.repo)} (${esc(row.businessName||'')})` : esc(row.team);
@@ -844,8 +847,8 @@
       const cd  = row.byCategory || {};
       const use = (cd.use != null) ? cd.use : (sd['사용'] || 0);
       const done = (cd.blockDone != null) ? cd.blockDone : (sd['차단완료'] || 0);
-      const btTop = (cd.blockResidual != null) ? cd.blockResidual : (sd['①-① 차단대상'] || 0);
-      const btLow = (cd.blockException != null) ? cd.blockException : ((sd['①-② 담당자 판단']||0) + (sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
+      const btTop = (cd.blockResidualSum != null) ? cd.blockResidualSum : ((sd['①-① 차단대상']||0) + (sd['①-② 담당자 판단']||0));
+      const btLow = (cd.blockExcludedSum != null) ? cd.blockExcludedSum : ((sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
       const btRev = (cd.review != null) ? cd.review : ((sd['②-① 호출0건+변경있음']||0) + (sd['②-② 호출 3건 이하+변경없음']||0) + (sd['②-③ 사용으로 변경']||0));
       const cnt = row.count || 0;
       const label = labelKey === 'manager' ? `${esc(row.team||'-')} / ${esc(row[labelKey])}` : esc(row[labelKey]);
@@ -853,7 +856,7 @@
         use  ? `<span class="st st-use" style="font-size:10px;">사용 ${use}</span>` : '',
         done ? `<span class="st st-done" style="font-size:10px;">차단완료 ${done}</span>` : '',
         btTop? `<span style="font-size:10px;color:#dc2626;font-weight:600;">차단대상 잔여 ${btTop}</span>` : '',
-        btLow? `<span style="font-size:10px;color:#eab308;font-weight:600;">차단대상 예외 ${btLow}</span>` : '',
+        btLow? `<span style="font-size:10px;color:#eab308;font-weight:600;">차단대상 제외 ${btLow}</span>` : '',
         btRev? `<span style="font-size:10px;color:#d97706;font-weight:600;">검토대상 ${btRev}</span>` : ''
       ].filter(Boolean).join(' ');
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -878,8 +881,8 @@
       const cnt=row.count||0;
       const use   = (cd.use != null) ? cd.use : (sd['사용'] || 0);
       const done  = (cd.blockDone != null) ? cd.blockDone : (sd['차단완료'] || 0);
-      const btTop = (cd.blockResidual != null) ? cd.blockResidual : (sd['①-① 차단대상'] || 0);
-      const btLow = (cd.blockException != null) ? cd.blockException : ((sd['①-② 담당자 판단']||0) + (sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
+      const btTop = (cd.blockResidualSum != null) ? cd.blockResidualSum : ((sd['①-① 차단대상']||0) + (sd['①-② 담당자 판단']||0));
+      const btLow = (cd.blockExcludedSum != null) ? cd.blockExcludedSum : ((sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
       const btRev = (cd.review != null) ? cd.review : ((sd['②-① 호출0건+변경있음']||0) + (sd['②-② 호출 3건 이하+변경없음']||0) + (sd['②-③ 사용으로 변경']||0));
       const qp = key === 'team' ? `team=${encodeURIComponent(row[key]||'')}` : `manager=${encodeURIComponent(row[key]||'')}`;
       return `<tr>
@@ -907,8 +910,8 @@
       const cnt=row.count||0;
       const use   = (cd.use != null) ? cd.use : (sd['사용'] || 0);
       const done  = (cd.blockDone != null) ? cd.blockDone : (sd['차단완료'] || 0);
-      const btTop = (cd.blockResidual != null) ? cd.blockResidual : (sd['①-① 차단대상'] || 0);
-      const btLow = (cd.blockException != null) ? cd.blockException : ((sd['①-② 담당자 판단']||0) + (sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
+      const btTop = (cd.blockResidualSum != null) ? cd.blockResidualSum : ((sd['①-① 차단대상']||0) + (sd['①-② 담당자 판단']||0));
+      const btLow = (cd.blockExcludedSum != null) ? cd.blockExcludedSum : ((sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
       const btRev = (cd.review != null) ? cd.review : ((sd['②-① 호출0건+변경있음']||0) + (sd['②-② 호출 3건 이하+변경없음']||0) + (sd['②-③ 사용으로 변경']||0));
       return `<tr>
         <td style="color:var(--text-muted);">${esc(row.team || '-')}</td>
@@ -936,8 +939,8 @@
       const cnt=row.count||0;
       const use   = (cd.use != null) ? cd.use : (sd['사용'] || 0);
       const done  = (cd.blockDone != null) ? cd.blockDone : (sd['차단완료'] || 0);
-      const btTop = (cd.blockResidual != null) ? cd.blockResidual : (sd['①-① 차단대상'] || 0);
-      const btLow = (cd.blockException != null) ? cd.blockException : ((sd['①-② 담당자 판단']||0) + (sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
+      const btTop = (cd.blockResidualSum != null) ? cd.blockResidualSum : ((sd['①-① 차단대상']||0) + (sd['①-② 담당자 판단']||0));
+      const btLow = (cd.blockExcludedSum != null) ? cd.blockExcludedSum : ((sd['①-③ 현업요청 제외대상']||0) + (sd['①-④ 사용으로 변경']||0));
       const btRev = (cd.review != null) ? cd.review : ((sd['②-① 호출0건+변경있음']||0) + (sd['②-② 호출 3건 이하+변경없음']||0) + (sd['②-③ 사용으로 변경']||0));
       return `<tr>
         <td style="color:var(--text-muted);">${esc(row.team)}</td>

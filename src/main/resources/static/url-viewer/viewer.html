@@ -2455,7 +2455,23 @@
 
   function parseGitHistory(json) {
     if (!json) return [];
-    try { return JSON.parse(json); } catch(e) { return []; }
+    try {
+      const arr = JSON.parse(json);
+      if (!Array.isArray(arr)) return [];
+      // date 내림차순 정렬(최신이 [0]) — 서버 저장 순서가 섞이거나 과거 데이터가 unsorted여도 안정적으로 표시/엑셀 출력
+      const toTs = (d) => {
+        if (!d) return 0;
+        // 주로 YYYY-MM-DD. 파싱 실패 시 0으로 보내 뒤로 정렬
+        const t = Date.parse(String(d).trim());
+        return Number.isFinite(t) ? t : 0;
+      };
+      return arr
+        .filter(x => x && typeof x === 'object')
+        .slice()
+        .sort((a, b) => toTs(b.date) - toTs(a.date));
+    } catch(e) {
+      return [];
+    }
   }
 
   function colNumToLetter(n) {

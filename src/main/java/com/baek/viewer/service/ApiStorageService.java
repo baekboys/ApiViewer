@@ -639,10 +639,21 @@ public class ApiStorageService {
     private String serializeGitHistory(ApiInfo a) {
         List<String[]> gits = Arrays.asList(
                 a.getGit1(), a.getGit2(), a.getGit3(), a.getGit4(), a.getGit5());
+        // date 기준 내림차순(최신 먼저) 정렬로 저장 — downstream(뷰/엑셀/SmartWay 본문)에서 인덱스 기반 접근 시 일관성 확보
+        List<String[]> sorted = gits.stream()
+                .filter(g -> g != null && g.length >= 3 && g[0] != null && !"-".equals(g[0]))
+                .sorted((x, y) -> {
+                    LocalDate xd = safeLocalDate(x[0]);
+                    LocalDate yd = safeLocalDate(y[0]);
+                    if (xd == null && yd == null) return 0;
+                    if (xd == null) return 1;
+                    if (yd == null) return -1;
+                    return yd.compareTo(xd);
+                })
+                .toList();
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
-        for (String[] g : gits) {
-            if (g == null || "-".equals(g[0])) continue;
+        for (String[] g : sorted) {
             if (!first) sb.append(",");
             sb.append("{\"date\":\"").append(escJson(g[0]))
               .append("\",\"author\":\"").append(escJson(g[1]))
@@ -651,6 +662,13 @@ public class ApiStorageService {
             first = false;
         }
         return sb.append("]").toString();
+    }
+
+    private LocalDate safeLocalDate(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.isEmpty() || "-".equals(t)) return null;
+        try { return LocalDate.parse(t); } catch (Exception e) { return null; }
     }
 
     private String escJson(String s) {

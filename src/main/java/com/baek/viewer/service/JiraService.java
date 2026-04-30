@@ -1247,13 +1247,28 @@ public class JiraService {
                 String author  = strOrBlank(map.get("author"));
                 String message = strOrBlank(map.get("message"));
                 result.add(new String[]{ date, author, message });
-                if (result.size() >= 5) break;
             }
-            return result;
+            // date 내림차순(최신이 0) 정렬 후 최근 5건만 반환
+            result.sort((a, b) -> {
+                java.time.LocalDate ad = safeDate(a[0]);
+                java.time.LocalDate bd = safeDate(b[0]);
+                if (ad == null && bd == null) return 0;
+                if (ad == null) return 1;
+                if (bd == null) return -1;
+                return bd.compareTo(ad);
+            });
+            return result.size() <= 5 ? result : result.subList(0, 5);
         } catch (Exception e) {
             log.debug("[Jira] parseGitHistory 파싱 실패: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private java.time.LocalDate safeDate(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.isEmpty() || "-".equals(t)) return null;
+        try { return java.time.LocalDate.parse(t); } catch (Exception e) { return null; }
     }
 
     private String strOrBlank(Object o) {

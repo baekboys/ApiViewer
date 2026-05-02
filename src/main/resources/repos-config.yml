@@ -48,6 +48,12 @@ global:
   # 호스트(scheme+host+port)는 각 레포의 whatapUrl(프로필 폴백값)에서 자동 추출됨
   # {pcode}는 RepoConfig.whatapPcode 로 치환
   blockMonitorWhatapReferer: "/v2/project/apm/{pcode}/new/tx_profile"
+
+  # 차단 검증 작업 시간대 (HH:mm, 24h, 로컬 시각). [start ≤ t < end] 안의 트랜잭션은 차단모니터링 결과에서 제외.
+  # 담당자가 일부러 차단 동작을 검증하려고 호출하는 시간대를 잡음으로 섞이지 않게 함.
+  blockMonitorExcludeStart: "18:00"
+  blockMonitorExcludeEnd:   "20:00"
+
   excludeKeywords:                   # 봇/제외대상 키워드 (clientType·clientName·userAgent 부분일치, 대소문자 구분)
     - Googlebot
     - AdsBot

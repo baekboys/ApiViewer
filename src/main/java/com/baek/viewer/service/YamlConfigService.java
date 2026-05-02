@@ -150,6 +150,8 @@ public class YamlConfigService {
             if (g.getCloneLocalPath() != null) gc.setCloneLocalPath(g.getCloneLocalPath());
             if (g.getGitBashPath() != null) gc.setGitBashPath(g.getGitBashPath());
             if (g.getBlockMonitorWhatapReferer() != null) gc.setBlockMonitorWhatapReferer(g.getBlockMonitorWhatapReferer());
+            if (g.getBlockMonitorExcludeStart() != null) gc.setBlockMonitorExcludeStart(g.getBlockMonitorExcludeStart());
+            if (g.getBlockMonitorExcludeEnd() != null) gc.setBlockMonitorExcludeEnd(g.getBlockMonitorExcludeEnd());
             if (g.getExcludeKeywords() != null && !g.getExcludeKeywords().isEmpty()) {
                 String joined = String.join(",", g.getExcludeKeywords().stream()
                         .map(String::trim).filter(s -> !s.isEmpty()).toList());

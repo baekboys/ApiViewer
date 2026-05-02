@@ -1,9 +1,11 @@
 package com.baek.viewer.controller;
 
+import com.baek.viewer.model.BatchDashboardDailyDto;
 import com.baek.viewer.model.BatchExecutionLog;
 import com.baek.viewer.model.ScheduleConfig;
 import com.baek.viewer.repository.BatchExecutionLogRepository;
 import com.baek.viewer.repository.ScheduleConfigRepository;
+import com.baek.viewer.service.BatchDashboardHistoryService;
 import com.baek.viewer.service.ScheduleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,13 +23,16 @@ public class ScheduleController {
     private final ScheduleService scheduleService;
     private final ScheduleConfigRepository scheduleRepo;
     private final BatchExecutionLogRepository historyRepo;
+    private final BatchDashboardHistoryService batchDashboardHistoryService;
 
     public ScheduleController(ScheduleService scheduleService,
                               ScheduleConfigRepository scheduleRepo,
-                              BatchExecutionLogRepository historyRepo) {
+                              BatchExecutionLogRepository historyRepo,
+                              BatchDashboardHistoryService batchDashboardHistoryService) {
         this.scheduleService = scheduleService;
         this.scheduleRepo = scheduleRepo;
         this.historyRepo = historyRepo;
+        this.batchDashboardHistoryService = batchDashboardHistoryService;
     }
 
     @GetMapping
@@ -86,6 +91,17 @@ public class ScheduleController {
         LocalDateTime toTs   = LocalDate.parse(to).plusDays(1).atStartOfDay();
 
         return ResponseEntity.ok(historyRepo.findByRange(fromTs, toTs, types));
+    }
+
+    /**
+     * 대시보드용 배치 이력 — 공개 GET. 동일 (일자, jobType) 당 1행, 당일 다회 수행은 마지막 수행을 대표로 {@code runCount}에 횟수 표기.
+     *
+     * @param days 오늘 포함 조회 일 수 (기본 7, 최대 60)
+     */
+    @GetMapping("/history/dashboard-daily")
+    public ResponseEntity<List<BatchDashboardDailyDto>> historyDashboardDaily(
+            @RequestParam(defaultValue = "7") int days) {
+        return ResponseEntity.ok(batchDashboardHistoryService.dailySummary(days));
     }
 }
 

@@ -159,10 +159,10 @@
       </div>
     </div>
 
-    <!-- Row 2: 봇 키워드 + 봇 표시 토글 -->
+    <!-- Row 2: 봇 키워드 + 봇 표시 토글 + IT담당자 모니터링 테스트 시간대 -->
     <div class="field" style="margin-top:12px;">봇 또는 제외대상 키워드 (대소문자 구분)
       <div id="monBotKeywordsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;min-height:28px;"></div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="text" id="newMonBotKeywordInput" placeholder="키워드 입력 후 Enter"
                style="flex:1;max-width:300px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"
                onkeydown="if(event.key==='Enter'){event.preventDefault();addMonBotKeyword();}">
@@ -170,6 +170,15 @@
         <div class="toggle-group toggle-sm">
           <button id="btnExcludeBot" class="on" onclick="setExcludeBot(true)">봇 제외</button>
           <button id="btnIncludeBot" onclick="setExcludeBot(false)">전체 보기</button>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:4px;padding-left:6px;border-left:1px dashed var(--border);"
+             title="IT담당자 모니터링 테스트 시간대 [start ≤ t < end] 안의 트랜잭션은 결과에서 제외됩니다. 기본값은 설정에서 가져옵니다.">
+          <span style="font-size:11px;color:var(--text-muted);font-weight:600;">IT담당자 모니터링 테스트 시간대 제외</span>
+          <input id="fExclStart" type="time" step="60" style="width:90px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <span style="color:var(--text-muted);">~</span>
+          <input id="fExclEnd" type="time" step="60" style="width:90px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <button id="btnExclTimeOff" type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 8px;height:auto;"
+                  title="IT담당자 모니터링 테스트 시간대 제외 비활성화 (모든 시간대 표시)" onclick="clearExcludeTimeRange()">해제</button>
         </div>
       </div>
     </div>
@@ -286,7 +295,46 @@
       const cfg = await res.json();
       const n = Number(cfg.pageSize);
       if (n && n > 0) PAGE_SIZE = n;
+      // IT담당자 모니터링 테스트 시간대 기본값 — 설정에서 가져옴
+      const startEl = document.getElementById('fExclStart');
+      const endEl   = document.getElementById('fExclEnd');
+      if (startEl && !startEl.value) startEl.value = cfg.blockMonitorExcludeStart || '18:00';
+      if (endEl && !endEl.value)     endEl.value   = cfg.blockMonitorExcludeEnd   || '20:00';
     } catch(e) { /* 실패 시 초기값 유지 */ }
+  }
+
+  /** "HH:MM:SS" / "HH:MM" 부분을 0~23시 시각(분 단위 환산: hh*60+mm)으로 반환. 파싱 실패 시 -1 */
+  function _hhmmToMinutes(s){
+    if (!s) return -1;
+    const m = String(s).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return -1;
+    const hh = parseInt(m[1], 10), mm = parseInt(m[2], 10);
+    if (isNaN(hh) || isNaN(mm)) return -1;
+    return hh * 60 + mm;
+  }
+
+  /** endtime("YYYY-MM-DD HH:mm:ss") 시각이 [start, end) 안이면 true. start>=end면 비활성. */
+  function isInExcludeTimeRange(endtime){
+    const startV = (document.getElementById('fExclStart')?.value || '').trim();
+    const endV   = (document.getElementById('fExclEnd')?.value || '').trim();
+    if (!startV || !endV) return false;
+    const sM = _hhmmToMinutes(startV), eM = _hhmmToMinutes(endV);
+    if (sM < 0 || eM < 0 || sM >= eM) return false;
+    if (!endtime) return false;
+    const m = String(endtime).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return false;
+    const tM = parseInt(m[1],10) * 60 + parseInt(m[2],10);
+    return tM >= sM && tM < eM;
+  }
+
+  function clearExcludeTimeRange(){
+    document.getElementById('fExclStart').value = '';
+    document.getElementById('fExclEnd').value = '';
+    currentPage = 0;
+    renderSummary();
+    renderTable();
+    document.getElementById('excelBtn').disabled = visibleRows().length === 0;
+    showToast('IT담당자 모니터링 테스트 시간대 제외 비활성화', 'success');
   }
 
   function esc(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -305,16 +353,23 @@
       btn.classList.add('active');
     }
     const today = new Date();
+    const tStr = today.toLocaleDateString('sv-SE');
     if (days === 0) {
-      const t = today.toLocaleDateString('sv-SE');
-      document.getElementById('fFrom').value = t;
-      document.getElementById('fTo').value = t;
+      document.getElementById('fFrom').value = tStr;
+      document.getElementById('fTo').value = tStr;
       return;
     }
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-    const from = new Date(yesterday); from.setDate(yesterday.getDate() - (days - 1));
+    if (days === 1) {
+      // 전일: 어제 ~ 오늘 (당일 포함)
+      const y = new Date(today); y.setDate(today.getDate() - 1);
+      document.getElementById('fFrom').value = y.toLocaleDateString('sv-SE');
+      document.getElementById('fTo').value = tStr;
+      return;
+    }
+    // 3일·7일: 당일 포함 N일 (오늘-(N-1) ~ 오늘)
+    const from = new Date(today); from.setDate(today.getDate() - (days - 1));
     document.getElementById('fFrom').value = from.toLocaleDateString('sv-SE');
-    document.getElementById('fTo').value = yesterday.toLocaleDateString('sv-SE');
+    document.getElementById('fTo').value = tStr;
   }
 
   function setExcludeBot(v){
@@ -328,7 +383,10 @@
   }
 
   function visibleRows(){
-    return excludeBot ? allRows.filter(r => !r.bot) : allRows;
+    let rows = excludeBot ? allRows.filter(r => !r.bot) : allRows.slice();
+    // IT담당자 모니터링 테스트 시간대 제외 (Jennifer는 endtime 컬럼이 없어 time 필드가 있을 때만 시도)
+    rows = rows.filter(r => !isInExcludeTimeRange(r.endtime || r.time));
+    return rows;
   }
 
   /** 데이터 소스 감지: 모든 행이 동일한 source면 해당 값, 혼합이면 'MIXED', 없으면 null */
@@ -505,7 +563,11 @@
     document.getElementById('sumBot').textContent = fmt(bots);
     document.getElementById('sumSvc').textContent = fmt(svcSet.size);
     document.getElementById('sumOkd').textContent = fmt(okdSet.size);
-    document.getElementById('sumTotalSub').textContent = excludeBot ? '(봇 제외 표시)' : '(봇 포함 전체)';
+    const tStart = (document.getElementById('fExclStart')?.value || '').trim();
+    const tEnd   = (document.getElementById('fExclEnd')?.value || '').trim();
+    const sM = _hhmmToMinutes(tStart), eM = _hhmmToMinutes(tEnd);
+    const timeNote = (sM >= 0 && eM >= 0 && sM < eM) ? `, ${tStart}~${tEnd} 제외` : '';
+    document.getElementById('sumTotalSub').textContent = (excludeBot ? '(봇 제외 표시' : '(봇 포함 전체') + timeNote + ')';
   }
 
   function renderTable(){
@@ -766,6 +828,19 @@
   setRange(1, document.querySelector('button.btn-ghost.active'));
   loadPageSize();
   loadRepos();
+
+  // IT담당자 모니터링 테스트 시간대 변경 시 즉시 재필터링 (재조회 없이)
+  ['fExclStart','fExclEnd'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', () => {
+        currentPage = 0;
+        renderSummary();
+        renderTable();
+        document.getElementById('excelBtn').disabled = visibleRows().length === 0;
+      });
+    }
+  });
   // 글로벌 봇 키워드를 태그로 기본 세팅 (사용자가 직접 조정 가능)
   fetch('/api/url-block-monitor/bot-keywords')
     .then(r => r.json())

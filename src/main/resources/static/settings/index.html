@@ -318,6 +318,15 @@ function updateAdminBadge(valid) {
         <span class="field-hint">clientType / clientName / userAgent 부분일치 제외 (대소문자 구분)</span>
       </label>
 
+      <label class="field" style="display:block;margin-top:10px;">IT담당자 모니터링 테스트 시간대 (제외)
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <input id="gBlockMonitorExcludeStart" type="time" step="60" style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <span style="color:var(--text-muted);">~</span>
+          <input id="gBlockMonitorExcludeEnd" type="time" step="60" style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+        </div>
+        <span class="field-hint">IT담당자가 차단 동작 검증을 위해 일부러 호출하는 시간대 — 이 구간 [start ≤ t &lt; end] 안의 트랜잭션은 차단모니터링 조회 시 자동 제외됩니다. (기본 18:00 ~ 20:00)</span>
+      </label>
+
 
       <!-- 와탭 연결 테스트 (쿠키 세션 keepalive 검증용) -->
       <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);">
@@ -1133,6 +1142,8 @@ function updateAdminBadge(valid) {
       document.getElementById('gWhatapPtotal').value   = g.whatapPtotal ?? 100;
       document.getElementById('gWhatapPsize').value    = g.whatapPsize ?? 10000;
       document.getElementById('gBlockMonitorWhatapReferer').value = g.blockMonitorWhatapReferer || '/v2/project/apm/{pcode}/new/tx_profile';
+      document.getElementById('gBlockMonitorExcludeStart').value = g.blockMonitorExcludeStart || '18:00';
+      document.getElementById('gBlockMonitorExcludeEnd').value   = g.blockMonitorExcludeEnd   || '20:00';
       document.getElementById('botKeywordsList').innerHTML = '';
       const _bkDefault = 'Googlebot,AdsBot,bingbot,YandexBot,DuckDuckBot,facebookexternalhit,Slackbot,Twitterbot,LinkedInBot,crawler,spider';
       (g.botKeywords || _bkDefault).split(',').map(s => s.trim()).filter(Boolean).forEach(renderBotKeywordTag);
@@ -1242,6 +1253,8 @@ function updateAdminBadge(valid) {
       cur.whatapPtotal = parseInt(document.getElementById('gWhatapPtotal').value) || 100;
       cur.whatapPsize = parseInt(document.getElementById('gWhatapPsize').value) || 10000;
       cur.blockMonitorWhatapReferer = document.getElementById('gBlockMonitorWhatapReferer').value.trim() || null;
+      cur.blockMonitorExcludeStart  = document.getElementById('gBlockMonitorExcludeStart').value.trim() || null;
+      cur.blockMonitorExcludeEnd    = document.getElementById('gBlockMonitorExcludeEnd').value.trim() || null;
       const _bkList = collectBotKeywords();
       cur.botKeywords = _bkList.length ? _bkList.join(',') : null;
       // testSuspectKeywords 는 URL 분석 화면에서 별도 관리 — cur 에 이미 GET 으로 로드된 값 그대로 보존
@@ -2167,6 +2180,36 @@ function updateAdminBadge(valid) {
   document.getElementById('logDate').addEventListener('change', () => { if (tailTimer) toggleTailing(); });
 
   // ── 스케줄 관리 ────────────────────────────────────────────
+  /** BLOCK_URL_MONITOR jobParam: R[0137]B[01]T[01] */
+  function parseBlockUrlMonitorJobParam(p) {
+    const s = String(p || '').trim();
+    const m = s.match(/^R([0137])B([01])T([01])$/);
+    if (!m) return { r: '1', b: true, t: true };
+    return { r: m[1], b: m[2] === '1', t: m[3] === '1' };
+  }
+  function schBlockUrlMonitorParamRow(s) {
+    if (s.jobType !== 'BLOCK_URL_MONITOR') return '';
+    const pm = parseBlockUrlMonitorJobParam(s.jobParam);
+    const opts = [
+      ['0', '당일'],
+      ['1', '전일·당일 포함'],
+      ['3', '최근 3일 (당일 포함)'],
+      ['7', '최근 7일 (당일 포함)']
+    ].map(([v, l]) => `<option value="${v}" ${pm.r === v ? 'selected' : ''}>${l}</option>`).join('');
+    return `<label class="field" style="min-width:160px;">모니터링 범위
+      <select id="schBmR-${s.id}" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;">${opts}</select>
+    </label>
+    <label class="field" style="min-width:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text-muted);font-weight:600;">옵션</span>
+      <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;">
+        <input type="checkbox" id="schBmB-${s.id}" ${pm.b ? 'checked' : ''} style="width:14px;height:14px;"> 봇 제외
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;" title="글로벌 설정의 IT담당자 모니터링 테스트 시간대를 적용해 해당 시각 구간 트랜잭션을 제외합니다.">
+        <input type="checkbox" id="schBmT-${s.id}" ${pm.t ? 'checked' : ''} style="width:14px;height:14px;"> IT담당자 모니터링 테스트 시간대 제외
+      </label>
+    </label>`;
+  }
+
   async function loadSchedules() {
     const el = document.getElementById('scheduleList');
     try {
@@ -2231,6 +2274,7 @@ function updateAdminBadge(valid) {
                   `<option value="${v}" ${(s.jobParam||'7')===v?'selected':''}>${l}</option>`).join('')}
               </select>
             </label>` : ''}
+            ${schBlockUrlMonitorParamRow(s)}
             <button class="btn btn-blue" style="height:30px;padding:4px 14px;font-size:12px;" onclick="saveSchedule(${s.id})">저장</button>
           </div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);">
@@ -2288,6 +2332,15 @@ function updateAdminBadge(valid) {
   }
 
   async function saveSchedule(id) {
+    let jobParam = null;
+    const schParamEl = document.getElementById('schParam-'+id);
+    if (schParamEl) jobParam = schParamEl.value || null;
+    const bmR = document.getElementById('schBmR-'+id);
+    if (bmR) {
+      const b = document.getElementById('schBmB-'+id)?.checked ? '1' : '0';
+      const t = document.getElementById('schBmT-'+id)?.checked ? '1' : '0';
+      jobParam = 'R' + bmR.value + 'B' + b + 'T' + t;
+    }
     const body = {
       enabled: document.getElementById('schChk-'+id).checked,
       scheduleType: document.getElementById('schType-'+id).value,
@@ -2295,7 +2348,7 @@ function updateAdminBadge(valid) {
       runDay: document.getElementById('schDay-'+id)?.value || null,
       intervalHours: parseInt(document.getElementById('schHour-'+id)?.value) || null,
       cronExpression: document.getElementById('schCron-'+id)?.value || null,
-      jobParam: document.getElementById('schParam-'+id)?.value || null
+      jobParam
     };
     // 스크롤 위치 보존을 위해 현재 스크롤 좌표 저장
     const sx = window.scrollX, sy = window.scrollY;

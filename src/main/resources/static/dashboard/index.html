@@ -72,6 +72,15 @@
     /* ── 2단 그리드 ── */
     .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
     @media(max-width:900px){.two-col{grid-template-columns:1fr;}}
+    /* 상태분포(좌) 높이 기준으로 배치카드(우) 높이 맞춤 + 표만 스크롤 */
+    .two-col-equal-height{align-items:start;}
+    .two-col-equal-height .dash-batch-card{
+      display:flex;flex-direction:column;min-height:0;overflow:hidden;
+      width:100%;box-sizing:border-box;
+    }
+    .two-col-equal-height .dash-batch-scroll{
+      flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;
+    }
 
     /* ── 상태 분포 바 ── */
     .status-dist{display:flex;height:24px;border-radius:6px;overflow:hidden;margin-bottom:8px;}
@@ -83,16 +92,6 @@
     .status-legend{display:flex;gap:14px;flex-wrap:wrap;}
     .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);}
     .legend-dot{width:10px;height:10px;border-radius:2px;}
-
-    /* ── Method 도넛 (CSS) ── */
-    .method-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-    .method-item{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
-    .method-item .m-badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;margin-bottom:6px;}
-    .m-GET    {background:#dcfce7;color:#166534;} .m-POST   {background:#dbeafe;color:#1e40af;}
-    .m-PUT    {background:#fef9c3;color:#854d0e;} .m-DELETE {background:#fee2e2;color:#991b1b;}
-    .m-PATCH  {background:#ede9fe;color:#5b21b6;} .m-OTHER  {background:#f1f5f9;color:#475569;}
-    .method-item .m-count{font-size:22px;font-weight:800;color:var(--text);}
-    .method-item .m-pct{font-size:11px;color:var(--text-muted);}
 
     /* ── 테이블 공통 ── */
     .tbl-wrap{overflow-x:auto;}
@@ -171,12 +170,12 @@
     [data-theme="dark"] .bt-top{background:#450a0a!important;color:#f87171!important;}
     [data-theme="dark"] .bt-low{background:#431407!important;color:#fb923c!important;}
     [data-theme="dark"] .bt-rev{background:#1c1408!important;color:#fcd34d!important;}
-    [data-theme="dark"] .m-GET,[data-theme="dark"] .badge-GET{background:#052e16!important;color:#4ade80!important;}
-    [data-theme="dark"] .m-POST,[data-theme="dark"] .badge-POST{background:#1e3a5f!important;color:#93c5fd!important;}
-    [data-theme="dark"] .m-PUT,[data-theme="dark"] .badge-PUT{background:#1c1408!important;color:#fcd34d!important;}
-    [data-theme="dark"] .m-DELETE,[data-theme="dark"] .badge-DELETE{background:#450a0a!important;color:#f87171!important;}
-    [data-theme="dark"] .m-PATCH,[data-theme="dark"] .badge-PATCH{background:#2e1065!important;color:#a78bfa!important;}
-    [data-theme="dark"] .m-OTHER,[data-theme="dark"] .badge-REQUEST{background:#293548!important;color:#94a3b8!important;}
+    [data-theme="dark"] .badge-GET{background:#052e16!important;color:#4ade80!important;}
+    [data-theme="dark"] .badge-POST{background:#1e3a5f!important;color:#93c5fd!important;}
+    [data-theme="dark"] .badge-PUT{background:#1c1408!important;color:#fcd34d!important;}
+    [data-theme="dark"] .badge-DELETE{background:#450a0a!important;color:#f87171!important;}
+    [data-theme="dark"] .badge-PATCH{background:#2e1065!important;color:#a78bfa!important;}
+    [data-theme="dark"] .badge-REQUEST{background:#293548!important;color:#94a3b8!important;}
     .dark-toggle{background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;padding:5px 12px;white-space:nowrap;transition:background .12s,color .12s;}
     .dark-toggle:hover{background:#f1f5f9;color:#1e293b;}
     [data-theme="dark"] .dark-toggle:hover{background:#293548!important;color:#f1f5f9!important;}
@@ -227,7 +226,7 @@
     [data-theme="dark"] [style*="color:#3f6212"] { color:#86efac !important; }
     [data-theme="dark"] [style*="color:#7c2d12"] { color:#fb923c !important; }
 
-    /* ── 🚦 진행사항(overview) 표: 외곽 숨김 + 내부선 1px 통일 ── */
+    /* ── 🚦 URL 현황(overview) 표: 외곽 숨김 + 내부선 1px 통일 ── */
     #overviewTeamTable, #overviewRepoTable, #overviewManagerTable {
       border-collapse: separate !important;
       border-spacing: 0 !important;
@@ -248,7 +247,18 @@
     #overviewRepoTable tbody tr:last-child > *,
     #overviewManagerTable tbody tr:last-child > * { border-bottom: 0 !important; }
 
-    /* 진행사항: "잔여 ~ ①-② 담당자판단" 컬럼만 외곽 강조 */
+    #batchDashTable thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    [data-theme="dark"] #batchDashTable thead th {
+      background: #1e293b !important;
+      color: #94a3b8 !important;
+      border-bottom-color: var(--border) !important;
+    }
+
+    /* URL 현황: "잔여 ~ ①-② 담당자판단" 컬럼만 외곽 강조 */
     :root { --ov-block-outline: rgba(159,18,57,.45); } /* #9f1239 약하게 */
     /* 기본 셀(border:0 !important)보다 우선하도록 테이블 ID까지 포함해 강제 */
     #overviewTeamTable .ov-res-start, #overviewRepoTable .ov-res-start, #overviewManagerTable .ov-res-start {
@@ -301,7 +311,7 @@
     .coming-soon .icon { font-size:36px; margin-bottom:8px; opacity:.75; }
     .coming-soon .title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; }
 
-    /* 배포일자 분포: 기간 버튼 */
+    /* URL 차단 배포일자: 기간 버튼 */
     .range-btns { margin-left:auto; display:flex; align-items:center; gap:6px; }
     .range-btn {
       border:1px solid var(--border); background:#f8fafc; color:var(--text-muted);
@@ -409,9 +419,9 @@
       <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;color:#92400e;">②-①/②-② 추가검토대상</span> 호출 0건 + 1년 미만 변경, 호출 1~<span id="guideReviewThreshold">3</span>건 + 1년 경과
     </div>
 
-    <!-- ── 상태 분포 + HTTP Method ── -->
-    <div class="two-col">
-      <div class="card">
+    <!-- ── 상태 분포 + 당일 배치 요약 ── -->
+    <div class="two-col two-col-equal-height" id="dashDistBatchRow">
+      <div class="card dash-dist-card">
         <div class="card-title"><span class="dot dot-blue"></span>전체 상태 분포</div>
         <div class="status-dist" id="distBar"></div>
         <div class="status-legend">
@@ -423,17 +433,35 @@
         </div>
         <div style="margin-top:16px;" id="distDetail"></div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="dot dot-purple"></span>HTTP Method 분포</div>
-        <div class="method-grid" id="methodGrid"></div>
+      <div class="card dash-batch-card">
+        <div class="card-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span class="dot" style="background:#0ea5e9;"></span>시스템 배치 수행 결과
+          <span id="batchDashTitleDate" style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:none;letter-spacing:0;"></span>
+        </div>
+        <div class="tbl-wrap dash-batch-scroll">
+          <table id="batchDashTable" style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:6px 8px;background:#f8fafc;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);">배치명</th>
+                <th style="text-align:center;padding:6px 8px;background:#f8fafc;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);white-space:nowrap;" title="당일 실행 횟수">횟수</th>
+                <th style="text-align:right;padding:6px 8px;background:#f8fafc;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);white-space:nowrap;">건수</th>
+                <th style="text-align:center;padding:6px 8px;background:#f8fafc;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);white-space:nowrap;">결과</th>
+                <th style="text-align:left;padding:6px 8px;background:#f8fafc;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);">메시지</th>
+              </tr>
+            </thead>
+            <tbody id="batchDashTbody">
+              <tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">불러오는 중…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════
-         섹션 1.4 : 진행사항
+         섹션 1.4 : URL 현황
          ══════════════════════════════════════════════════════════════ -->
     <div class="section-header">
-      <h3>🚦 진행사항</h3>
+      <h3>🚦 URL 현황</h3>
       <span class="section-sub">차단대상·검토대상 진행 현황 (팀/레포/담당자별)</span>
     </div>
     <div class="card">
@@ -472,10 +500,10 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════
-         섹션 1.5 : 배포일자 분포 (잔여)
+         섹션 1.5 : URL 차단 배포일자 (잔여)
          ══════════════════════════════════════════════════════════════ -->
     <div class="section-header">
-      <h3>📅 배포일자 분포</h3>
+      <h3>📅 URL 차단 배포일자</h3>
       <span class="section-sub">차단대상 잔여(①-①/①-②)만 배포 예정일 분포를 표시합니다. 일자 미정은 "일정수립필요"로 집계됩니다.</span>
       <div class="range-btns" id="deployRangeBtns">
         <button class="range-btn" data-range="1w"  onclick="setDeployRange('1w', this)">1주</button>
@@ -589,6 +617,76 @@
   let deployScheduleData = null;
   let deployRangeMode = localStorage.getItem('dashboard.deployRangeMode') || '1w';
 
+  /** 배치 카드 제목 옆 — 브라우저 기준 오늘 날짜(한국어 로캘) */
+  function setBatchDashTitleDate() {
+    const el = document.getElementById('batchDashTitleDate');
+    if (!el) return;
+    const d = new Date();
+    const text = d.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'short'
+    });
+    el.textContent = '(' + text + ')';
+  }
+
+  let _dashBatchSyncTimer;
+  /** 좌측「전체 상태 분포」카드 높이에 맞춰 우측 배치 카드 max-height 설정 (2열 레이아웃일 때만) */
+  function syncDashBatchCardHeight() {
+    const row = document.getElementById('dashDistBatchRow');
+    const left = row?.querySelector('.dash-dist-card');
+    const right = row?.querySelector('.dash-batch-card');
+    if (!row || !left || !right) return;
+    if (window.innerWidth <= 900) {
+      right.style.maxHeight = '';
+      return;
+    }
+    const lh = left.offsetHeight;
+    if (lh < 80) return;
+    right.style.maxHeight = lh + 'px';
+  }
+  function scheduleSyncDashBatchCardHeight() {
+    clearTimeout(_dashBatchSyncTimer);
+    _dashBatchSyncTimer = setTimeout(() => {
+      requestAnimationFrame(syncDashBatchCardHeight);
+    }, 60);
+  }
+
+  /** 당일 배치 요약 (대시보드 우측 카드) — API days=1. 실패 행을 위로 정렬 */
+  function renderBatchDashboard(rows) {
+    const tbody = document.getElementById('batchDashTbody');
+    if (!tbody) return;
+    if (!rows || !rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px;">당일 배치 이력이 없습니다.</td></tr>';
+      scheduleSyncDashBatchCardHeight();
+      return;
+    }
+    const isOk = (r) => (r.status || '').toUpperCase() === 'SUCCESS';
+    const sorted = [...rows].sort((a, b) => {
+      const oa = isOk(a) ? 1 : 0;
+      const ob = isOk(b) ? 1 : 0;
+      if (oa !== ob) return oa - ob;
+      return String(a.jobType || '').localeCompare(String(b.jobType || ''), 'ko');
+    });
+    tbody.innerHTML = sorted.map(r => {
+      const ok = (r.status || '').toUpperCase() === 'SUCCESS';
+      const badge = ok
+        ? '<span class="st st-use" style="font-size:11px;">성공</span>'
+        : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:600;">실패</span>';
+      const msg = (r.resultSummary || '').trim();
+      const runs = (r.runCount != null && r.runCount > 0) ? r.runCount : 1;
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 8px;"><span style="font-weight:700;font-size:11px;">${esc(r.jobType || '')}</span>${r.description ? `<div style="font-size:10px;color:var(--text-muted);font-weight:400;">${esc(r.description)}</div>` : ''}</td>
+        <td style="padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums;">${runs}</td>
+        <td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;">${r.itemCount == null ? '-' : Number(r.itemCount).toLocaleString()}</td>
+        <td style="padding:6px 8px;text-align:center;">${badge}</td>
+        <td style="padding:6px 8px;max-width:280px;word-break:break-word;font-size:11px;color:var(--text-muted);" title="${esc(msg)}">${esc(msg)}</td>
+      </tr>`;
+    }).join('');
+    scheduleSyncDashBatchCardHeight();
+  }
+
   function setDeployRange(mode, btnEl) {
     deployRangeMode = mode || '1w';
     localStorage.setItem('dashboard.deployRangeMode', deployRangeMode);
@@ -643,11 +741,10 @@
     try {
       const res = await fetch('/api/config/repos');
       const repos = await res.json();
-      // 공용 RepoSelect (단일 선택)
+      // 공용 RepoSelect (다중 선택 → /api/call-stats/dashboard?repos=...)
       window._dashTopRepoSel = RepoSelect.mountCompact('#dashTopRepoSelect', {
         repos,
         selected: repos.length > 0 ? [repos[0].repoName] : [],
-        singleMode: true,
         placeholder: '(레포 선택)',
         onChange: () => loadTopApisByRepo()
       });
@@ -656,15 +753,15 @@
   }
   async function loadTopApisByRepo() {
     const sel = window._dashTopRepoSel ? window._dashTopRepoSel.getSelected() : [];
-    const repo = sel[0] || '';
     const wrap = document.getElementById('dashTopRepoApisWrap');
-    if (!repo) {
+    if (!sel.length) {
       wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">레포를 선택하세요.</div>';
       return;
     }
     wrap.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div><br><span style="color:var(--text-muted);font-size:11px;">조회 중...</span></div>';
     try {
-      const res = await fetch(`/api/call-stats/dashboard?period=year&repo=${encodeURIComponent(repo)}&topN=10`);
+      const reposQ = encodeURIComponent(sel.join(','));
+      const res = await fetch(`/api/call-stats/dashboard?period=year&repos=${reposQ}&topN=10`);
       if (!res.ok) throw new Error();
       const d = await res.json();
       renderTopApisTable(d.topApis, 'dashTopRepoApisWrap');
@@ -677,10 +774,12 @@
     document.getElementById('loadingArea').style.display = 'block';
     document.getElementById('dashContent').style.display = 'none';
     try {
-      const [statsRes, deployRes, overviewRes] = await Promise.all([
+      setBatchDashTitleDate();
+      const [statsRes, deployRes, overviewRes, batchHistRes] = await Promise.all([
         fetch('/api/db/stats'),
         fetch('/api/db/stats/deploy-schedule'),
-        fetch('/api/db/stats/block-overview')
+        fetch('/api/db/stats/block-overview'),
+        fetch('/api/schedule/history/dashboard-daily?days=1')
       ]);
       if (!statsRes.ok) throw new Error('서버 오류');
       stats = await statsRes.json();
@@ -696,10 +795,16 @@
       } else {
         renderBlockOverview(null);
       }
+      let batchRows = [];
+      if (batchHistRes.ok) {
+        try { batchRows = await batchHistRes.json(); } catch (e) { batchRows = []; }
+      }
+      renderBatchDashboard(Array.isArray(batchRows) ? batchRows : []);
       document.getElementById('lastUpdated').textContent =
         '최종 갱신: ' + new Date().toLocaleTimeString('ko-KR');
       document.getElementById('loadingArea').style.display = 'none';
       document.getElementById('dashContent').style.display = 'block';
+      scheduleSyncDashBatchCardHeight();
     } catch(e) {
       document.getElementById('loadingArea').innerHTML =
         `<div class="empty" style="color:var(--danger);">통계 불러오기 실패: ${e.message}</div>`;
@@ -762,20 +867,6 @@
         <div class="bar-bg"><div class="bar-fill" style="background:${color};width:${total?((v/total)*100).toFixed(1):0}%;"></div></div>
         <span class="bar-num">${v.toLocaleString()}</span>
         <span class="bar-pct">${pct(v,total)}</span>
-      </div>`).join('');
-
-    // HTTP Method
-    const methods = ['GET','POST','PUT','DELETE','PATCH'];
-    const bm = s.byMethod || {};
-    const otherCount = Object.entries(bm)
-      .filter(([k]) => !methods.includes(k))
-      .reduce((s,[,v]) => s+v, 0);
-    const methodData = [...methods.map(m => [m, bm[m]||0]), ['기타', otherCount]].filter(([,v])=>v>0);
-    document.getElementById('methodGrid').innerHTML = methodData.map(([m, v]) => `
-      <div class="method-item">
-        <div><span class="m-badge m-${methods.includes(m)?m:'OTHER'}">${m}</span></div>
-        <div class="m-count">${v.toLocaleString()}</div>
-        <div class="m-pct">${pct(v, total)}</div>
       </div>`).join('');
 
     // 팀별 (표만 표시)
@@ -977,7 +1068,7 @@
     document.getElementById('panel-overview-' + name).classList.add('active');
   }
 
-  // ── 차단대상 진행사항 렌더 (9 leaf v2 — 17컬럼, 차단대상 = 차단완료+잔여+제외) ──
+  // ── URL 현황(차단대상·검토대상) 렌더 (9 leaf v2 — 17컬럼, 차단대상 = 차단완료+잔여+제외) ──
   // 검토부서 / 총합계 / 사용 / 차단대상[9: 소계·비율·차단완료·잔여·①-①·①-②·제외·①-③·①-④] / 검토대상[5: 소계·비율·②-①·②-②·②-③]
   function renderBlockOverview(d) {
     const empty = '<tr><td colspan="100" class="empty" style="padding:18px;text-align:center;color:var(--text-muted);">데이터 없음</td></tr>';
@@ -1150,7 +1241,7 @@
     }
   }
 
-  // ── 배포일자 분포 렌더 ───────────────────────────────────
+  // ── URL 차단 배포일자 렌더 ───────────────────────────────────
   function renderDeploySchedule(d) {
     const empty = '<tr><td colspan="100" class="empty" style="padding:18px;text-align:center;color:var(--text-muted);">데이터 없음</td></tr>';
     if (!d) {
@@ -1347,6 +1438,7 @@
   fetch('/api/config/global').then(r => r.ok ? r.json() : null).then(g => {
     if (g && g.reviewThreshold) document.getElementById('guideReviewThreshold').textContent = g.reviewThreshold;
   }).catch(()=>{});
+  window.addEventListener('resize', () => scheduleSyncDashBatchCardHeight());
   loadStats();
   loadTopApis();
   loadTopRepos();

@@ -2,6 +2,7 @@ package com.baek.viewer.service;
 
 import com.baek.viewer.job.ApmCollectJob;
 import com.baek.viewer.job.BatchHistoryJobListener;
+import com.baek.viewer.job.UrlBlockMonitorJob;
 import com.baek.viewer.job.WhatapKeepaliveJob;
 import com.baek.viewer.job.DataBackupJob;
 import com.baek.viewer.job.DbSnapshotJob;
@@ -87,6 +88,8 @@ public class ScheduleService {
         createIfAbsentCustomCron("WHATAP_KEEPALIVE",
                 "와탭 쿠키 세션 keepalive (활성 레포 대상 flush 호출)",
                 "0 0/10 * * * ?");
+        // 차단 URL 모니터링 — jobParam 예: R1B1T1 (범위·봇제외·IT테스트시간대제외), 비활성 기본
+        createIfAbsent("BLOCK_URL_MONITOR", "차단 URL 모니터링 (와탭/제니퍼)", "DAILY", "22:30", "R1B1T1");
     }
 
     /** CUSTOM cron 기반 기본 배치 생성 (분 단위 등 표준 DAILY/HOURLY로 표현 어려운 경우) */
@@ -185,6 +188,7 @@ public class ScheduleService {
             case "DATA_BACKUP" -> DataBackupJob.class;
             case "JIRA_SYNC" -> JiraSyncJob.class;
             case "WHATAP_KEEPALIVE" -> WhatapKeepaliveJob.class;
+            case "BLOCK_URL_MONITOR" -> UrlBlockMonitorJob.class;
             default -> null;
         };
     }

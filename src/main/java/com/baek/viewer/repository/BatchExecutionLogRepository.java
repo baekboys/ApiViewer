@@ -20,4 +20,13 @@ public interface BatchExecutionLogRepository extends JpaRepository<BatchExecutio
     List<BatchExecutionLog> findByRange(@Param("from") LocalDateTime from,
                                         @Param("to") LocalDateTime to,
                                         @Param("jobTypes") List<String> jobTypes);
+
+    /** 대시보드 일자별 집계용 — 전체 jobType, 시작 시각 내림차순 */
+    @Query("""
+            SELECT b FROM BatchExecutionLog b
+            WHERE b.startTime >= :from AND b.startTime < :to
+            ORDER BY b.startTime DESC
+            """)
+    List<BatchExecutionLog> findAllInRangeOrderByStartTimeDesc(@Param("from") LocalDateTime from,
+                                                               @Param("to") LocalDateTime to);
 }

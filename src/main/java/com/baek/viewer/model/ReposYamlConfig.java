@@ -44,6 +44,8 @@ public class ReposYamlConfig {
         private String cloneLocalPath;
         private String gitBashPath;
         private String blockMonitorWhatapReferer;
+        private String blockMonitorExcludeStart;
+        private String blockMonitorExcludeEnd;
         private List<String> excludeKeywords;
         private List<String> testSuspectKeywords;
 
@@ -99,6 +101,10 @@ public class ReposYamlConfig {
         public void setGitBashPath(String v) { this.gitBashPath = v; }
         public String getBlockMonitorWhatapReferer() { return blockMonitorWhatapReferer; }
         public void setBlockMonitorWhatapReferer(String v) { this.blockMonitorWhatapReferer = v; }
+        public String getBlockMonitorExcludeStart() { return blockMonitorExcludeStart; }
+        public void setBlockMonitorExcludeStart(String v) { this.blockMonitorExcludeStart = v; }
+        public String getBlockMonitorExcludeEnd() { return blockMonitorExcludeEnd; }
+        public void setBlockMonitorExcludeEnd(String v) { this.blockMonitorExcludeEnd = v; }
         public List<String> getExcludeKeywords() { return excludeKeywords; }
         public void setExcludeKeywords(List<String> v) { this.excludeKeywords = v; }
         public List<String> getTestSuspectKeywords() { return testSuspectKeywords; }

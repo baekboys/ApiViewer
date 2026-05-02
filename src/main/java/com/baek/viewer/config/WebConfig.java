@@ -78,7 +78,8 @@ public class WebConfig implements WebMvcConfigurer {
                 )
                 .excludePathPatterns(
                         "/api/apm/chart",          // 차트 조회는 공개 (viewer.html)
-                        "/api/auth/**"             // 토큰 유효성 확인 (인증 전 호출)
+                        "/api/auth/**",            // 토큰 유효성 확인 (인증 전 호출)
+                        "/api/schedule/history/dashboard-daily" // 대시보드 배치 요약 (일자·배치별 1행)
                 );
 
         // 관리자 전용 HTML 페이지 보호 (adminToken 쿠키)

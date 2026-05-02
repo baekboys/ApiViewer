@@ -12,7 +12,7 @@
  * ═══════════════════════════════════════════════════════════════ */
 (function () {
   // UI 버전 표기 (캐시/반영 여부 확인용) — 변경 시 이 값만 갱신
-  const APP_UI_VERSION = 'ver1.2.26';
+  const APP_UI_VERSION = 'ver1.3.05';
 
   const SEGMENTS = [
     {
@@ -149,6 +149,13 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
+  // 현재 경고 목록의 시그니처(레포명 정렬 결합) — 동일 목록이면 닫기 유지, 새 실패가 추가되면 자동으로 다시 표시
+  function syncWarnSignature(list) {
+    return (list || []).map(w => String(w.repoName || ''))
+      .filter(Boolean).sort().join('|');
+  }
+  const SYNC_WARN_DISMISS_KEY = 'syncWarnDismiss';
+
   function renderSyncWarnings(list) {
     const slot = document.getElementById('sync-warning-container');
     if (!slot) return;
@@ -156,6 +163,15 @@
       slot.innerHTML = '';
       return;
     }
+    // 사용자가 이전에 닫은 동일 목록이면 표시하지 않음
+    try {
+      const dismissed = sessionStorage.getItem(SYNC_WARN_DISMISS_KEY);
+      if (dismissed && dismissed === syncWarnSignature(list)) {
+        slot.innerHTML = '';
+        return;
+      }
+    } catch(e) {}
+
     const items = list.map(w => `
       <li>
         <strong>${esc(w.repoName)}</strong>
@@ -170,6 +186,7 @@
             최근 배치 Git 동기화 실패: 레포 <strong>${list.length}개</strong> — 최신 소스 미반영 가능
           </span>
           <button type="button" class="sync-warning-toggle" aria-expanded="false">자세히 ▼</button>
+          <button type="button" class="sync-warning-close" aria-label="알림 닫기" title="알림 닫기">✕</button>
         </div>
         <ul class="sync-warning-details" hidden>${items}</ul>
       </div>`;
@@ -188,6 +205,13 @@
           btn.setAttribute('aria-expanded', 'true');
           btn.textContent = '접기 ▲';
         }
+      });
+    }
+    const closeBtn = slot.querySelector('.sync-warning-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        try { sessionStorage.setItem(SYNC_WARN_DISMISS_KEY, syncWarnSignature(list)); } catch(e) {}
+        slot.innerHTML = '';
       });
     }
   }

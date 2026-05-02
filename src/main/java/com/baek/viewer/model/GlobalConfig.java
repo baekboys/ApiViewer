@@ -133,6 +133,18 @@ public class GlobalConfig {
     private String botKeywords;
 
     /**
+     * URL 차단 모니터링 — 차단 검증 작업 시간대 시작 (HH:mm, 24h, 로컬 시각).
+     * 이 시간대(start ≤ t < end)에 속하는 트랜잭션은 조회 결과에서 자동 제외 — 담당자 차단 검증 호출이 잡음으로 섞이지 않도록.
+     * 기본값 18:00.
+     */
+    @Column(name = "block_monitor_exclude_start", length = 5)
+    private String blockMonitorExcludeStart;
+
+    /** URL 차단 모니터링 — 차단 검증 작업 시간대 종료 (HH:mm, 24h). 기본값 20:00. */
+    @Column(name = "block_monitor_exclude_end", length = 5)
+    private String blockMonitorExcludeEnd;
+
+    /**
      * 테스트/샘플 의심 URL 판정 키워드 (콤마 구분, 대소문자 무시 부분일치).
      * URL 경로 / 메소드명 / 컨트롤러명 / 파일경로 / 주석 / @ApiOperation / @Description 매칭.
      * fullUrl 은 의도적으로 제외 (도메인 자체에 test/stg 가 포함된 환경 false positive 방지).
@@ -219,6 +231,18 @@ public class GlobalConfig {
                : "Googlebot,AdsBot,bingbot,YandexBot,DuckDuckBot,facebookexternalhit,Slackbot,Twitterbot,LinkedInBot,crawler,spider";
     }
     public void setBotKeywords(String v) { this.botKeywords = v; }
+
+    public String getBlockMonitorExcludeStart() {
+        return blockMonitorExcludeStart != null && !blockMonitorExcludeStart.isBlank()
+                ? blockMonitorExcludeStart : "18:00";
+    }
+    public void setBlockMonitorExcludeStart(String v) { this.blockMonitorExcludeStart = v; }
+
+    public String getBlockMonitorExcludeEnd() {
+        return blockMonitorExcludeEnd != null && !blockMonitorExcludeEnd.isBlank()
+                ? blockMonitorExcludeEnd : "20:00";
+    }
+    public void setBlockMonitorExcludeEnd(String v) { this.blockMonitorExcludeEnd = v; }
 
     public String getTestSuspectKeywords() {
         return (testSuspectKeywords != null && !testSuspectKeywords.isBlank())

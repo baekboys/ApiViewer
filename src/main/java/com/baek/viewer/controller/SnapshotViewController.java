@@ -4,6 +4,8 @@ import com.baek.viewer.model.ApiRecordSnapshot;
 import com.baek.viewer.repository.ApiRecordSnapshotRepository;
 import com.baek.viewer.repository.ApiRecordSnapshotRowRepository;
 import com.baek.viewer.service.SnapshotService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 
 /**
@@ -31,6 +34,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/snapshot-view")
 public class SnapshotViewController {
+
+    private static final Logger log = LoggerFactory.getLogger(SnapshotViewController.class);
 
     private final ApiRecordSnapshotRepository snapshotRepository;
     private final ApiRecordSnapshotRowRepository snapshotRowRepository;
@@ -45,8 +50,59 @@ public class SnapshotViewController {
     }
 
     /**
+     * 특정 날짜(YYYY-MM-DD) 하루 범위의 스냅샷 목록(최신순).
+     * [정책] 스냅샷은 항상 '시점 기준 전체(풀)'이므로 repositories/repository 파라미터는 무시한다.
+     *        (응답 메타에는 요청된 값을 그대로 표기 — 클라이언트 호환)
+     */
+    @GetMapping("/list")
+    public ResponseEntity<?> list(@RequestParam String date,
+                                  @RequestParam(required = false) String repository,
+                                  @RequestParam(required = false) String repositories,
+                                  @RequestParam(required = false, defaultValue = "200") int size) {
+        LocalDate d;
+        try {
+            d = LocalDate.parse(date.trim());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "date는 YYYY-MM-DD 형식이어야 합니다."));
+        }
+
+        int limit = Math.min(500, Math.max(1, size));
+        LocalDateTime from = d.atStartOfDay();
+        LocalDateTime to = d.atTime(LocalTime.MAX);
+        List<String> requestedRepos = parseRepos(repository, repositories);
+
+        try {
+            // repos=null 로 호출 → 일자 범위 내 모든 스냅샷(=전체 풀) 최신순 반환
+            List<Long> ids = snapshotRepository.findIdsBySnapshotAtBetween(from, to, null,
+                    PageRequest.of(0, limit));
+            Map<Long, ApiRecordSnapshot> byId = new HashMap<>();
+            for (ApiRecordSnapshot s : snapshotRepository.findAllById(ids)) {
+                byId.put(s.getId(), s);
+            }
+
+            List<Map<String, Object>> metas = ids.stream()
+                    .map(byId::get)
+                    .filter(x -> x != null)
+                    .map(snapshotService::toMeta)
+                    .toList();
+
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("date", d.toString());
+            resp.put("from", from.toString());
+            resp.put("to", to.toString());
+            resp.put("requestedRepos", requestedRepos == null ? List.of() : requestedRepos);
+            resp.put("size", limit);
+            resp.put("snapshots", metas);
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.warn("[SNAPSHOT_VIEW] list 실패: date={}, requestedRepos={}, err={}", d, requestedRepos, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * 기준일자(YYYY-MM-DD) 이전(<=) 중 가장 최신 스냅샷 1건 resolve.
-     * repositories/repository 파라미터가 있으면 해당 repo 들 중 1개 이상 row가 존재하는 스냅샷으로 제한.
+     * [정책] 항상 '전체(풀) 스냅샷'만 사용한다. repositories/repository 파라미터는 무시(응답 메타에만 표기).
      */
     @GetMapping("/resolve")
     public ResponseEntity<?> resolve(@RequestParam String date,
@@ -60,19 +116,21 @@ public class SnapshotViewController {
         }
 
         LocalDateTime cutoff = d.atTime(LocalTime.MAX);
-        List<String> repos = parseRepos(repository, repositories);
-        Long id = snapshotRepository.findLatestSnapshotIdAtOrBefore(cutoff, (repos == null || repos.isEmpty()) ? null : repos);
+        List<String> requestedRepos = parseRepos(repository, repositories);
+
+        // 전체 스냅샷(sourceRepo 비어있음)만 단일 경로로 resolve
+        Long id = snapshotRepository.findLatestGlobalSnapshotIdAtOrBefore(cutoff);
         if (id == null) return ResponseEntity.status(404).body(Map.of("error", "해당 기준일자 이전 스냅샷이 없습니다."));
 
         Optional<ApiRecordSnapshot> sOpt = snapshotRepository.findById(id);
         if (sOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("error", "snapshot not found"));
 
         Map<String, Object> resp = new LinkedHashMap<>(snapshotService.toMeta(sOpt.get()));
-        resp.put("resolvedBy", Map.of(
-                "date", d.toString(),
-                "cutoff", cutoff.toString(),
-                "repos", repos
-        ));
+        Map<String, Object> resolvedBy = new LinkedHashMap<>();
+        resolvedBy.put("date", d.toString());
+        resolvedBy.put("cutoff", cutoff.toString());
+        resolvedBy.put("requestedRepos", requestedRepos == null ? List.of() : requestedRepos);
+        resp.put("resolvedBy", resolvedBy);
         return ResponseEntity.ok(resp);
     }
 

@@ -5,6 +5,7 @@ import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.repository.RepoConfigRepository;
 import com.baek.viewer.repository.ScheduleConfigRepository;
 import com.baek.viewer.service.ApiExtractorService;
+import com.baek.viewer.service.SnapshotService;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.slf4j.Logger;
@@ -12,7 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Git Pull 후 전체 레포지토리 추출 배치.
@@ -24,6 +27,7 @@ public class GitPullExtractJob implements Job {
     @Autowired private ScheduleConfigRepository scheduleRepo;
     @Autowired private RepoConfigRepository repoConfigRepo;
     @Autowired private ApiExtractorService extractorService;
+    @Autowired private SnapshotService snapshotService;
 
     @Override
     public void execute(JobExecutionContext context) {
@@ -31,6 +35,7 @@ public class GitPullExtractJob implements Job {
         List<RepoConfig> repos = repoConfigRepo.findAll();
         int success = 0, fail = 0;
         StringBuilder resultMsg = new StringBuilder();
+        List<String> processedRepos = new ArrayList<>();
 
         for (RepoConfig repo : repos) {
             if (!"Y".equalsIgnoreCase(repo.getAnalysisBatchEnabled())) {
@@ -68,6 +73,7 @@ public class GitPullExtractJob implements Job {
                 updateRepoSyncStatus(repo.getRepoName(), syncStatus, syncMessage);
 
                 // 2. 추출 (동기화 실패해도 현재 파일 기준으로 분석 진행)
+                // [정책] 레포별 스냅샷이 매번 생성되지 않도록 skipSnapshot=true. 모든 레포 끝난 뒤 1회만 스냅샷 생성.
                 ExtractRequest req = new ExtractRequest();
                 req.setRootPath(rootPath);
                 req.setRepositoryName(repo.getRepoName());
@@ -76,9 +82,11 @@ public class GitPullExtractJob implements Job {
                 req.setGitBinPath(gitBin);
                 req.setPathConstants(repo.getPathConstants());
                 req.setClientIp("BATCH");
+                req.setSkipSnapshot(true);
 
                 extractorService.extract(req);
                 log.info("[배치] {} — 추출 완료", repo.getRepoName());
+                processedRepos.add(repo.getRepoName());
                 success++;
 
             } catch (Exception e) {
@@ -86,6 +94,22 @@ public class GitPullExtractJob implements Job {
                 resultMsg.append(repo.getRepoName()).append(":실패 ");
                 fail++;
             }
+        }
+
+        // 모든 레포 추출이 끝난 뒤 풀 스냅샷을 1회만 생성 (정책: 시점 기준 전체 스냅샷)
+        if (success > 0) {
+            try {
+                String ts = LocalDateTime.now().toString().replace("T", " ");
+                if (ts.length() > 19) ts = ts.substring(0, 19);
+                String label = String.format("Batch Extract %d개 레포(성공 %d) @ %s", repos.size(), success, ts);
+                String repoNames = processedRepos.stream().collect(Collectors.joining(","));
+                snapshotService.createSnapshot("EXTRACT_BATCH", label, repoNames, "BATCH");
+                log.info("[배치] 스냅샷 생성 완료 (전체 스냅샷, 라벨=\"{}\")", label);
+            } catch (Exception e) {
+                log.warn("[배치] 스냅샷 생성 실패 (분석 결과에 영향 없음): {}", e.getMessage());
+            }
+        } else {
+            log.warn("[배치] 모든 레포 추출 실패 — 스냅샷 생성 건너뜀");
         }
 
         String result = String.format("성공 %d개, 실패 %d개 / 총 %d개 레포", success, fail, repos.size());

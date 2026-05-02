@@ -9,9 +9,12 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,12 +28,15 @@ public class UiVersionStartupLogger {
 
     private static final Logger log = LoggerFactory.getLogger(UiVersionStartupLogger.class);
     private final ObjectProvider<WebServerApplicationContext> webServerApplicationContextProvider;
+    private final Environment env;
 
     private static final Pattern UI_VER_PATTERN =
             Pattern.compile("APP_UI_VERSION\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"]");
 
-    public UiVersionStartupLogger(ObjectProvider<WebServerApplicationContext> webServerApplicationContextProvider) {
+    public UiVersionStartupLogger(ObjectProvider<WebServerApplicationContext> webServerApplicationContextProvider,
+                                  Environment env) {
         this.webServerApplicationContextProvider = webServerApplicationContextProvider;
+        this.env = env;
     }
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -39,6 +45,8 @@ public class UiVersionStartupLogger {
         String uiVer = resolveUiVersionFromClasspath();
         if (uiVer == null || uiVer.isBlank()) uiVer = "(unknown)";
         log.info("[UI] 버전: {}", uiVer);
+
+        logDbPathHints();
 
         int port = 8080;
         try {
@@ -59,6 +67,39 @@ public class UiVersionStartupLogger {
         log.info("[UI] - 설정/데이터관리: {}/settings/", base);
         log.info("[UI] - URL 분석(추출): {}/url-viewer/extract.html", base);
         log.info("[UI] - H2 콘솔(관리자): {}/h2-console", base);
+    }
+
+    private void logDbPathHints() {
+        try {
+            String userDir = System.getProperty("user.dir");
+            String url = env.getProperty("spring.datasource.url", "");
+            log.info("[DB] user.dir={}", userDir);
+            if (url == null || url.isBlank()) {
+                log.info("[DB] datasource.url=(empty)");
+                return;
+            }
+            log.info("[DB] datasource.url={}", url);
+
+            String prefix = "jdbc:h2:file:";
+            if (!url.startsWith(prefix)) return;
+
+            String raw = url.substring(prefix.length());
+            int semi = raw.indexOf(';');
+            if (semi >= 0) raw = raw.substring(0, semi);
+            raw = raw.trim();
+            if (raw.isEmpty()) return;
+
+            Path basePath = Paths.get(raw);
+            if (!basePath.isAbsolute()) {
+                basePath = Paths.get(userDir).resolve(basePath).normalize();
+            }
+
+            // H2는 보통 <path>.mv.db / <path>.trace.db 형태로 파일을 만든다.
+            log.info("[DB] H2 file base={}", basePath);
+            log.info("[DB] H2 file candidates: {}.mv.db , {}.trace.db", basePath, basePath);
+        } catch (Exception e) {
+            log.warn("[DB] 경로 힌트 출력 실패: {}", e.getMessage());
+        }
     }
 
     private String resolveUiVersionFromClasspath() {

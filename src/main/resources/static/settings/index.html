@@ -653,65 +653,38 @@ function updateAdminBadge(valid) {
     <div id="restoreResult" style="margin-top:8px;font-size:12px;"></div>
   </div>
 
-  <!-- URL 스냅샷/비교 (Extract 히스토리) -->
+  <!-- URL 스냅샷 관리 -->
   <div class="card" style="border:1px solid #c4b5fd;margin-top:12px;">
     <div class="card-title" style="margin-bottom:12px;">
-      <span class="dot" style="background:#7c3aed;"></span>URL 스냅샷/비교 (Extract 히스토리)
+      <span class="dot" style="background:#7c3aed;"></span>URL 스냅샷 관리
       <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">
-        수동 Extract 완료 시 자동 생성되는 시점별 스냅샷을 조회/비교합니다.
+        Extract 완료 시 시점 기준 전체(풀) 스냅샷이 자동 생성됩니다. 필요 시 “지금 스냅샷 생성”으로 임의 시점을 박제할 수 있습니다.
       </span>
       <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;border-color:#c4b5fd;color:#6d28d9;" onclick="createManualSnapshot()" title="현재 DB 상태를 시점 기준 전체(풀) 스냅샷으로 1건 생성합니다.">📸 지금 스냅샷 생성</button>
         <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;" onclick="loadUrlSnapshots()">🔄 목록 새로고침</button>
       </div>
     </div>
 
     <div class="field-row col2" style="align-items:end;">
-      <label class="field">A(From) 스냅샷
-        <select id="snapFrom"></select>
-      </label>
-      <label class="field">B(To) 스냅샷
-        <select id="snapTo"></select>
-      </label>
-    </div>
-
-    <div class="field-row col2" style="align-items:end;margin-top:6px;">
-      <label class="field">repoName (선택)
-        <input id="snapRepo" placeholder="예: repoA (비우면 전체)">
-      </label>
-      <label class="field">label (선택)
-        <input id="snapLabel" placeholder="예: 수동 스냅샷">
-      </label>
-    </div>
-
-    <div class="field-row col4" style="align-items:end;margin-top:6px;">
-      <label class="field">보관일수 (retentionDays)
-        <input id="snapRetentionDays" type="number" min="1" step="1" placeholder="기본 365">
-        <span class="field-hint">비우면 YML 기본값 사용. 저장 시 Extract 후 자동 cleanup에도 반영됩니다.</span>
+      <label class="field">스냅샷 선택 (조회)
+        <select id="snapViewSel"></select>
+        <span class="field-hint">목록 행을 클릭하면 자동 선택됩니다.</span>
       </label>
       <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
-        <button class="btn btn-ghost" style="height:34px;" onclick="saveSnapshotRetentionDays()">💾 보관일수 저장</button>
-        <button class="btn btn-ghost" style="height:34px;" onclick="cleanupSnapshots()">🧹 정리 실행</button>
+        <button class="btn btn-danger" style="height:34px;" onclick="deleteSelectedSnapshots()">🗑 선택 삭제</button>
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-      <button class="btn" style="background:#7c3aed;color:#fff;height:34px;" onclick="createUrlSnapshot()">➕ 수동 스냅샷 생성</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="viewSnapshotRecords()">📄 B 시점 전체보기(1페이지)</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="runSnapshotDiff('all')">🔎 diff(전체)</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="runSnapshotDiff('new')">➕ 신규</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="runSnapshotDiff('deleted')">➖ 삭제</button>
-      <button class="btn btn-ghost" style="height:34px;" onclick="runSnapshotDiff('changed')">📝 변경</button>
-      <button class="btn btn-danger" style="height:34px;" onclick="deleteSelectedSnapshots()">🗑 선택 삭제</button>
-    </div>
-
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;">
-      <label class="field" style="min-width:160px;">기간 삭제 from
-        <input id="snapDelFrom" type="date">
+      <label class="field" style="min-width:160px;">기간 조회 from
+        <input id="snapQFrom" type="date">
       </label>
       <label class="field" style="min-width:160px;">to
-        <input id="snapDelTo" type="date">
+        <input id="snapQTo" type="date">
       </label>
-      <button class="btn btn-danger" style="height:34px;" onclick="deleteSnapshotsByDate()">🗑 기간 삭제</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="loadUrlSnapshots(0)">🔎 기간 조회</button>
+      <button class="btn btn-ghost" style="height:34px;" onclick="clearSnapshotQueryDates()">초기화</button>
     </div>
 
     <div id="snapMeta" style="margin-top:10px;font-size:11px;color:var(--text-muted);"></div>
@@ -2474,33 +2447,40 @@ function updateAdminBadge(valid) {
     await loadUrlSnapshots();
   }
 
-  // ── URL 스냅샷/비교 ────────────────────────────────────────
+  // ── URL 스냅샷 (조회/삭제) ─────────────────────────────────
   window._urlSnapshots = [];
+  window._urlSnapshotsPage = 0;
+  window._urlSnapshotsTotal = 0;
+  window._urlSnapshotsTotalPages = 1;
+  window._urlSnapshotsPageSize = 200;
+  window._urlSnapshotsPageNavSize = 10;
 
   function _snapOptLabel(s) {
     const at = (s.snapshotAt || '').replace('T', ' ').substring(0, 19);
-    const repo = s.sourceRepo ? ` / ${s.sourceRepo}` : '';
-    const type = s.snapshotType ? ` / ${s.snapshotType}` : '';
+    // [정책] 신규 스냅샷은 항상 전체(풀)이므로 sourceRepo는 표시하지 않음. 레거시 행만 (legacy: ...)로 표기.
+    const repo = s.sourceRepo ? ` / (legacy: ${s.sourceRepo})` : '';
+    const type = s.snapshotType ? ` / ${snapTypeLabel(s.snapshotType)}` : '';
     const cnt = (s.recordCount ?? 0).toLocaleString();
     return `${s.id} | ${at}${repo}${type} | ${cnt}건${s.label ? ' | ' + s.label : ''}`;
   }
 
-  function _renderSnapshotSelects() {
-    const fromSel = document.getElementById('snapFrom');
-    const toSel = document.getElementById('snapTo');
-    if (!fromSel || !toSel) return;
+  function snapTypeLabel(t) {
+    const v = (t || '').trim();
+    if (!v) return '';
+    if (v === 'EXTRACT_MANUAL') return '수동 Extract';
+    if (v === 'EXTRACT_BATCH') return '배치 Extract';
+    if (v === 'MANUAL') return '수동';
+    return v;
+  }
 
+  function _renderSnapshotViewSelect() {
+    const sel = document.getElementById('snapViewSel');
+    if (!sel) return;
     const opts = window._urlSnapshots.map(s => `<option value="${s.id}">${bhEscape(_snapOptLabel(s))}</option>`).join('');
-    fromSel.innerHTML = `<option value="">(선택)</option>` + opts;
-    toSel.innerHTML = `<option value="">(선택)</option>` + opts;
-
-    // 기본값: 최신 2개를 A/B로 자동 세팅
-    if (window._urlSnapshots.length >= 2) {
-      toSel.value = String(window._urlSnapshots[0].id);
-      fromSel.value = String(window._urlSnapshots[1].id);
-    } else if (window._urlSnapshots.length === 1) {
-      toSel.value = String(window._urlSnapshots[0].id);
-    }
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">(선택)</option>` + opts;
+    if (cur && window._urlSnapshots.some(s => String(s.id) === String(cur))) sel.value = cur;
+    else if (window._urlSnapshots.length > 0) sel.value = String(window._urlSnapshots[0].id);
   }
 
   function _renderSnapshotList() {
@@ -2510,6 +2490,11 @@ function updateAdminBadge(valid) {
       el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:11px;">아직 기록된 스냅샷이 없습니다. Extract 실행 후 자동 생성됩니다.</div>';
       return;
     }
+    const page = window._urlSnapshotsPage || 0;
+    const totalPages = Math.max(1, window._urlSnapshotsTotalPages || 1);
+    const navSize = Math.max(1, window._urlSnapshotsPageNavSize || 10);
+    const start = Math.floor(page / navSize) * navSize;
+    const end = Math.min(totalPages, start + navSize);
     el.innerHTML = `
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">최근 스냅샷</div>
       <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
@@ -2521,22 +2506,22 @@ function updateAdminBadge(valid) {
               </th>
               <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">ID</th>
               <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">시각</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">repo</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">type</th>
-              <th style="text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);">count</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">label</th>
+              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);" title="레거시 부분 스냅샷에만 값이 표시됩니다. 신규 정책에서는 항상 전체(풀) 스냅샷이라 비어 있습니다.">원본 레포(레거시)</th>
+              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">유형</th>
+              <th style="text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);">건수</th>
+              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">라벨</th>
             </tr>
           </thead>
           <tbody>
-            ${window._urlSnapshots.slice(0, 50).map(s => `
-              <tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="selectSnapshots(${s.id})">
+            ${window._urlSnapshots.map(s => `
+              <tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="selectSnapshotForView(${s.id})">
                 <td style="padding:7px 10px;text-align:center;" onclick="event.stopPropagation();">
                   <input class="snapChk" type="checkbox" value="${s.id}">
                 </td>
                 <td style="padding:7px 10px;font-family:monospace;">${s.id}</td>
                 <td style="padding:7px 10px;font-family:monospace;">${bhEscape((s.snapshotAt||'').replace('T',' ').substring(0,19))}</td>
                 <td style="padding:7px 10px;">${bhEscape(s.sourceRepo || '')}</td>
-                <td style="padding:7px 10px;">${bhEscape(s.snapshotType || '')}</td>
+                <td style="padding:7px 10px;">${bhEscape(snapTypeLabel(s.snapshotType) || '')}</td>
                 <td style="padding:7px 10px;text-align:right;font-family:monospace;">${Number(s.recordCount||0).toLocaleString()}</td>
                 <td style="padding:7px 10px;color:var(--text-muted);">${bhEscape(s.label || '')}</td>
               </tr>
@@ -2544,7 +2529,18 @@ function updateAdminBadge(valid) {
           </tbody>
         </table>
       </div>
-      <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">행 클릭 시 B(To)=클릭한 ID, A(From)=직전 스냅샷으로 자동 설정합니다.</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn btn-ghost" style="height:28px;padding:4px 12px;font-size:12px;" onclick="loadUrlSnapshots(${Math.max(0, page-1)})" ${page<=0?'disabled':''}>이전</button>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          ${Array.from({length: (end-start)}, (_,i) => start+i).map(p => `
+            <button class="btn btn-ghost" style="height:28px;padding:4px 10px;font-size:12px;${p===page?'border-color:var(--primary);color:var(--primary);font-weight:800;background:#eff6ff;':''}"
+              onclick="loadUrlSnapshots(${p})">${p+1}</button>
+          `).join('')}
+        </div>
+        <button class="btn btn-ghost" style="height:28px;padding:4px 12px;font-size:12px;" onclick="loadUrlSnapshots(${Math.min(totalPages-1, page+1)})" ${page>=totalPages-1?'disabled':''}>다음</button>
+        <div style="margin-left:auto;font-size:11px;color:var(--text-muted);">페이지 ${page+1} / ${totalPages}</div>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:var(--text-muted);">행 클릭 시 “스냅샷 선택(조회)”에 자동 반영됩니다.</div>
     `;
   }
 
@@ -2561,6 +2557,49 @@ function updateAdminBadge(valid) {
     return Array.from(new Set(ids));
   }
 
+  /**
+   * 수동 스냅샷 생성 — 현재 DB 상태를 시점 기준 전체(풀) 스냅샷으로 1건 박제한다.
+   * 주 사용처: mock 데이터 생성, 엑셀 일괄 업로드, SmartWay 동기화 직후처럼 Extract와 무관하게 시점을 남기고 싶을 때.
+   */
+  window.createManualSnapshot = async function() {
+    const resultEl = document.getElementById('snapResult');
+    try {
+      const userLabel = await customPrompt('현재 DB 상태를 시점 기준 전체(풀) 스냅샷으로 박제합니다.\n라벨(선택, 비워두면 자동 채움):', {
+        title: '📸 지금 스냅샷 생성',
+        placeholder: '예: mock 시드 후 / 엑셀 업로드 후',
+        okLabel: '생성',
+        cancelLabel: '취소'
+      });
+      // customPrompt 가 null 이면 취소
+      if (userLabel === null || userLabel === undefined) return;
+      if (!await verifyPwPrompt()) return;
+
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      const baseLabel = (String(userLabel || '').trim() || `Manual @ ${ts}`);
+      const label = baseLabel.length > 200 ? baseLabel.substring(0, 200) : baseLabel;
+
+      if (resultEl) resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">스냅샷 생성 중...</div>`;
+      showToast('스냅샷 생성 중...', 'info');
+      const res = await adminFetch('/api/snapshots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'MANUAL', label })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
+
+      const cnt = Number(data.recordCount || 0).toLocaleString();
+      showToast(`스냅샷 생성 완료 (id=${data.id}, ${cnt}건)`, 'success');
+      if (resultEl) resultEl.innerHTML = `<div style="color:var(--success);font-size:12px;">✓ 생성 완료: id=${data.id}, rows=${cnt}, label="${bhEscape(label)}"</div>`;
+      await loadUrlSnapshots(0);
+    } catch (e) {
+      showToast('스냅샷 생성 실패: ' + (e.message || ''), 'error');
+      if (resultEl) resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">생성 실패: ${bhEscape(e.message||e)}</div>`;
+    }
+  };
+
   window.deleteSelectedSnapshots = async function() {
     const ids = _getSelectedSnapshotIds();
     const resultEl = document.getElementById('snapResult');
@@ -2574,61 +2613,49 @@ function updateAdminBadge(valid) {
       if (!res.ok) throw new Error(data.error || ('status ' + res.status));
       showToast('스냅샷 삭제 완료', 'success');
       resultEl.innerHTML = `<div style="color:var(--success);font-size:12px;">✓ 삭제 완료: snapshots=${Number(data.deletedSnapshots||0).toLocaleString()}, rows=${Number(data.deletedRows||0).toLocaleString()}</div>`;
-      await loadUrlSnapshots();
+      await loadUrlSnapshots(window._urlSnapshotsPage || 0);
     } catch(e) {
       resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">삭제 실패: ${bhEscape(e.message||e)}</div>`;
     }
   };
 
-  window.deleteSnapshotsByDate = async function() {
-    const from = (document.getElementById('snapDelFrom')?.value || '').trim();
-    const to = (document.getElementById('snapDelTo')?.value || '').trim();
-    const resultEl = document.getElementById('snapResult');
-    try {
-      if (!from && !to) throw new Error('from/to 중 하나는 입력하세요.');
-      const scope = `from=${from||'(min)'} ~ to=${to||'(max)'}`;
-      if (!await customConfirm(`기간 스냅샷을 삭제할까요?\n${scope}\n삭제 시 snapshot_row도 함께 제거됩니다.`)) return;
-      if (!await verifyPwPrompt()) return;
-      resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">기간 삭제 중...</div>`;
-      const qs = new URLSearchParams();
-      if (from) qs.set('from', from);
-      if (to) qs.set('to', to);
-      const res = await adminFetch(`/api/snapshots/by-date?${qs.toString()}`, { method:'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
-      showToast('기간 삭제 완료', 'success');
-      resultEl.innerHTML = `<div style="color:var(--success);font-size:12px;">✓ 기간 삭제 완료: snapshots=${Number(data.deletedSnapshots||0).toLocaleString()}, rows=${Number(data.deletedRows||0).toLocaleString()}</div>`;
-      await loadUrlSnapshots();
-    } catch(e) {
-      resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">기간 삭제 실패: ${bhEscape(e.message||e)}</div>`;
-    }
+  window.selectSnapshotForView = function(id) {
+    const sel = document.getElementById('snapViewSel');
+    if (!sel) return;
+    sel.value = String(id);
   };
 
-  // 리스트에서 한 행 클릭했을 때 A/B 자동 선택
-  window.selectSnapshots = function(toId) {
-    const toSel = document.getElementById('snapTo');
-    const fromSel = document.getElementById('snapFrom');
-    if (!toSel || !fromSel) return;
-    toSel.value = String(toId);
-    const idx = window._urlSnapshots.findIndex(s => Number(s.id) === Number(toId));
-    if (idx >= 0 && idx + 1 < window._urlSnapshots.length) {
-      fromSel.value = String(window._urlSnapshots[idx + 1].id);
-    }
-  };
-
-  window.loadUrlSnapshots = async function() {
+  window.loadUrlSnapshots = async function(page) {
     const metaEl = document.getElementById('snapMeta');
     const resultEl = document.getElementById('snapResult');
     try {
       if (metaEl) metaEl.textContent = '스냅샷 목록 로딩 중...';
-      await loadSnapshotRetentionDays();
-      const res = await adminFetch('/api/snapshots?page=0&size=200');
+      const gRes = await fetch('/api/config/global');
+      const g = await gRes.json().catch(() => ({}));
+      window._urlSnapshotsPageSize = Number(g.pageSize || 200);
+      window._urlSnapshotsPageNavSize = Number(g.pageNavSize || 10);
+
+      const p = (page == null) ? 0 : Math.max(0, Number(page) || 0);
+      window._urlSnapshotsPage = p;
+      const qs = new URLSearchParams();
+      qs.set('page', String(p));
+      qs.set('size', String(window._urlSnapshotsPageSize));
+      const from = (document.getElementById('snapQFrom')?.value || '').trim();
+      const to = (document.getElementById('snapQTo')?.value || '').trim();
+      if (from) qs.set('from', from);
+      if (to) qs.set('to', to);
+      const res = await adminFetch(`/api/snapshots?${qs.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || ('status ' + res.status));
       window._urlSnapshots = data.snapshots || [];
-      _renderSnapshotSelects();
+      window._urlSnapshotsTotal = Number(data.total || 0);
+      window._urlSnapshotsTotalPages = Math.max(1, Number(data.totalPages || 1));
+      _renderSnapshotViewSelect();
       _renderSnapshotList();
-      if (metaEl) metaEl.textContent = `총 ${Number(data.total||0).toLocaleString()}개 (최근 ${window._urlSnapshots.length}개 로드)`;
+      if (metaEl) {
+        const scope = (from || to) ? ` (기간: ${from || '(min)'} ~ ${to || '(max)'})` : '';
+        metaEl.textContent = `총 ${window._urlSnapshotsTotal.toLocaleString()}개${scope} (pageSize=${window._urlSnapshotsPageSize})`;
+      }
       if (resultEl) resultEl.innerHTML = '';
     } catch (e) {
       if (metaEl) metaEl.textContent = '';
@@ -2636,193 +2663,10 @@ function updateAdminBadge(valid) {
     }
   };
 
-  window.loadSnapshotRetentionDays = async function() {
-    const el = document.getElementById('snapRetentionDays');
-    if (!el) return;
-    try {
-      const res = await adminFetch('/api/config/global', { method:'GET' });
-      const g = await res.json();
-      if (!res.ok) return;
-      el.value = (g.snapshotRetentionDays ?? '');
-    } catch(e) {}
-  };
-
-  window.saveSnapshotRetentionDays = async function() {
-    const el = document.getElementById('snapRetentionDays');
-    const vRaw = (el?.value || '').trim();
-    const v = vRaw ? Number(vRaw) : null;
-    try {
-      const curRes = await adminFetch('/api/config/global', { method:'GET' });
-      const cur = await curRes.json();
-      if (!curRes.ok) throw new Error(cur.error || ('status ' + curRes.status));
-      cur.snapshotRetentionDays = (v && v > 0) ? Math.floor(v) : null;
-      const res = await adminFetch('/api/config/global', { method:'PUT', body: JSON.stringify(cur) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
-      showToast('보관일수 저장 완료', 'success');
-      if (el) el.value = (data.snapshotRetentionDays ?? '');
-    } catch(e) {
-      showToast('보관일수 저장 실패: ' + (e.message || e), 'error');
-    }
-  };
-
-  window.cleanupSnapshots = async function() {
-    const resultEl = document.getElementById('snapResult');
-    const vRaw = (document.getElementById('snapRetentionDays')?.value || '').trim();
-    const days = vRaw ? Number(vRaw) : null;
-    try {
-      if (!await customConfirm(`스냅샷 정리를 실행할까요?\n기준: snapshotAt < now - ${days && days>0 ? days : '(설정값/기본값)'}일`)) return;
-      resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">정리 실행 중...</div>`;
-      const body = (days && days > 0) ? { retentionDays: Math.floor(days) } : {};
-      const res = await adminFetch('/api/snapshots/cleanup', { method:'POST', body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
-      showToast('정리 완료', 'success');
-      resultEl.innerHTML = `<div style="color:var(--success);font-size:12px;">✓ 정리 완료: snapshots=${Number(data.deletedSnapshots||0).toLocaleString()}, rows=${Number(data.deletedRows||0).toLocaleString()} (retentionDays=${data.retentionDaysApplied})</div>`;
-      await loadUrlSnapshots();
-    } catch(e) {
-      resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">정리 실패: ${bhEscape(e.message||e)}</div>`;
-    }
-  };
-
-  window.createUrlSnapshot = async function() {
-    const repo = (document.getElementById('snapRepo')?.value || '').trim();
-    const label = (document.getElementById('snapLabel')?.value || '').trim();
-    const body = { type: 'MANUAL' };
-    if (repo) body.repoName = repo;
-    if (label) body.label = label;
-    const resultEl = document.getElementById('snapResult');
-    try {
-      resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">스냅샷 생성 중...</div>`;
-      const res = await adminFetch('/api/snapshots', { method:'POST', body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
-      showToast('스냅샷 생성 완료', 'success');
-      resultEl.innerHTML = `<div style="color:var(--success);font-size:12px;">✓ 생성 완료: ${bhEscape(_snapOptLabel(data))}</div>`;
-      await loadUrlSnapshots();
-    } catch (e) {
-      resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">생성 실패: ${bhEscape(e.message||e)}</div>`;
-    }
-  };
-
-  function _getFromTo() {
-    const fromId = Number(document.getElementById('snapFrom')?.value || 0);
-    const toId = Number(document.getElementById('snapTo')?.value || 0);
-    if (!fromId || !toId) throw new Error('A(From)와 B(To) 스냅샷을 모두 선택하세요.');
-    return { fromId, toId };
-  }
-
-  window.runSnapshotDiff = async function(mode) {
-    const resultEl = document.getElementById('snapResult');
-    try {
-      const { fromId, toId } = _getFromTo();
-      resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">diff 계산 중...</div>`;
-      const res = await adminFetch(`/api/snapshots/diff?fromId=${fromId}&toId=${toId}&mode=${encodeURIComponent(mode||'all')}&limit=5000`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
-      const c = data.counts || {};
-      resultEl.innerHTML = `
-        <div style="font-size:12px;margin-bottom:6px;">
-          <b>diff 결과</b> (from=${fromId} → to=${toId}) &nbsp;·&nbsp;
-          신규 <b>${Number(c.new||0).toLocaleString()}</b> /
-          삭제 <b>${Number(c.deleted||0).toLocaleString()}</b> /
-          변경 <b>${Number(c.changed||0).toLocaleString()}</b>
-          ${data.truncated ? '<span style="color:var(--danger);font-weight:700;">(TRUNCATED)</span>' : ''}
-        </div>
-        ${_renderDiffTable(data, mode)}
-      `;
-    } catch (e) {
-      resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">diff 실패: ${bhEscape(e.message||e)}</div>`;
-    }
-  };
-
-  function _renderDiffTable(data, mode) {
-    const items =
-      mode === 'new' ? (data.new || [])
-      : mode === 'deleted' ? (data.deleted || [])
-      : mode === 'changed' ? (data.changed || [])
-      : [
-          ...(data.new || []).map(x => ({...x, _kind:'new'})),
-          ...(data.deleted || []).map(x => ({...x, _kind:'deleted'})),
-          ...(data.changed || []).map(x => ({...x, _kind:'changed'}))
-        ];
-    if (!items.length) return `<div style="padding:10px 0;color:var(--text-muted);font-size:12px;">변경 없음</div>`;
-
-    const kindBadge = (k) => {
-      if (k === 'new') return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534;font-size:11px;font-weight:700;">NEW</span>';
-      if (k === 'deleted') return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;">DEL</span>';
-      return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#e0e7ff;color:#3730a3;font-size:11px;font-weight:700;">CHG</span>';
-    };
-    return `
-      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead style="background:#f8fafc;">
-            <tr>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);width:70px;">구분</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">repo</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">method</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">apiPath</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">status</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">changes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.slice(0, 200).map(it => {
-              const kind = it._kind || mode;
-              const st = it.status || it.new?.status || it.old?.status || '';
-              const ch = it.changes ? Object.keys(it.changes).join(', ') : '';
-              return `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:7px 10px;">${kindBadge(kind)}</td>
-                <td style="padding:7px 10px;">${bhEscape(it.repositoryName||'')}</td>
-                <td style="padding:7px 10px;font-family:monospace;">${bhEscape(it.httpMethod||'')}</td>
-                <td style="padding:7px 10px;font-family:monospace;word-break:break-all;">${bhEscape(it.apiPath||'')}</td>
-                <td style="padding:7px 10px;">${bhEscape(st)}</td>
-                <td style="padding:7px 10px;color:var(--text-muted);">${bhEscape(ch)}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">표시는 최대 200행만 렌더링합니다. (API는 5,000건까지 반환)</div>
-    `;
-  }
-
-  window.viewSnapshotRecords = async function() {
-    const resultEl = document.getElementById('snapResult');
-    try {
-      const toId = Number(document.getElementById('snapTo')?.value || 0);
-      if (!toId) throw new Error('B(To) 스냅샷을 선택하세요.');
-      resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">B 시점 목록 로딩 중...</div>`;
-      const res = await adminFetch(`/api/snapshots/${toId}/records?page=0&size=200`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
-      const rows = data.records || [];
-      resultEl.innerHTML = `
-        <div style="font-size:12px;margin-bottom:6px;"><b>B 시점 전체보기</b> (id=${toId}) — 총 ${Number(data.total||0).toLocaleString()}건 중 1페이지(200건)</div>
-        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead style="background:#f8fafc;">
-              <tr>
-                <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">repo</th>
-                <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">method</th>
-                <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">apiPath</th>
-                <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);">status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(r => `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:7px 10px;">${bhEscape(r.repositoryName||'')}</td>
-                <td style="padding:7px 10px;font-family:monospace;">${bhEscape(r.httpMethod||'')}</td>
-                <td style="padding:7px 10px;font-family:monospace;word-break:break-all;">${bhEscape(r.apiPath||'')}</td>
-                <td style="padding:7px 10px;">${bhEscape(r.status||'')}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    } catch (e) {
-      resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">조회 실패: ${bhEscape(e.message||e)}</div>`;
-    }
+  window.clearSnapshotQueryDates = function() {
+    const f = document.getElementById('snapQFrom'); if (f) f.value = '';
+    const t = document.getElementById('snapQTo'); if (t) t.value = '';
+    loadUrlSnapshots(0);
   };
 
   /** 데이터관리 select 의 선택된 repoName 배열. 0개면 ['ALL']. */

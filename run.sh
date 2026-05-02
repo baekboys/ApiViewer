@@ -38,4 +38,102 @@ echo "================================================"
 echo "  종료: Ctrl+C"
 echo "================================================"
 echo ""
-java -Djava.net.preferIPv4Stack=true -jar "$JAR"
+
+# ── 서버 실행 (백그라운드) ───────────────────────────────────
+java -Djava.net.preferIPv4Stack=true -jar "$JAR" &
+APP_PID=$!
+
+cleanup() {
+  if [ -n "$APP_PID" ]; then
+    kill "$APP_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup INT TERM
+
+# ── 기동 직후 잠깐 대기 후, 서버 준비 대기/Chrome 오픈 ─────────
+# 서버가 아직 포트 바인딩 전인 구간에 Chrome을 먼저 띄우면
+# "페이지를 찾을 수 없음" 화면이 먼저 뜰 수 있어 약간 대기한다.
+sleep 5
+
+# ── 서버 준비 대기 후, Chrome 오픈 ────────────────────────────
+URL="http://localhost:8080/dashboard/"
+USE_TMP_PROFILE="${USE_TMP_PROFILE:-0}"
+TMP_PROFILE=""
+if [ "$USE_TMP_PROFILE" = "1" ]; then
+  TMP_PROFILE="$(mktemp -d 2>/dev/null || mktemp -d -t apiviewer-chrome)"
+  echo "[INFO] Chrome 임시 프로필 사용: $TMP_PROFILE"
+else
+  echo "[INFO] Chrome 기존 프로필 사용 (가능하면 탭으로 열림)"
+fi
+echo "[INFO] 서버 준비 대기 중... ($URL)"
+
+i=0
+READY="0"
+while [ $i -lt 60 ]; do
+  code="$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo "000")"
+  if [ "$code" != "000" ]; then
+    READY="1"
+    break
+  fi
+  sleep 0.5
+  i=$((i+1))
+done
+
+if [ "$READY" = "1" ]; then
+  # macOS: 화면 사용 가능 영역(desktop bounds)으로 창을 "꽉" 채움
+  # - Chrome이 이미 떠 있으면: 탭으로 열고 front window 크기 강제 조정
+  # - Chrome이 꺼져 있으면: 새 창으로 열고 크기/위치 지정 + bounds 강제 조정
+  CHROME_WIN_ARGS=""
+  CHROME_SET_BOUNDS_CMD=""
+  if command -v osascript >/dev/null 2>&1; then
+    # Finder desktop bounds: "0, 0, 1440, 900" (left, top, right, bottom)
+    bounds="$(osascript -e 'tell application "Finder" to get bounds of window of desktop' 2>/dev/null | tr -d ' ')"
+    if [ -n "$bounds" ]; then
+      OLDIFS="$IFS"
+      IFS=','; set -- $bounds; IFS="$OLDIFS"
+      x1="$1"; y1="$2"; x2="$3"; y2="$4"
+      case "$x1$x2$y1$y2" in
+        *[!0-9]*)
+          ;;
+        *)
+          sw=$((x2 - x1))
+          sh=$((y2 - y1))
+          if [ "$sw" -gt 0 ] && [ "$sh" -gt 0 ]; then
+            # desktop bounds 기준으로 꽉 채움
+            ww=$sw
+            wh=$sh
+            px=0
+            py=0
+            CHROME_WIN_ARGS="--new-window --window-size=${ww},${wh} --window-position=${px},${py}"
+            # 이미 떠 있는 Chrome에도 적용되도록 bounds를 한 번 더 강제
+            CHROME_SET_BOUNDS_CMD="tell application \"Google Chrome\" to if (count of windows) > 0 then set bounds of front window to {${x1}, ${y1}, ${x2}, ${y2}}"
+          fi
+          ;;
+      esac
+    fi
+  fi
+
+  # 기존 Chrome이 떠 있으면 "탭으로" 열기 (임시 프로필 모드일 때는 항상 새 인스턴스)
+  if pgrep -x "Google Chrome" >/dev/null 2>&1 && [ "$USE_TMP_PROFILE" != "1" ]; then
+    echo "[INFO] Chrome 탭으로 열기: $URL"
+    open -a "Google Chrome" "$URL" >/dev/null 2>&1 || true
+    if [ -n "$CHROME_SET_BOUNDS_CMD" ] && command -v osascript >/dev/null 2>&1; then
+      osascript -e "$CHROME_SET_BOUNDS_CMD" >/dev/null 2>&1 || true
+    fi
+  else
+    echo "[INFO] Chrome 실행: $URL"
+    if [ "$USE_TMP_PROFILE" = "1" ] && [ -n "$TMP_PROFILE" ]; then
+      open -na "Google Chrome" --args --user-data-dir="$TMP_PROFILE" --no-first-run --no-default-browser-check $CHROME_WIN_ARGS "$URL" >/dev/null 2>&1 || true
+    else
+      open -a "Google Chrome" --args --no-first-run --no-default-browser-check $CHROME_WIN_ARGS "$URL" >/dev/null 2>&1 || true
+    fi
+    if [ -n "$CHROME_SET_BOUNDS_CMD" ] && command -v osascript >/dev/null 2>&1; then
+      osascript -e "$CHROME_SET_BOUNDS_CMD" >/dev/null 2>&1 || true
+    fi
+  fi
+else
+  echo "[WARN] 서버 응답을 확인하지 못했습니다. Chrome 자동 실행을 건너뜁니다."
+fi
+
+# ── 로그 유지 (Ctrl+C로 종료) ────────────────────────────────
+wait "$APP_PID"

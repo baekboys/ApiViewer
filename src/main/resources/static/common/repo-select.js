@@ -31,8 +31,23 @@
       const base = repo.businessName || lowerName(repo.repoName) || '';
       return repo._sublabel ? `${base} · ${repo._sublabel}` : base;
     }
-    const biz  = (repo.businessName || '').trim();
-    const name = lowerName(repo.repoName);
+    let biz  = (repo.businessName || '').trim();
+    const rawName = (repo.repoName || '');
+    const name = lowerName(rawName);
+
+    // 일부 페이지/데이터에서 businessName 자체에 "업무명 | REPO-NAME" 형태로 들어오는 경우가 있다.
+    // 이 경우 우측 REPO 표기만 소문자로 정규화해서 일관된 UI를 유지한다.
+    // - repoName 과 우측 토큰이 동일(대소문자 무시)할 때만 적용한다(업무명에 파이프가 실제 의미로 쓰이는 케이스 보호).
+    if (biz && biz.includes('|') && rawName) {
+      const parts = biz.split('|');
+      if (parts.length >= 2) {
+        const left = parts.slice(0, -1).join('|').trim();
+        const right = parts[parts.length - 1].trim();
+        if (right && right.toLowerCase() === String(rawName).trim().toLowerCase()) {
+          biz = left;
+        }
+      }
+    }
     return biz ? `${biz} | ${name}` : name;
   }
 

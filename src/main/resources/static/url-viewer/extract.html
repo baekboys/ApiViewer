@@ -1240,6 +1240,33 @@
         document.getElementById('progPct').textContent = '100%';
         overallProgress = null;
         setRepoLabel('');
+
+        // 모든 레포 추출이 끝난 뒤 풀 스냅샷을 1회만 생성 (정책: 시점 기준 전체 스냅샷)
+        if (picked.length - errorCount > 0) {
+          try {
+            const successRepos = picked.length - errorCount;
+            const ts = new Date();
+            const tsStr = ts.toISOString().replace('T', ' ').substring(0, 19);
+            const repoNames = picked.map(r => r.repoName).join(',');
+            const label = `Extract ${picked.length}개 레포(성공 ${successRepos}) @ ${tsStr}`;
+            const snapRes = await fetch('/api/snapshots', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json', 'X-Admin-Token': sessionStorage.getItem('adminToken')||''},
+              body: JSON.stringify({ type: 'EXTRACT_MANUAL', label, repoName: repoNames })
+            });
+            if (snapRes.ok) {
+              addLocalLog('OK', `스냅샷 생성 완료 (전체 스냅샷, 라벨="${label}")`);
+            } else {
+              const ed = await snapRes.json().catch(() => ({}));
+              addLocalLog('WARN', `스냅샷 생성 실패: ${ed.error || snapRes.status}`);
+            }
+          } catch(e) {
+            addLocalLog('WARN', `스냅샷 생성 실패 (분석 결과에 영향 없음): ${e.message || e}`);
+          }
+        } else {
+          addLocalLog('WARN', `모든 레포 추출 실패 — 스냅샷 생성 건너뜀`);
+        }
+
         if (errorCount > 0) {
           showResult('fail', `선택 추출 완료 — 성공 ${picked.length - errorCount}개, 실패 ${errorCount}개, 총 ${totalSaved}개 저장`);
         } else {
@@ -1257,10 +1284,11 @@
   function extractOneRepo(rootPath, repositoryName, domain, apiPathPrefix, gitBinPath, pathConstants) {
     return new Promise(async (resolve, reject) => {
       try {
+        // skipSnapshot=true: 일괄 추출 — 매 레포마다 스냅샷이 만들어지지 않도록 하고, 마지막에 1회만 생성한다.
         const res = await fetch('/api/extract', {
           method: 'POST',
           headers: {'Content-Type':'application/json', 'X-Admin-Token': sessionStorage.getItem('adminToken')||''},
-          body: JSON.stringify({ rootPath, repositoryName, domain, apiPathPrefix, gitBinPath, pathConstants })
+          body: JSON.stringify({ rootPath, repositoryName, domain, apiPathPrefix, gitBinPath, pathConstants, skipSnapshot: true })
         });
         const data = await res.json();
         if (!res.ok) { reject(new Error(data.error || '서버 오류')); return; }

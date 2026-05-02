@@ -42,21 +42,25 @@ public class SnapshotService {
 
     @Transactional
     public ApiRecordSnapshot createSnapshot(String snapshotType, String label, String sourceRepo, String clientIp) {
+        // [정책] 스냅샷은 항상 '시점 기준 전체(풀)'로 생성한다.
+        // - sourceRepo 파라미터는 호출 호환을 위해 유지하되, DB의 sourceRepo 컬럼에는 저장하지 않는다(=NULL).
+        // - 호출자가 넘긴 repoName은 라벨로만 추적성 보존(예: "Extract <repo> @ <시각>").
+        String triggerRepo = (sourceRepo != null && !sourceRepo.isBlank()) ? sourceRepo.trim() : null;
         ApiRecordSnapshot s = new ApiRecordSnapshot();
         s.setSnapshotAt(LocalDateTime.now());
         s.setSnapshotType(snapshotType);
         s.setLabel(label);
-        s.setSourceRepo(sourceRepo);
+        s.setSourceRepo(null);
         s.setCreatedIp(clientIp);
         s.setRecordCount(0L);
         s = snapshotRepository.save(s);
 
         long snapshotId = s.getId();
-        log.info("[SNAPSHOT] 생성 시작: id={}, type={}, repo={}", snapshotId, snapshotType, sourceRepo);
+        log.info("[SNAPSHOT] 생성 시작: id={}, type={}, triggerRepo={}, sourceRepo=null(정책: 항상 전체)",
+                snapshotId, snapshotType, triggerRepo);
 
-        // 1) row 복제 (삭제 상태는 기본 제외)
-        String repoFilter = (sourceRepo != null && !sourceRepo.isBlank()) ? sourceRepo.trim() : null;
-        int inserted = insertRowsFromApiRecord(snapshotId, repoFilter);
+        // 1) row 복제 — 항상 모든 레포 복제 (삭제 상태만 제외)
+        int inserted = insertRowsFromApiRecord(snapshotId, null);
 
         // 2) 메타 업데이트
         s.setRecordCount((long) inserted);
@@ -72,7 +76,10 @@ public class SnapshotService {
         return s;
     }
 
-    /** snapshot_row에 api_record를 행 단위로 복제. repoFilter가 있으면 해당 repo만. */
+    /**
+     * snapshot_row에 api_record를 행 단위로 복제.
+     * [정책] 항상 전체 풀 복제(repoFilter는 더 이상 사용하지 않음 — 시그니처는 하위 호환을 위해 보존).
+     */
     private int insertRowsFromApiRecord(long snapshotId, String repoFilter) {
         // 컬럼은 api_record와 동일(거의 전체) + snapshot_id/source_id만 추가
         String sql = """
@@ -109,12 +116,10 @@ public class SnapshotService {
               r.jira_epic_key, r.jira_issue_key, r.jira_issue_url, r.jira_synced_at
             FROM api_record r
             WHERE (r.status IS NULL OR r.status <> '삭제')
-              AND (:repo IS NULL OR r.repository_name = :repo)
             """;
 
         Query q = em.createNativeQuery(sql);
         q.setParameter("snapshotId", snapshotId);
-        q.setParameter("repo", repoFilter);
         return q.executeUpdate();
     }
 
@@ -136,8 +141,9 @@ public class SnapshotService {
 
     public Map<String, Object> diff(long fromId, long toId, String mode, Integer limit) {
         int cap = (limit == null || limit <= 0) ? 5000 : Math.min(limit, 50_000);
-        Map<Key, Lite> from = loadLiteMap(fromId);
-        Map<Key, Lite> to = loadLiteMap(toId);
+        // fromId/toId == 0 이면 "현재 DB(api_record)" 기준으로 비교한다.
+        Map<Key, Lite> from = (fromId == 0) ? loadLiteMapLive() : loadLiteMap(fromId);
+        Map<Key, Lite> to = (toId == 0) ? loadLiteMapLive() : loadLiteMap(toId);
 
         boolean wantNew = mode == null || mode.isBlank() || "all".equalsIgnoreCase(mode) || "new".equalsIgnoreCase(mode);
         boolean wantDeleted = mode == null || mode.isBlank() || "all".equalsIgnoreCase(mode) || "deleted".equalsIgnoreCase(mode);
@@ -306,6 +312,48 @@ public class SnapshotService {
             Key k = new Key(
                     str(r[0]), str(r[1]), str(r[2])
             );
+            Lite v = new Lite(
+                    str(r[3]),
+                    bool(r[4]),
+                    lng(r[5]), lng(r[6]), lng(r[7]),
+                    str(r[8]), str(r[9]), bool(r[10]),
+                    str(r[11]), str(r[12]),
+                    str(r[13]), str(r[14]), str(r[15]),
+                    str(r[16]), str(r[17]), bool(r[18]),
+                    str(r[19]), str(r[20]), str(r[21]),
+                    str(r[22]), str(r[23]),
+                    str(r[24]), str(r[25])
+            );
+            m.put(k, v);
+        }
+        return m;
+    }
+
+    /**
+     * 현재 DB(api_record) 기준 Lite 맵 로드.
+     * - diff에서 fromId/toId == 0 일 때 사용
+     * - status='삭제'는 스냅샷 생성 정책과 동일하게 제외
+     */
+    private Map<Key, Lite> loadLiteMapLive() {
+        String sql = """
+            SELECT repository_name, api_path, http_method,
+                   status, status_overridden,
+                   call_count, call_count_month, call_count_week,
+                   has_url_block, is_deprecated, block_marking_incomplete,
+                   review_result, review_opinion,
+                   cbo_scheduled_date, deploy_scheduled_date, deploy_csr,
+                   team_override, manager_override, manager_overridden,
+                   description_override, memo, test_suspect_reason,
+                   blocked_date, blocked_reason,
+                   jira_issue_key, review_stage
+            FROM api_record
+            WHERE (status IS NULL OR status <> '삭제')
+            """;
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(sql).getResultList();
+        Map<Key, Lite> m = new HashMap<>(rows.size() * 2);
+        for (Object[] r : rows) {
+            Key k = new Key(str(r[0]), str(r[1]), str(r[2]));
             Lite v = new Lite(
                     str(r[3]),
                     bool(r[4]),

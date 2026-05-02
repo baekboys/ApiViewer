@@ -46,7 +46,11 @@ public class SnapshotController {
         return ip;
     }
 
-    /** 수동 스냅샷 생성 (전체 또는 repoName 지정). */
+    /**
+     * 수동 스냅샷 생성.
+     * [정책 v1.2~] 항상 '시점 기준 전체(풀) 스냅샷'을 생성한다.
+     * 요청 본문의 repoName 은 호환을 위해 받지만, 라벨 추적성 외에 동작에 영향을 주지 않는다.
+     */
     @PostMapping
     public ResponseEntity<?> create(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest req) {
         String type = body != null && body.get("type") != null ? String.valueOf(body.get("type")).trim() : "MANUAL";
@@ -128,6 +132,12 @@ public class SnapshotController {
                                   @RequestParam(required = false, defaultValue = "all") String mode,
                                   @RequestParam(required = false) Integer limit) {
         try {
+            if (fromId == null || toId == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "fromId/toId required"));
+            }
+            if (fromId == 0 && toId == 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "fromId/toId cannot be both LIVE(0)"));
+            }
             return ResponseEntity.ok(snapshotService.diff(fromId, toId, mode, limit));
         } catch (Exception e) {
             log.error("[SNAPSHOT] diff 실패: from={}, to={}, err={}", fromId, toId, e.getMessage(), e);

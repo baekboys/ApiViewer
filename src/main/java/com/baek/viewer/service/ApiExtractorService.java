@@ -231,17 +231,24 @@ public class ApiExtractorService {
             }
 
             // 스냅샷 자동 생성 (수동 Extract 완료 시점)
-            // - DB 저장이 성공한 경우에만 생성
-            try {
-                if (savedCount >= 0) {
-                    String label = "Extract " + repoName.trim() + " " + java.time.LocalDateTime.now().toString().replace("T", " ").substring(0, 19);
-                    snapshotService.createSnapshot("EXTRACT_MANUAL", label, repoName.trim(), req.getClientIp());
-                    addLog("OK", "스냅샷 생성 완료");
-                } else {
-                    addLog("WARN", "스냅샷 생성 건너뜀 (DB 저장 실패)");
+            // [정책] 항상 '시점 기준 전체(풀)' 스냅샷이 생성됨. trigger 레포명은 label로만 추적성 보존.
+            // [멀티레포 일괄 추출] req.skipSnapshot=true 면 이 단계는 건너뛰고, 호출자가 마지막에 1회만 생성한다.
+            if (req.isSkipSnapshot()) {
+                addLog("INFO", "스냅샷 생성 건너뜀 (일괄 추출 모드 — 마지막 단계에서 일괄 생성)");
+            } else {
+                try {
+                    if (savedCount >= 0) {
+                        String ts = java.time.LocalDateTime.now().toString().replace("T", " ");
+                        if (ts.length() > 19) ts = ts.substring(0, 19);
+                        String label = "Extract " + repoName.trim() + " @ " + ts;
+                        snapshotService.createSnapshot("EXTRACT_MANUAL", label, repoName.trim(), req.getClientIp());
+                        addLog("OK", "스냅샷 생성 완료 (전체 스냅샷)");
+                    } else {
+                        addLog("WARN", "스냅샷 생성 건너뜀 (DB 저장 실패)");
+                    }
+                } catch (Exception e) {
+                    addLog("WARN", "스냅샷 생성 실패 (분석 결과에 영향 없음): " + e.getMessage());
                 }
-            } catch (Exception e) {
-                addLog("WARN", "스냅샷 생성 실패 (분석 결과에 영향 없음): " + e.getMessage());
             }
         }
 

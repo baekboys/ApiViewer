@@ -8,6 +8,14 @@ public class ExtractRequest {
     private String pathConstants;
     private String gitBinPath;
     private String clientIp; // 서버에서 세팅
+    /**
+     * true면 이 Extract 호출 끝에서 자동 스냅샷 생성을 건너뛴다.
+     * 여러 레포를 순차로 추출하는 경우에 사용 — 모든 레포가 끝난 뒤 호출자가 스냅샷을 1회만 생성한다.
+     */
+    private boolean skipSnapshot = false;
+
+    public boolean isSkipSnapshot() { return skipSnapshot; }
+    public void setSkipSnapshot(boolean skipSnapshot) { this.skipSnapshot = skipSnapshot; }
 
     public String getClientIp() { return clientIp; }
     public void setClientIp(String clientIp) { this.clientIp = clientIp; }

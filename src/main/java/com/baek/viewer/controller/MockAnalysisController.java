@@ -31,15 +31,20 @@ public class MockAnalysisController {
 
     /**
      * Mock 분석데이터 생성.
-     * @param repoName 이미 등록된 레포지토리명 (RepoConfig.repoName)
-     * @param count    생성 건수 (1~5000)
+     * @param repoName  이미 등록된 레포지토리명 (RepoConfig.repoName)
+     * @param count     고정 건수 (countMin·countMax 미지정 시, 기본 100)
+     * @param countMin  랜덤 건수 하한 (countMax와 함께 지정 시 count 무시)
+     * @param countMax  랜덤 건수 상한
      */
     @PostMapping("/generate")
     public ResponseEntity<?> generate(@RequestParam String repoName,
-                                      @RequestParam(defaultValue = "100") int count) {
-        log.info("[Mock 분석데이터] POST repoName={} count={}", repoName, count);
+                                      @RequestParam(required = false) Integer count,
+                                      @RequestParam(required = false) Integer countMin,
+                                      @RequestParam(required = false) Integer countMax) {
+        log.info("[Mock 분석데이터] POST repoName={} count={} countMin={} countMax={}",
+                repoName, count, countMin, countMax);
         try {
-            return ResponseEntity.ok(service.generate(repoName, count));
+            return ResponseEntity.ok(service.generate(repoName, count, countMin, countMax));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

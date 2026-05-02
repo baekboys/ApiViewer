@@ -1,11 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!-- Spring Boot 컬러/예외 변환기 등록 (%clr 등) -->
+    <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+    <conversionRule conversionWord="wex" converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+    <conversionRule conversionWord="wEx" converterClass="org.springframework.boot.logging.logback.ExtendedWhitespaceThrowableProxyConverter"/>
+
     <property name="LOG_DIR" value="./logs"/>
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%-5level] [%X{role:-SYSTEM}] [%X{clientIp:-}] %logger{30} - %msg%n"/>
+    <!-- 콘솔은 ANSI 컬러(가독성↑), 파일은 원본 패턴(ANSI 없음) -->
+    <property name="CONSOLE_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %highlight([%-5level]) [%X{role:-SYSTEM}] [%X{clientIp:-}] %clr(%logger{30}){cyan} - %msg%n"/>
+    <!-- UI 버전 로거 전용: 메시지 자체를 더 화려하게 강조 -->
+    <property name="UI_CONSOLE_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %clr([UI-VERSION]){magenta} %clr(%msg){magenta}%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>${LOG_PATTERN}</pattern>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_UI" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${UI_CONSOLE_PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>
@@ -36,6 +54,12 @@
 
     <logger name="com.baek.viewer" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="BUSINESS_FILE"/>
+    </logger>
+
+    <!-- UI 버전/링크: 콘솔에서만 더 크게/화려하게 -->
+    <logger name="com.baek.viewer.UiVersionStartupLogger" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE_UI"/>
         <appender-ref ref="BUSINESS_FILE"/>
     </logger>
 

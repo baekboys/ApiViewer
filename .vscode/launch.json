@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "ApiViewer: run.sh 후 Chrome",
+            "url": "http://localhost:8080/dashboard/",
+            "webRoot": "${workspaceFolder}",
+            "preLaunchTask": "ApiViewer: run.sh (IDE · 서버만)",
+            "postDebugTask": "$(debug-stop) ApiViewer: stop.sh"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Chrome만 (서버 이미 실행 중)",
+            "url": "http://localhost:8080/dashboard/",
+            "webRoot": "${workspaceFolder}"
+        }
+    ]
+}

@@ -2,13 +2,43 @@
 # ApiViewer 실행 스크립트
 # 빌드 후 실행: sh run.sh
 # 빌드 없이 실행 (JAR 이미 있을 때): sh run.sh --no-build
+# VS Code/Cursor preLaunchTask: APIVIEWER_IDE_LAUNCH=1 또는 sh run.sh --ide
+#   → Chrome 자동 실행 생략(IDE가 브라우저 연결). 로그에 Started … 까지 출력됨.
 
 MVN="/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn"
 JAR="target/api-viewer-1.0.0.jar"
 
 cd "$(dirname "$0")"
 
-if [ "$1" != "--no-build" ]; then
+NO_BUILD=0
+IDE_LAUNCH=0
+for _a in "$@"; do
+  if [ "$_a" = "--no-build" ]; then NO_BUILD=1; fi
+  if [ "$_a" = "--ide" ]; then IDE_LAUNCH=1; fi
+done
+
+# ── UI 버전(캐시 확인용) — static/common/nav.js 의 APP_UI_VERSION 파싱 ──
+UI_VER="$(sed -n 's/.*APP_UI_VERSION[[:space:]]*=[[:space:]]*[\"\x27]\([^\"\x27]*\)[\"\x27].*/\1/p' "./src/main/resources/static/common/nav.js" 2>/dev/null | head -n 1)"
+if [ -z "$UI_VER" ]; then UI_VER="(unknown)"; fi
+ANSI_BOLD="$(printf '\033[1m')"
+ANSI_BLINK="$(printf '\033[5m')"
+ANSI_PURPLE="$(printf '\033[35m')"
+ANSI_CYAN="$(printf '\033[36m')"
+ANSI_YELLOW="$(printf '\033[33m')"
+ANSI_RESET="$(printf '\033[0m')"
+
+echo ""
+printf "%s%s══════════════════════════════════════════════════════════════%s\n" "$ANSI_BOLD" "$ANSI_CYAN" "$ANSI_RESET"
+printf "%s%s%s  █████╗ ██████╗ ██╗██╗   ██╗██╗███████╗██╗    %s\n" "$ANSI_BOLD" "$ANSI_PURPLE" "$ANSI_BLINK" "$ANSI_RESET"
+printf "%s%s  ██╔══██╗██╔══██╗██║██║   ██║██║██╔════╝██║    %s\n" "$ANSI_BOLD" "$ANSI_PURPLE" "$ANSI_RESET"
+printf "%s%s  ███████║██████╔╝██║██║   ██║██║█████╗  ██║    %s\n" "$ANSI_BOLD" "$ANSI_PURPLE" "$ANSI_RESET"
+printf "%s%s  ██╔══██║██╔═══╝ ██║╚██╗ ██╔╝██║██╔══╝  ██║    %s\n" "$ANSI_BOLD" "$ANSI_PURPLE" "$ANSI_RESET"
+printf "%s%s  ██║  ██║██║     ██║ ╚████╔╝ ██║███████╗███████╗%s\n" "$ANSI_BOLD" "$ANSI_PURPLE" "$ANSI_RESET"
+printf "%s%s  ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═══╝  ╚═╝╚══════╝╚══════╝%s\n" "$ANSI_BOLD" "$ANSI_PURPLE" "$ANSI_RESET"
+printf "%s%s  UI VERSION  %s%s%s%s\n" "$ANSI_BOLD" "$ANSI_CYAN" "$ANSI_YELLOW" "$ANSI_BOLD" "$UI_VER" "$ANSI_RESET"
+printf "%s%s══════════════════════════════════════════════════════════════%s\n" "$ANSI_BOLD" "$ANSI_CYAN" "$ANSI_RESET"
+
+if [ "$NO_BUILD" != "1" ]; then
   echo "[INFO] 빌드 중..."
   "$MVN" -q package -DskipTests 2>&1 | grep -v "sun.misc"
 fi
@@ -49,6 +79,13 @@ cleanup() {
   fi
 }
 trap cleanup INT TERM
+
+# ── IDE 연동: 서버만 띄우고 Chrome은 IDE(또는 Touch Bar 디버그)가 연결 ──
+if [ "${APIVIEWER_IDE_LAUNCH:-0}" = "1" ] || [ "$IDE_LAUNCH" = "1" ]; then
+  echo "[INFO] IDE 모드 — Chrome 자동 실행 생략 (서버만 유지, 종료는 stop.sh 또는 작업 중단)"
+  wait "$APP_PID"
+  exit 0
+fi
 
 # ── 기동 직후 잠깐 대기 후, 서버 준비 대기/Chrome 오픈 ─────────
 # 서버가 아직 포트 바인딩 전인 구간에 Chrome을 먼저 띄우면

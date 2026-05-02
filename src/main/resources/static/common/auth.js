@@ -18,6 +18,20 @@
     else   { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(FLAG_KEY); }
   }
 
+  function readCookie(name) {
+    const esc = name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1');
+    const m = document.cookie.match(new RegExp('(?:^|; )' + esc + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  }
+
+  /** 새 탭/창은 sessionStorage 를 공유하지 않음 — PageGuard 가 쓰는 adminToken 쿠키로 API 헤더용 토큰 복원 */
+  function bootstrapTokenFromCookie() {
+    if (sessionStorage.getItem(TOKEN_KEY)) return;
+    const c = readCookie(TOKEN_KEY);
+    if (c) setToken(c);
+  }
+  bootstrapTokenFromCookie();
+
   // 초기값: sessionStorage 에 토큰이 있으면 낙관적으로 loggedIn=true 로 시작.
   // (서버 /api/auth/check 응답 전까지 기존 페이지들의 applyAdminUI() 가 관리자 UI 를 숨기는 깜빡임 방지.
   //  이후 check() 가 실제 유효성에 따라 정정한다.)

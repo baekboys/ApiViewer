@@ -92,6 +92,29 @@
     .settings-section { display:none; }
     .settings-section.active { display:block; }
     @media (max-width:900px) { .settings-layout { grid-template-columns:1fr; } .settings-sidebar { flex-direction:row; flex-wrap:wrap; position:static; } .settings-tab { flex:0 1 auto; } }
+
+    /* 공통설정: 하단 고정 저장 (다른 설정 탭에서는 섹션 display:none 으로 함께 숨김) */
+    .config-save-fixed-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 99;
+      padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -8px 24px rgba(15,23,42,.1);
+    }
+    [data-theme="dark"] .config-save-fixed-bar { box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
+    .config-save-fixed-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+    section.settings-section[data-section="config"] { padding-bottom: 76px; }
     /* 프로그레스 오버레이 */
     .del-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:9999; justify-content:center; align-items:center; }
     .del-overlay.show { display:flex; }
@@ -267,12 +290,13 @@ function updateAdminBadge(valid) {
 
 <!-- ═══ ⚙️ 설정 (공통설정 + 레포지토리) ═══ -->
 <section class="settings-section active" data-section="config">
-  <!-- 공통 설정 -->
-  <div class="card">
-    <div class="card-title"><span class="dot dot-blue"></span>공통 설정 (모든 레포지토리에 적용)</div>
-    <!-- 기본 설정 -->
-    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">기본 설정</div>
-    <div class="field-row col3" style="margin-bottom:14px;">
+
+  <div class="card" style="border:1px solid #93c5fd;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#3b82f6;"></span>기본 설정
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">차단검토 기준 · 목록 페이지 크기 (모든 레포 공통)</span>
+    </div>
+    <div class="field-row col3" style="margin-bottom:4px;">
       <label class="field">차단검토 기준 호출건수
         <input id="gReviewThreshold" type="number" min="0" placeholder="3" style="width:120px;">
         <span class="field-hint">이 값 이하 + 소스변경 1년 초과 시 차단검토</span>
@@ -286,10 +310,14 @@ function updateAdminBadge(valid) {
         <span class="field-hint">페이지 번호 표시 개수 (예: 10 = 1~10)</span>
       </label>
     </div>
+  </div>
 
-    <!-- APM 설정 -->
-    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;margin-top:16px;padding-top:12px;border-top:1px dashed var(--border);">APM 설정</div>
-    <div class="field-row col3" style="margin-bottom:14px;">
+  <div class="card" style="border:1px solid #7dd3fc;margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#0ea5e9;"></span>APM 설정
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">와탭 API 페이징 상한</span>
+    </div>
+    <div class="field-row col3" style="margin-bottom:4px;">
       <label class="field">와탭 ptotal
         <input id="gWhatapPtotal" type="number" min="1" style="width:80px;">
         <span class="field-hint">전체 건수 상한 (기본 100)</span>
@@ -299,14 +327,19 @@ function updateAdminBadge(valid) {
         <span class="field-hint">한 페이지 건수 (기본 10000)</span>
       </label>
     </div>
+  </div>
 
-    <!-- URL 차단 모니터링 -->
-    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;margin-top:16px;padding-top:12px;border-top:1px dashed var(--border);">URL 차단 모니터링 (와탭 /yard/api/flush + Referer)</div>
-    <div style="margin-bottom:14px;">
-      <label class="field" style="display:block;margin-bottom:10px;">와탭 Referer 경로 템플릿
+  <div class="card" style="border:1px solid #c4b5fd;margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#7c3aed;"></span>URL 차단 모니터링
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">와탭 /yard/api/flush · Referer · 봇 제외 · 테스트 시간대</span>
+    </div>
+    <div style="margin-bottom:4px;">
+      <label class="field" style="margin-bottom:10px;">와탭 Referer 경로 템플릿
         <input id="gBlockMonitorWhatapReferer" type="text" placeholder="/v2/project/apm/{pcode}/new/tx_profile" style="width:100%;max-width:520px;">
         <span class="field-hint">{base}/yard/api/flush 호출 시 Referer 헤더에 사용. 호스트는 레포 whatapUrl에서 자동 추출, {pcode}는 RepoConfig.whatapPcode로 치환</span>
       </label>
+      <div role="presentation" aria-hidden="true" style="border-top:1px solid var(--border);margin:14px 0 12px;"></div>
       <label class="field" style="display:block;">봇 또는 제외대상 키워드
         <div id="botKeywordsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;min-height:28px;"></div>
         <div style="display:flex;gap:6px;align-items:center;">
@@ -317,8 +350,8 @@ function updateAdminBadge(valid) {
         </div>
         <span class="field-hint">clientType / clientName / userAgent 부분일치 제외 (대소문자 구분)</span>
       </label>
-
-      <label class="field" style="display:block;margin-top:10px;">IT담당자 모니터링 테스트 시간대 (제외)
+      <div role="presentation" aria-hidden="true" style="border-top:1px solid var(--border);margin:14px 0 12px;"></div>
+      <label class="field" style="display:block;">IT담당자 모니터링 테스트 시간대 (제외)
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <input id="gBlockMonitorExcludeStart" type="time" step="60" style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
           <span style="color:var(--text-muted);">~</span>
@@ -326,24 +359,15 @@ function updateAdminBadge(valid) {
         </div>
         <span class="field-hint">IT담당자가 차단 동작 검증을 위해 일부러 호출하는 시간대 — 이 구간 [start ≤ t &lt; end] 안의 트랜잭션은 차단모니터링 조회 시 자동 제외됩니다. (기본 18:00 ~ 20:00)</span>
       </label>
-
-
-      <!-- 와탭 연결 테스트 (쿠키 세션 keepalive 검증용) -->
-      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);">
-        <label class="field" style="display:block;">와탭 연결 테스트 (쿠키 세션 검증)
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <div id="whatapTestRepo"></div>
-            <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="testWhatapConnection()">🔌 연결 테스트</button>
-            <span id="whatapTestResult" style="font-size:11px;color:var(--text-muted);"></span>
-          </div>
-          <span class="field-hint">{base}/yard/api/flush 에 가벼운 payload(ptotal=1, filter 없음) POST — HTTP 200 여부만 확인. 향후 keepalive 배치의 단위 동작</span>
-        </label>
-      </div>
     </div>
+  </div>
 
-    <!-- 시스템 설정 -->
-    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;margin-top:16px;padding-top:12px;border-top:1px dashed var(--border);">시스템 설정</div>
-    <div class="field-row col3" style="margin-bottom:14px;">
+  <div class="card" style="border:1px solid #cbd5e1;margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#475569;"></span>시스템 설정
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">로그 레벨 · Tail 줄수</span>
+    </div>
+    <div class="field-row col3" style="margin-bottom:4px;">
       <label class="field">로그 레벨
         <select id="gApmLogLevel" style="width:120px;">
           <option value="INFO">INFO (기본)</option>
@@ -356,39 +380,50 @@ function updateAdminBadge(valid) {
         <span class="field-hint">로그 조회 시 뒤에서 N줄 (0=전체)</span>
       </label>
     </div>
+  </div>
 
-    <!-- 와탭 공통 프로필 -->
-    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">
-        Whatap 공통 프로필 <span style="font-weight:400;text-transform:none;">(레포에서 profileName으로 참조)</span>
-      </div>
-      <div id="whatapProfileList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
-      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addWhatapProfileRow()">+ 와탭 프로필 추가</button>
+  <div class="card" style="border:1px solid #93c5fd;margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#2563eb;"></span>Whatap 공통 프로필
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">레포에서 profileName으로 참조 · 쿠키/flush 세션 검증</span>
     </div>
-
-    <!-- 제니퍼 공통 프로필 -->
-    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);">
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">
-        Jennifer 공통 프로필 <span style="font-weight:400;text-transform:none;">(레포에서 profileName으로 참조)</span>
+    <div id="whatapProfileList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+    <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addWhatapProfileRow()">+ 와탭 프로필 추가</button>
+    <div role="presentation" aria-hidden="true" style="border-top:1px solid var(--border);margin:14px 0 12px;"></div>
+    <label class="field" style="display:block;">와탭 연결 테스트 (쿠키 세션 검증)
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <div id="whatapTestRepo"></div>
+        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="testWhatapConnection()">🔌 연결 테스트</button>
+        <span id="whatapTestResult" style="font-size:11px;color:var(--text-muted);"></span>
       </div>
-      <div id="jenniferProfileList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
-      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addJenniferProfileRow()">+ 제니퍼 프로필 추가</button>
+      <span class="field-hint">{base}/yard/api/flush 에 가벼운 payload(ptotal=1, filter 없음) POST — HTTP 200 여부만 확인. 차단 모니터·APM·keepalive 배치 공통 전제</span>
+    </label>
+  </div>
+
+  <div class="card" style="border:1px solid #fcd34d;margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#d97706;"></span>Jennifer 공통 프로필
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">레포에서 profileName으로 참조</span>
     </div>
+    <div id="jenniferProfileList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+    <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addJenniferProfileRow()">+ 제니퍼 프로필 추가</button>
+  </div>
 
-    <!-- 팀 목록 -->
-    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">
-        팀 목록 <span style="font-weight:400;text-transform:none;">(담당자/현업검토 입력 시 자동완성용)</span>
-      </div>
-      <div id="teamsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" id="newTeamInput" placeholder="팀명 입력 후 Enter" style="flex:1;max-width:260px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeam();}">
-        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addTeam()">+ 추가</button>
-      </div>
+  <div class="card" style="border:1px solid #86efac;margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#16a34a;"></span>팀 목록
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">담당자·현업검토 입력 시 자동완성</span>
     </div>
+    <div id="teamsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" id="newTeamInput" placeholder="팀명 입력 후 Enter" style="flex:1;max-width:260px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeam();}">
+      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 12px;height:auto;" onclick="addTeam()">+ 추가</button>
+    </div>
+  </div>
 
-    <div style="display:flex;justify-content:flex-end;margin-top:14px;">
-      <button class="btn btn-blue" onclick="saveGlobal()">공통 설정 저장</button>
+  <div class="config-save-fixed-bar" role="region" aria-label="공통 설정 저장">
+    <div class="config-save-fixed-inner">
+      <button type="button" class="btn btn-blue" onclick="saveGlobal()">공통 설정 저장</button>
     </div>
   </div>
 
@@ -667,7 +702,6 @@ function updateAdminBadge(valid) {
     <div class="card-title" style="margin-bottom:12px;">
       <span class="dot" style="background:#7c3aed;"></span>URL 스냅샷 관리
       <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">
-        Extract 완료 시 시점 기준 전체(풀) 스냅샷이 자동 생성됩니다. 필요 시 “지금 스냅샷 생성”으로 임의 시점을 박제할 수 있습니다.
       </span>
       <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-ghost" style="height:28px;padding:4px 14px;font-size:12px;border-color:#c4b5fd;color:#6d28d9;" onclick="createManualSnapshot()" title="현재 DB 상태를 시점 기준 전체(풀) 스냅샷으로 1건 생성합니다.">📸 지금 스냅샷 생성</button>
@@ -681,6 +715,8 @@ function updateAdminBadge(valid) {
         <span class="field-hint">목록 행을 클릭하면 자동 선택됩니다.</span>
       </label>
       <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+        <button class="btn" style="height:34px;background:#ea580c;color:#fff;" onclick="restoreLiveFromSelectedSnapshot()"
+                title="api_record 전체를 삭제한 뒤, 위에서 선택한 스냅샷 행으로 덮어씁니다. 호출이력(apm_call_data)은 유지됩니다.">♻️ 선택 스냅샷으로 라이브 복구</button>
         <button class="btn btn-danger" style="height:34px;" onclick="deleteSelectedSnapshots()">🗑 선택 삭제</button>
       </div>
     </div>
@@ -2676,6 +2712,47 @@ function updateAdminBadge(valid) {
     const sel = document.getElementById('snapViewSel');
     if (!sel) return;
     sel.value = String(id);
+  };
+
+  /**
+   * 선택한 스냅샷으로 라이브 api_record 전체를 교체한다.
+   * 기존 분석 데이터는 삭제되며, 스냅샷 시점 행만 남는다. apm_call_data 등은 유지.
+   */
+  window.restoreLiveFromSelectedSnapshot = async function() {
+    const sel = document.getElementById('snapViewSel');
+    const resultEl = document.getElementById('snapResult');
+    const id = sel && sel.value ? Number(sel.value) : 0;
+    if (!id) {
+      showToast('“스냅샷 선택 (조회)”에서 복구할 스냅샷을 먼저 선택하세요.', 'error');
+      return;
+    }
+    const snap = (window._urlSnapshots || []).find(s => Number(s.id) === id);
+    const label = snap ? _snapOptLabel(snap) : `id=${id}`;
+    const msg =
+      `현재 URL 분석 데이터(api_record) 전체를 삭제하고,\n아래 스냅샷 시점 데이터로 덮어씁니다.\n\n` +
+      `▸ ${label}\n\n` +
+      `• 되돌릴 수 없습니다. 필요하면 먼저 “지금 스냅샷 생성”으로 백업하세요.\n` +
+      `• apm_call_data·호출 집계는 변경하지 않습니다(시점이 어긋날 수 있음).\n\n` +
+      `계속하시겠습니까?`;
+    if (!await customConfirm(msg, { title: '⚠️ 라이브 분석데이터 복구' })) return;
+    if (!await verifyPwPrompt()) return;
+    try {
+      if (resultEl) resultEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">라이브 복구 중...</div>`;
+      showToast('라이브 복구 중...', 'info');
+      const res = await adminFetch(`/api/snapshots/${id}/restore-live`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('status ' + res.status));
+      const del = Number(data.previousLiveRowsDeleted || 0).toLocaleString();
+      const ins = Number(data.insertedRows || 0).toLocaleString();
+      showToast(`라이브 복구 완료 (삭제 ${del}건 → 삽입 ${ins}건)`, 'success');
+      if (resultEl) {
+        const note = data.note ? `<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">${bhEscape(data.note)}</div>` : '';
+        resultEl.innerHTML = `<div style="color:var(--success);font-size:12px;">✓ 복구 완료: snapshotId=${id}, 삭제 ${del}건 → 삽입 ${ins}건</div>` + note;
+      }
+    } catch (e) {
+      showToast('라이브 복구 실패: ' + (e.message || ''), 'error');
+      if (resultEl) resultEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">복구 실패: ${bhEscape(e.message||e)}</div>`;
+    }
   };
 
   window.loadUrlSnapshots = async function(page) {

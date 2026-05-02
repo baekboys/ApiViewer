@@ -12,6 +12,7 @@ import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.model.WhatapRequest;
 import com.baek.viewer.model.WhatapResult;
 import com.baek.viewer.repository.ApiRecordRepository;
+import com.baek.viewer.util.PathParamPatternUtil;
 import com.baek.viewer.repository.GlobalConfigRepository;
 import com.baek.viewer.repository.RepoConfigRepository;
 import com.baek.viewer.service.ApiExtractorService;
@@ -234,6 +235,7 @@ public class ApiViewController {
                                      @RequestParam(required = false) String status,
                                      @RequestParam(required = false) String statusGroup,
                                      @RequestParam(required = false) Boolean testSuspect,
+                                     @RequestParam(required = false) Boolean pathParams,
                                      @RequestParam(required = false) Boolean logWorkExcluded,
                                      @RequestParam(required = false) Boolean recentLogOnly,
                                      @RequestParam(required = false) String httpMethod,
@@ -268,6 +270,7 @@ public class ApiViewController {
         boolean hasDynamicFilter = (status != null && !status.isBlank())
                 || (statusGroup != null && !statusGroup.isBlank())
                 || (testSuspect != null)
+                || (pathParams != null)
                 || (logWorkExcluded != null)
                 || (recentLogOnly != null)
                 || (httpMethod != null && !httpMethod.isBlank())
@@ -292,7 +295,7 @@ public class ApiViewController {
             Pageable pageable = PageRequest.of(pageIdx, pageSize, sortSpec);
 
             Specification<ApiRecord> spec = buildSpec(repository, repoList, blockTargetOnly,
-                    status, statusGroup, testSuspect, logWorkExcluded, recentLogOnly, httpMethod, isDeprecated, q, alert, ids,
+                    status, statusGroup, testSuspect, pathParams, logWorkExcluded, recentLogOnly, httpMethod, isDeprecated, q, alert, ids,
                     modifiedFrom, modifiedTo, cboFrom, cboTo, deployFrom, deployTo, deployManager, deployUnscheduled);
 
             Page<ApiRecord> entityPage = recordRepository.findAll(spec, pageable);
@@ -388,7 +391,7 @@ public class ApiViewController {
 
     /** 동적 필터 Specification 빌더 */
     private Specification<ApiRecord> buildSpec(String repository, List<String> repoList, boolean blockTargetOnly,
-                                                String status, String statusGroup, Boolean testSuspect,
+                                                String status, String statusGroup, Boolean testSuspect, Boolean pathParams,
                                                 Boolean logWorkExcluded, Boolean recentLogOnly,
                                                 String httpMethod, String isDeprecated, String q, String alert,
                                                 String ids, String modifiedFrom, String modifiedTo,
@@ -438,6 +441,20 @@ public class ApiViewController {
                     ps.add(cb.or(
                             cb.isNull(root.get("testSuspectReason")),
                             cb.equal(root.get("testSuspectReason"), "")));
+                }
+            }
+            if (pathParams != null) {
+                if (pathParams) {
+                    ps.add(cb.or(
+                            cb.and(cb.isNotNull(root.get("pathParamPattern")),
+                                    cb.notEqual(root.get("pathParamPattern"), "")),
+                            cb.like(root.get("apiPath"), "%{%")));
+                } else {
+                    ps.add(cb.and(
+                            cb.or(cb.isNull(root.get("pathParamPattern")),
+                                    cb.equal(root.get("pathParamPattern"), "")),
+                            cb.or(cb.isNull(root.get("apiPath")),
+                                    cb.notLike(root.get("apiPath"), "%{%"))));
                 }
             }
             if (logWorkExcluded != null) {
@@ -539,6 +556,14 @@ public class ApiViewController {
         };
     }
 
+    private static String effectivePathParamPattern(ApiRecord r) {
+        String p = r.getPathParamPattern();
+        if (p != null && !p.isBlank()) {
+            return p;
+        }
+        return PathParamPatternUtil.fromApiPath(r.getApiPath());
+    }
+
     /** ApiRecord → 경량 summary Map — TEXT 컬럼(fullComment 등) 응답에서 제외 */
     private static Map<String, Object> toSummaryMap(ApiRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
@@ -556,6 +581,7 @@ public class ApiViewController {
         m.put("logWorkExcluded",    r.isLogWorkExcluded());
         m.put("recentLogOnly",      r.isRecentLogOnly());
         m.put("testSuspectReason",  r.getTestSuspectReason());
+        m.put("pathParamPattern",   effectivePathParamPattern(r));
         m.put("blockTarget",        r.getBlockTarget());
         m.put("blockCriteria",      r.getBlockCriteria());
         m.put("callCount",          r.getCallCount());
@@ -663,6 +689,9 @@ public class ApiViewController {
         long testSuspectCount = hasRepo
                 ? recordRepository.countTestSuspectForRepos(repoFilter)
                 : recordRepository.countTestSuspect();
+        long pathParamPatternCount = hasRepo
+                ? recordRepository.countPathParamPatternForRepos(repoFilter)
+                : recordRepository.countPathParamPattern();
         // ①-② 호출0건+변경없음 — 옛 "최우선 차단대상" + logWorkExcluded=false. 이제 status 자체가 leaf 이므로 단순 countByStatus.
         long priorityPureCount = byStatus.getOrDefault("①-① 차단대상", 0L);
 
@@ -692,6 +721,7 @@ public class ApiViewController {
         response.put("deprecated",   deprecatedCount);
         response.put("markingIncompleteCount", markingIncompleteCount);
         response.put("testSuspectCount", testSuspectCount);
+        response.put("pathParamPatternCount", pathParamPatternCount);
         response.put("byStatus",     byStatus);
         response.put("byCategory",   byCategory);  // 7카드 통합
         response.put("byMethod",     byMethod);
@@ -1600,6 +1630,44 @@ public class ApiViewController {
         result.put("total", total);
         result.put("updated", updated);
         result.put("keywords", keywords);
+        result.put("elapsedMs", elapsed);
+        return ResponseEntity.ok(result);
+    }
+
+    /** api_path 기준으로 path_param_pattern 컬럼 일괄 재계산 (정렬·집계 정확도). */
+    @PostMapping("/recalculate-path-param-pattern")
+    public ResponseEntity<?> recalculatePathParamPattern() {
+        long start = System.currentTimeMillis();
+        log.info("[경로변수 패턴 재계산] 시작");
+        int batchSize = 1000;
+        int updated = 0;
+        int total = 0;
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(0, batchSize,
+                        org.springframework.data.domain.Sort.by("id"));
+        org.springframework.data.domain.Page<ApiRecord> page;
+        do {
+            page = recordRepository.findAll(pageable);
+            java.util.List<ApiRecord> changed = new java.util.ArrayList<>();
+            for (ApiRecord r : page.getContent()) {
+                String next = PathParamPatternUtil.fromApiPath(r.getApiPath());
+                if (!java.util.Objects.equals(r.getPathParamPattern(), next)) {
+                    r.setPathParamPattern(next);
+                    changed.add(r);
+                }
+            }
+            if (!changed.isEmpty()) {
+                recordRepository.saveAll(changed);
+            }
+            updated += changed.size();
+            total += page.getNumberOfElements();
+            pageable = pageable.next();
+        } while (page.hasNext());
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("[경로변수 패턴 재계산] 완료: 전체={}건, 변경={}건, 소요={}ms", total, updated, elapsed);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", total);
+        result.put("updated", updated);
         result.put("elapsedMs", elapsed);
         return ResponseEntity.ok(result);
     }

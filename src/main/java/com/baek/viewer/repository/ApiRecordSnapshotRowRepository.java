@@ -26,6 +26,10 @@ public interface ApiRecordSnapshotRowRepository extends JpaRepository<ApiRecordS
               AND (:httpMethod IS NULL OR r.httpMethod = :httpMethod)
               AND (:isDeprecated IS NULL OR r.isDeprecated = :isDeprecated)
               AND (:testSuspect IS NULL OR (:testSuspect = true AND r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> ''))
+              AND (:pathParams IS NULL OR (:pathParams = true AND (
+                    (r.pathParamPattern IS NOT NULL AND r.pathParamPattern <> '')
+                    OR r.apiPath LIKE '%{%'
+              )))
               AND (:markingIncomplete IS NULL OR (:markingIncomplete = true AND r.blockMarkingIncomplete = true))
               AND (
                 :q IS NULL OR :q = ''
@@ -41,6 +45,7 @@ public interface ApiRecordSnapshotRowRepository extends JpaRepository<ApiRecordS
                                             @Param("httpMethod") String httpMethod,
                                             @Param("isDeprecated") String isDeprecated,
                                             @Param("testSuspect") Boolean testSuspect,
+                                            @Param("pathParams") Boolean pathParams,
                                             @Param("markingIncomplete") Boolean markingIncomplete,
                                             @Param("q") String q,
                                             Pageable pageable);
@@ -51,25 +56,32 @@ public interface ApiRecordSnapshotRowRepository extends JpaRepository<ApiRecordS
     @Query("SELECT COALESCE(r.httpMethod, '?'), COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) GROUP BY r.httpMethod")
     List<Object[]> countGroupByMethod(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.isNew = true")
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.isNew = true AND (r.status IS NULL OR r.status <> '삭제')")
     long countNew(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.statusChanged = true")
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.statusChanged = true AND (r.status IS NULL OR r.status <> '삭제')")
     long countStatusChanged(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.reviewResult IS NOT NULL AND r.reviewResult <> ''")
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.reviewResult IS NOT NULL AND r.reviewResult <> '' AND (r.status IS NULL OR r.status <> '삭제')")
     long countReviewed(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.isDeprecated = 'Y'")
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.isDeprecated = 'Y' AND (r.status IS NULL OR r.status <> '삭제')")
     long countDeprecated(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.blockMarkingIncomplete = true")
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.blockMarkingIncomplete = true AND (r.status IS NULL OR r.status <> '삭제')")
     long countBlockMarkingIncomplete(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> ''")
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> '' AND (r.status IS NULL OR r.status <> '삭제')")
     long countTestSuspect(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos)")
+    @Query("""
+            SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos)
+              AND (r.status IS NULL OR r.status <> '삭제')
+              AND ((r.pathParamPattern IS NOT NULL AND r.pathParamPattern <> '') OR r.apiPath LIKE '%{%')
+            """)
+    long countPathParamPattern(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
+
+    @Query("SELECT COUNT(r) FROM ApiRecordSnapshotRow r WHERE r.snapshotId = :snapshotId AND (:repos IS NULL OR r.repositoryName IN :repos) AND (r.status IS NULL OR r.status <> '삭제')")
     long countAll(@Param("snapshotId") Long snapshotId, @Param("repos") List<String> repos);
 }
 

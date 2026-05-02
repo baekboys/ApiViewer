@@ -44,7 +44,10 @@ public class UiVersionStartupLogger {
     public void onReady() {
         String uiVer = resolveUiVersionFromClasspath();
         if (uiVer == null || uiVer.isBlank()) uiVer = "(unknown)";
-        log.info("[UI] 버전: {}", uiVer);
+        // 콘솔에서는 logback pattern(ANSI)로 강조됨. 파일 로그는 ANSI 없이 그대로 남는다.
+        log.info("══════════════════════════════════════════════════════════════");
+        log.info("[UI] ✅ 현재 UI 버전: {}", uiVer);
+        log.info("══════════════════════════════════════════════════════════════");
 
         logDbPathHints();
 

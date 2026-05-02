@@ -277,6 +277,23 @@
     </label>
   </div>
 
+  <!-- ─── 경로변수 패턴 (api_path의 {name} 요약) ─── -->
+  <div class="card" data-admin-only>
+    <div class="card-title">
+      <span class="dot dot-purple"></span>🔗 경로변수 패턴 일괄 재계산
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;line-height:1.6;">
+      <code>api_path</code>에 포함된 Spring 스타일 경로 변수(<code>{version}</code> 등)를 추출해
+      <b>파라미터URL 패턴</b> 컬럼에 저장합니다. 추출 시 자동 반영되며, 기존 DB 일괄 보정 시 아래 버튼을 사용하세요.
+      (호출 이력 URL과 표시 경로가 다를 수 있음을 구분하는 용도)
+    </p>
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="button" class="btn btn-primary" onclick="recalculatePathParamPattern(event)">
+        🔄 전체 재계산
+      </button>
+    </div>
+  </div>
+
   <!-- ─── API 추출 설정 ─── -->
   <div class="card">
     <div class="card-title">
@@ -412,8 +429,14 @@
         <label class="field" style="min-width:260px;">대상 레포지토리 <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(다중 선택 가능 · 0개=전체)</span>
           <div id="mockAnRepoSelect" style="min-width:240px;"></div>
         </label>
-        <label class="field" style="min-width:120px;">생성 건수
-          <input id="mockAnCount" type="number" value="100" min="1" max="5000"
+        <label class="field" style="min-width:90px;">최소 건수
+          <input id="mockAnCountMin" type="number" value="50" min="1" max="5000"
+                 title="레포당 생성 시 이 값 이상"
+                 style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+        </label>
+        <label class="field" style="min-width:90px;">최대 건수
+          <input id="mockAnCountMax" type="number" value="150" min="1" max="5000"
+                 title="레포당 생성 시 이 값 이하 (최소~최대 사이 균등 랜덤)"
                  style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
         </label>
         <button class="btn" style="background:#6366f1;color:#fff;height:34px;" onclick="generateMockAnalysis()">🎲 생성</button>
@@ -421,7 +444,7 @@
         <button class="btn btn-ghost" style="height:34px;" onclick="deleteMockAnalysis('all')">🧹 전체 /mock-test/* 삭제</button>
       </div>
       <div style="font-size:10px;color:#3730a3;">
-        상태 분포 (9 leaf v2): 사용 60% / 검토대상(②-①/②) 15% / 차단대상(①-①) 10% / 담당자판단(①-②) 8% / 차단완료 7% &nbsp;·&nbsp; 호출건수 0으로 생성 (호출이력은 ② Mock APM으로 별도 생성)
+        상태 분포 (9 leaf v2 + 삭제): 사용 55% / <b>삭제 5%</b> / 검토대상·차단 leaf·차단완료 (나머지) &nbsp;·&nbsp; 레포마다 [최소, 최대] 균등 랜덤 건수 &nbsp;·&nbsp; 호출건수 0 (호출이력은 ② Mock APM)
       </div>
       <div id="mockAnResult" style="margin-top:6px;font-size:12px;"></div>
     </div>
@@ -1566,12 +1589,13 @@
   async function generateMockAnalysis() {
     // 다중 — 0개 선택 = 전체 레포
     const targets = getMockAnSelectedRepos();
-    const count = parseInt(document.getElementById('mockAnCount').value, 10);
+    const minV = parseInt(document.getElementById('mockAnCountMin').value, 10);
+    const maxV = parseInt(document.getElementById('mockAnCountMax').value, 10);
     if (!targets.length) { showToast('대상 레포가 없습니다', 'error'); return; }
-    if (!Number.isFinite(count) || count < 1 || count > 5000) {
-      showToast('생성 건수: 1 ~ 5000', 'error'); return;
+    if (!Number.isFinite(minV) || !Number.isFinite(maxV) || minV < 1 || maxV > 5000 || minV > maxV) {
+      showToast('최소·최대 건수: 1 ~ 5000, 최소 ≤ 최대', 'error'); return;
     }
-    if (!await customConfirm(`Mock 분석데이터를 생성합니다.\n\n대상 레포: ${targets.length}개 (${targets.join(', ')})\n레포당 생성 건수: ${count.toLocaleString()}건\nURL 형식: /mock-test/...\n\n기존과 중복되는 (경로+메서드)는 자동 스킵됩니다.`)) return;
+    if (!await customConfirm(`Mock 분석데이터를 생성합니다.\n\n대상 레포: ${targets.length}개 (${targets.join(', ')})\n레포당 건수: ${minV.toLocaleString()} ~ ${maxV.toLocaleString()} (균등 랜덤)\nURL 형식: /mock-test/...\n\n기존과 중복되는 (경로+메서드)는 자동 스킵됩니다.`)) return;
     if (!await verifyPwPrompt()) return;
     showDelProgress(`Mock 분석데이터 생성 중... (0/${targets.length})`);
     let totalInserted = 0, totalSkipped = 0, failCount = 0;
@@ -1580,7 +1604,7 @@
       const repoName = targets[i];
       showDelProgress(`Mock 분석데이터 생성 중... (${i+1}/${targets.length} — ${repoName})`);
       try {
-        const url = `/api/mock/analysis/generate?repoName=${encodeURIComponent(repoName)}&count=${count}`;
+        const url = `/api/mock/analysis/generate?repoName=${encodeURIComponent(repoName)}&countMin=${minV}&countMax=${maxV}`;
         const res = await adminFetch(url, { method:'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '생성 실패');
@@ -1761,6 +1785,26 @@
       if (!recalcRes.ok) throw new Error('재평가 실패');
       const r = await recalcRes.json();
       showToast(`✅ 키워드 저장 + 재평가 완료 — 전체 ${r.total}건 중 ${r.updated}건 갱신 (${r.elapsedMs}ms)`, 'success');
+    } catch (e) {
+      showToast('❌ ' + (e.message || e), 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+    }
+  }
+
+  async function recalculatePathParamPattern(ev) {
+    const btn = ev && ev.target ? ev.target : null;
+    const origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '재계산 중...'; }
+    const token = (window.AuthState && AuthState.token) || '';
+    try {
+      const res = await fetch('/api/recalculate-path-param-pattern', {
+        method: 'POST',
+        headers: { 'X-Admin-Token': token }
+      });
+      if (!res.ok) throw new Error('재계산 실패 (' + res.status + ')');
+      const r = await res.json();
+      showToast(`✅ 경로변수 패턴 재계산 완료 — 전체 ${r.total}건 중 ${r.updated}건 갱신 (${r.elapsedMs}ms)`, 'success');
     } catch (e) {
       showToast('❌ ' + (e.message || e), 'error');
     } finally {

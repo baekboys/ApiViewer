@@ -87,41 +87,57 @@ public interface ApiRecordRepository extends JpaRepository<ApiRecord, Long>,
     @Query("SELECT COALESCE(r.httpMethod, '?'), COUNT(r) FROM ApiRecord r WHERE r.repositoryName IN :repos GROUP BY r.httpMethod")
     List<Object[]> countGroupByMethodForRepos(@Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isNew = true")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isNew = true AND (r.status IS NULL OR r.status <> '삭제')")
     long countNew();
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isNew = true AND r.repositoryName IN :repos")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isNew = true AND r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제')")
     long countNewForRepos(@Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.statusChanged = true")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.statusChanged = true AND (r.status IS NULL OR r.status <> '삭제')")
     long countStatusChanged();
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.statusChanged = true AND r.repositoryName IN :repos")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.statusChanged = true AND r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제')")
     long countStatusChangedForRepos(@Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.reviewResult IS NOT NULL AND r.reviewResult <> ''")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.reviewResult IS NOT NULL AND r.reviewResult <> '' AND (r.status IS NULL OR r.status <> '삭제')")
     long countReviewed();
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.reviewResult IS NOT NULL AND r.reviewResult <> '' AND r.repositoryName IN :repos")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.reviewResult IS NOT NULL AND r.reviewResult <> '' AND r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제')")
     long countReviewedForRepos(@Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isDeprecated = 'Y'")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isDeprecated = 'Y' AND (r.status IS NULL OR r.status <> '삭제')")
     long countDeprecated();
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isDeprecated = 'Y' AND r.repositoryName IN :repos")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.isDeprecated = 'Y' AND r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제')")
     long countDeprecatedForRepos(@Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.blockMarkingIncomplete = true")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.blockMarkingIncomplete = true AND (r.status IS NULL OR r.status <> '삭제')")
     long countBlockMarkingIncomplete();
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.blockMarkingIncomplete = true AND r.repositoryName IN :repos")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.blockMarkingIncomplete = true AND r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제')")
     long countBlockMarkingIncompleteForRepos(@Param("repos") List<String> repos);
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> ''")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> '' AND (r.status IS NULL OR r.status <> '삭제')")
     long countTestSuspect();
 
-    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> '' AND r.repositoryName IN :repos")
+    @Query("SELECT COUNT(r) FROM ApiRecord r WHERE r.testSuspectReason IS NOT NULL AND r.testSuspectReason <> '' AND r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제')")
     long countTestSuspectForRepos(@Param("repos") List<String> repos);
+
+    @Query("""
+            SELECT COUNT(r) FROM ApiRecord r WHERE (r.status IS NULL OR r.status <> '삭제') AND (
+              (r.pathParamPattern IS NOT NULL AND r.pathParamPattern <> '')
+              OR r.apiPath LIKE '%{%'
+            )
+            """)
+    long countPathParamPattern();
+
+    @Query("""
+            SELECT COUNT(r) FROM ApiRecord r WHERE r.repositoryName IN :repos AND (r.status IS NULL OR r.status <> '삭제') AND (
+              (r.pathParamPattern IS NOT NULL AND r.pathParamPattern <> '')
+              OR r.apiPath LIKE '%{%'
+            )
+            """)
+    long countPathParamPatternForRepos(@Param("repos") List<String> repos);
 
     // ── 전체 선택/벌크 작업용 ID 목록 조회 (경량) ─────────────────────────
     @Query("SELECT r.id FROM ApiRecord r")

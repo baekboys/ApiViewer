@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 스냅샷 조회 전용(읽기) API.
@@ -146,13 +148,15 @@ public class SnapshotViewController {
                                      @RequestParam(required = false) String httpMethod,
                                      @RequestParam(required = false) String isDeprecated,
                                      @RequestParam(required = false) Boolean testSuspect,
+                                     @RequestParam(required = false) Boolean pathParams,
                                      @RequestParam(required = false) Boolean markingIncomplete,
-                                     @RequestParam(required = false) String q) {
-        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size));
+                                     @RequestParam(required = false) String q,
+                                     @RequestParam(required = false) String sort) {
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), parseSnapshotSort(sort));
         List<String> repos = parseRepos(repository, repositories);
         Page<?> p = snapshotRowRepository.pageByFilters(id, repos,
                 blankToNull(status), blankToNull(statusGroup), blankToNull(httpMethod), blankToNull(isDeprecated),
-                testSuspect, markingIncomplete, blankToNull(q), pageable);
+                testSuspect, pathParams, markingIncomplete, blankToNull(q), pageable);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("total", p.getTotalElements());
@@ -177,11 +181,13 @@ public class SnapshotViewController {
 
         Map<String, Long> byStatus = new LinkedHashMap<>();
         long total = 0L;
+        long deleted = 0L;
         for (Object[] row : statusRows) {
             String s = row[0] != null ? row[0].toString() : "사용";
             long c = ((Number) row[1]).longValue();
             byStatus.put(s, c);
-            total += c;
+            if ("삭제".equals(s)) deleted = c;
+            else total += c;
         }
         Map<String, Long> byMethod = new LinkedHashMap<>();
         for (Object[] row : methodRows) {
@@ -194,6 +200,7 @@ public class SnapshotViewController {
         long deprecatedCount = snapshotRowRepository.countDeprecated(id, hasRepo ? repos : null);
         long markingIncompleteCount = snapshotRowRepository.countBlockMarkingIncomplete(id, hasRepo ? repos : null);
         long testSuspectCount = snapshotRowRepository.countTestSuspect(id, hasRepo ? repos : null);
+        long pathParamPatternCount = snapshotRowRepository.countPathParamPattern(id, hasRepo ? repos : null);
         long priorityPureCount = byStatus.getOrDefault("①-① 차단대상", 0L);
 
         long blockResidual = byStatus.getOrDefault("①-① 차단대상", 0L);
@@ -210,17 +217,18 @@ public class SnapshotViewController {
         byCategory.put("blockResidual",  blockResidual);
         byCategory.put("blockException", blockException);
         byCategory.put("review",         reviewSum);
-        byCategory.put("deleted",        0L);
+        byCategory.put("deleted",        deleted);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("total",        total);
-        response.put("deletedCount", 0L);
+        response.put("deletedCount", deleted);
         response.put("newCount",     newCount);
         response.put("changedCount", changedCount);
         response.put("reviewedCount", reviewedCount);
         response.put("deprecated",   deprecatedCount);
         response.put("markingIncompleteCount", markingIncompleteCount);
         response.put("testSuspectCount", testSuspectCount);
+        response.put("pathParamPatternCount", pathParamPatternCount);
         response.put("byStatus",     byStatus);
         response.put("byCategory",   byCategory);
         response.put("byMethod",     byMethod);
@@ -247,6 +255,25 @@ public class SnapshotViewController {
         if (s == null) return null;
         s = s.trim();
         return s.isBlank() ? null : s;
+    }
+
+    private static final Set<String> SNAPSHOT_SORT_FIELDS = Set.of(
+            "id", "apiPath", "httpMethod", "status", "callCount", "callCountMonth", "callCountWeek",
+            "lastAnalyzedAt", "modifiedAt", "blockedDate", "repositoryName", "teamOverride", "managerOverride",
+            "cboScheduledDate", "deployScheduledDate", "pathParamPattern", "methodName", "controllerName");
+
+    private static Sort parseSnapshotSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return Sort.unsorted();
+        }
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        if (field.isEmpty() || !SNAPSHOT_SORT_FIELDS.contains(field)) {
+            return Sort.unsorted();
+        }
+        Sort.Direction dir = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()))
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(dir, field);
     }
 }
 

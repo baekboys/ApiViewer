@@ -72,6 +72,22 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+.app-nav-top .nav-query-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+[data-theme="dark"] .app-nav-top .nav-query-count {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
 .app-nav-top .utils .dark-toggle,
 .app-nav-top .utils .nav-btn {
   font-family: inherit;

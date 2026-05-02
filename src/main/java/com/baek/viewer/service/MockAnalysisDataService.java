@@ -2,6 +2,7 @@ package com.baek.viewer.service;
 
 import com.baek.viewer.model.ApiRecord;
 import com.baek.viewer.repository.ApiRecordRepository;
+import com.baek.viewer.util.PathParamPatternUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Mock 분석데이터 생성 서비스.
@@ -36,6 +38,8 @@ public class MockAnalysisDataService {
 
     /** mock 분석데이터 식별자 — apiPath 가 이 prefix 로 시작. */
     public static final String MOCK_PATH_PREFIX = "/mock-test/";
+
+    private static final String[] MOCK_PATH_VARS = {"version", "id", "orderId", "userId"};
 
     private static final String[] HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH"};
 
@@ -94,22 +98,39 @@ public class MockAnalysisDataService {
     /**
      * Mock 분석데이터 생성.
      *
-     * @param repoName 이미 등록된 레포지토리 이름 (RepoConfig.repoName)
-     * @param count    생성할 ApiRecord 개수 (1~5000)
-     * @return 생성 통계
+     * @param repoName  이미 등록된 레포지토리 이름 (RepoConfig.repoName)
+     * @param count     고정 건수 (null 이면 countMin/countMax 또는 기본 100)
+     * @param countMin  랜덤 건수 하한 (countMin·countMax 둘 다 있으면 [min,max] 균등 랜덤)
+     * @param countMax  랜덤 건수 상한
      */
     @Transactional
-    public Map<String, Object> generate(String repoName, int count) {
+    public Map<String, Object> generate(String repoName, Integer count, Integer countMin, Integer countMax) {
         if (repoName == null || repoName.isBlank()) {
             throw new IllegalArgumentException("레포지토리를 선택하세요.");
         }
-        if (count < 1 || count > 5000) {
-            throw new IllegalArgumentException("건수 범위: 1 ~ 5000");
+
+        if ((countMin != null) != (countMax != null)) {
+            throw new IllegalArgumentException("랜덤 건수는 countMin과 countMax를 함께 지정하세요.");
+        }
+
+        int actualCount;
+        boolean randomRange = countMin != null && countMax != null;
+        if (randomRange) {
+            if (countMin < 1 || countMax > 5000 || countMin > countMax) {
+                throw new IllegalArgumentException("랜덤 건수: 1 ≤ 최소 ≤ 최대 ≤ 5000");
+            }
+            actualCount = ThreadLocalRandom.current().nextInt(countMin, countMax + 1);
+        } else {
+            int c = count != null ? count : 100;
+            if (c < 1 || c > 5000) {
+                throw new IllegalArgumentException("건수 범위: 1 ~ 5000");
+            }
+            actualCount = c;
         }
 
         String target = repoName.trim();
-        log.info("[Mock 분석데이터] 생성 시작: repo={}, count={}, pathPrefix={}",
-                target, count, MOCK_PATH_PREFIX);
+        log.info("[Mock 분석데이터] 생성 시작: repo={}, actualCount={}, randomRange={}, pathPrefix={}",
+                target, actualCount, randomRange, MOCK_PATH_PREFIX);
 
         // 기존 레코드 키 조회 (중복방지) — 해당 레포 전체 키를 set 으로 보관
         Set<String> existingKeys = new HashSet<>();
@@ -123,15 +144,28 @@ public class MockAnalysisDataService {
         List<ApiRecord> toSave = new ArrayList<>();
         int skipped = 0;
 
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < actualCount; i++) {
             int domIdx = rnd.nextInt(DOMAINS.length);
             int resIdx = rnd.nextInt(RESOURCES.length);
             String domain = DOMAINS[domIdx];
             String resource = RESOURCES[resIdx];
             String method = HTTP_METHODS[rnd.nextInt(HTTP_METHODS.length)];
-            // /mock-test/ prefix 로 mock 분석데이터 식별
-            String apiPath = String.format("%s%s/%s/%d",
-                    MOCK_PATH_PREFIX, domain, resource, rnd.nextInt(9000) + 1000);
+            // /mock-test/ prefix — 약 28% 는 Spring 스타일 경로 변수 세그먼트 포함
+            String apiPath;
+            if (rnd.nextInt(100) < 28) {
+                String v1 = MOCK_PATH_VARS[rnd.nextInt(MOCK_PATH_VARS.length)];
+                if (rnd.nextBoolean()) {
+                    apiPath = String.format("%s%s/{%s}/%s/%d",
+                            MOCK_PATH_PREFIX, domain, v1, resource, rnd.nextInt(9000) + 1000);
+                } else {
+                    String v2 = MOCK_PATH_VARS[rnd.nextInt(MOCK_PATH_VARS.length)];
+                    apiPath = String.format("%s%s/{%s}/{%s}/%s/%d",
+                            MOCK_PATH_PREFIX, domain, v1, v2, resource, rnd.nextInt(9000) + 1000);
+                }
+            } else {
+                apiPath = String.format("%s%s/%s/%d",
+                        MOCK_PATH_PREFIX, domain, resource, rnd.nextInt(9000) + 1000);
+            }
             String key = apiPath + "|" + method;
 
             // 중복방지: 기존 DB + 이번 배치 내 중복
@@ -154,7 +188,10 @@ public class MockAnalysisDataService {
         result.put("repositoryName", target);
         result.put("inserted", toSave.size());
         result.put("skippedDuplicate", skipped);
-        result.put("requested", count);
+        result.put("countApplied", actualCount);
+        result.put("countMode", randomRange ? "random" : "fixed");
+        result.put("countMin", randomRange ? countMin : null);
+        result.put("countMax", randomRange ? countMax : null);
         result.put("pathPrefix", MOCK_PATH_PREFIX);
         return result;
     }
@@ -226,7 +263,7 @@ public class MockAnalysisDataService {
         r.setRepoPath("src/main/java/com/mock/" + DOMAINS[domIdx] + "/" + controllerName + ".java");
         r.setControllerFilePath("/" + repoName + "/" + r.getRepoPath());
 
-        // 상태 분포 v2 (9 leaf): 사용 60 / 검토대상 ②-① 8 / ②-② 5 / ②-③ 2 / ①-① 8 / ①-② 4 / ①-③ 2 / ①-④ 4 / 차단완료 7
+        // 상태 분포 v2: 사용 55 / 삭제 5(소스 미존재 마킹) / 검토·차단 leaf + 차단완료 (기존 비율 유지)
         int pick = rnd.nextInt(100);
         String status;
         String hasBlock = "N";
@@ -238,8 +275,11 @@ public class MockAnalysisDataService {
         String blockedReason = null;
         boolean overridden = false;
         boolean markingIncomplete = false;
-        if (pick < 60) {
+        if (pick < 55) {
             status = "사용";
+        } else if (pick < 60) {
+            status = "삭제";
+            overridden = true;
         } else if (pick < 68) {
             status = "②-① 호출0건+변경있음";        // 검토대상 자동
         } else if (pick < 73) {
@@ -362,6 +402,7 @@ public class MockAnalysisDataService {
         // 테스트용 의심 매칭 — apiPath=/mock-test/.. , controllerName=XxxMockController,
         // repoPath=src/main/java/com/mock/.. 등 키워드 풍부하므로 대다수 mock 레코드가 의심 표시됨
         r.setTestSuspectReason(testSuspectMatcher.matchFromRecord(r));
+        r.setPathParamPattern(PathParamPatternUtil.fromApiPath(apiPath));
 
         return r;
     }

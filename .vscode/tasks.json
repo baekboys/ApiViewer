@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "$(debug-start) ApiViewer: run.sh",
+        "type": "shell",
+        "command": "${workspaceFolder}/run.sh",
+        "options": { "cwd": "${workspaceFolder}" },
+        "group": { "kind": "build", "isDefault": true },
+        "presentation": { "reveal": "always", "panel": "dedicated" },
+        "icon": { "id": "play", "color": "terminal.ansiGreen" }
+      },
+      {
+        "label": "$(debug-stop) ApiViewer: stop.sh",
+        "type": "shell",
+        "command": "${workspaceFolder}/stop.sh",
+        "options": { "cwd": "${workspaceFolder}" },
+        "presentation": { "reveal": "always", "panel": "dedicated" },
+        "icon": { "id": "stop", "color": "terminal.ansiRed" }
+      },
+      {
+        "label": "ApiViewer: run.sh (IDE · 서버만)",
+        "type": "shell",
+        "command": "APIVIEWER_IDE_LAUNCH=1 \"${workspaceFolder}/run.sh\"",
+        "options": { "cwd": "${workspaceFolder}" },
+        "isBackground": true,
+        "presentation": { "reveal": "always", "panel": "dedicated" },
+        "problemMatcher": {
+          "owner": "ApiViewer",
+          "pattern": { "regexp": "^$", "file": 0, "location": 0, "message": 0 },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "API Viewer 시작",
+            "endsPattern": "Started ApiViewerApplication"
+          }
+        }
+      }
+    ]
+  }
+  

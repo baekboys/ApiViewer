@@ -58,6 +58,17 @@
     .collapser.inline { margin-left: 6px; }
     details[open] .collapser .c-label::after { content: "접기"; }
     details:not([open]) .collapser .c-label::after { content: "펼치기"; }
+    .stats-card-hint {
+      margin-left: auto;
+      max-width: 52%;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text-muted);
+      line-height: 1.45;
+      text-align: right;
+    }
     details[open] .collapser .c-arrow { transform: rotate(180deg); }
     .collapser .c-arrow { display: inline-block; transition: transform .12s ease; }
     details.card .card-body { padding: 14px 18px 16px; }
@@ -145,10 +156,11 @@
     .stat-group.tight { padding: 5px; }
     .stat-group .stat-pill,
     .stat-group .stat-chip { box-shadow: none; }
-    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s, background .15s; }
+    /* 상태 pill 크기: 메소드 chip 수준으로 축소 */
+    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; display: flex; align-items: center; gap: 4px; box-shadow: none; cursor: pointer; transition: border-color .15s, background .15s; white-space: nowrap; }
     .stat-pill:hover { border-color: var(--primary); }
     .stat-pill.active-filter { border-color: var(--primary); background: #eff6ff; }
-    .stat-pill strong { font-size: 15px; font-weight: 700; }
+    .stat-pill strong { font-size: 12px; font-weight: 700; }
     .stat-pill.s-block   strong { color: #dc2626; }
     .stat-pill.s-review  strong { color: #d97706; }
     .stat-pill.s-target  strong { color: #ea580c; }
@@ -159,8 +171,12 @@
     .stat-sep { display:none; }
     /* 그룹 색상 */
     .sg-status { background:#f0fdf4; border-color:#86efac; }           /* 사용 */
-    .sg-done   { background:#f1f5f9; border-color:#cbd5e1; }           /* 차단완료/차단처리미흡/테스트용 의심 */
+    .sg-done   { background:#f1f5f9; border-color:#cbd5e1; }           /* 차단완료/차단처리미흡 */
     .sg-done strong { color:#475569; }
+    /* 테스트용 의심 / 파라미터URL 패턴 / @Deprecated (차단대상과 겹치지 않는 경고 톤) */
+    .sg-suspect { background:#faf5ff; border-color:#c4b5fd; }
+    .sg-suspect .stat-pill { background:#fdf4ff; border-color:#e9d5ff; }
+    .sg-suspect .stat-pill strong { color:#7c3aed; }
     .sg-pri1   { background:#fef2f2; border-color:#fca5a5; }           /* ① 차단대상 그룹 */
     .sg-pri1 strong { color:#dc2626; }
     .sg-pri1-sum { background:#fee2e2; border-color:#f87171; font-weight:700; }   /* ① 합계 강조 */
@@ -169,7 +185,11 @@
     .sg-pri3 strong { color:#d97706; }
     .sg-pri3-sum { background:#fef3c7; border-color:#f59e0b; font-weight:700; }   /* ② 합계 강조 */
     .sg-review { background:#eff6ff; border-color:#93c5fd; }           /* 현업검토완료 */
-    .sg-hist   { background:#f5f3ff; border-color:#c4b5fd; }           /* 신규/상태변경/삭제 */
+    /* (구) sg-path-params: 호환용. 현재는 sg-suspect 그룹으로 렌더 */
+    .sg-path-params { background:#fdf4ff; border-color:#e9d5ff; }
+    /* 신규/상태변경/삭제 — 보라(테스트/패턴)과 겹치지 않게 옅은 주황(피치) 톤 */
+    .sg-hist   { background:#fff7ed; border-color:#fed7aa; }
+    .sg-hist strong { color:#9a3412; }
     /* 메소드/deprecated — 소형 chip */
     .stat-chip { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:20px; padding:3px 10px; font-size:11px; display:flex; align-items:center; gap:4px; cursor:pointer; transition:border-color .15s, background .15s; white-space:nowrap; }
     .stat-chip:hover { border-color:var(--primary); background:#eff6ff; }
@@ -436,7 +456,7 @@
     [data-theme="dark"] .sg-pri1   { background:#450a0a !important; border-color:#991b1b !important; }
     [data-theme="dark"] .sg-pri2   { background:#431407 !important; border-color:#9a3412 !important; }
     [data-theme="dark"] .sg-pri3   { background:#1c1408 !important; border-color:#92400e !important; }
-    [data-theme="dark"] .sg-hist   { background:#2e1065 !important; border-color:#6d28d9 !important; }
+    [data-theme="dark"] .sg-hist   { background:#3b1b0a !important; border-color:#fb923c !important; }
     [data-theme="dark"] .bulk-overlay-box { background:#1e293b !important; }
     [data-theme="dark"] thead th.no-sort:hover { background:#293548 !important; }
     [data-theme="dark"] thead th.hg-dev,
@@ -514,10 +534,10 @@
             <select id="basisSnapshotId" style="display:none;min-width:230px;"
                     title="해당 일자의 스냅샷이 여러 개일 때 시각을 고를 수 있습니다."></select>
             <button type="button" id="basisDateClearBtn" onclick="clearBasisDate()"
-                    title="기준일자 비우기 (라이브 DB 조회로 전환)"
+                    title="기준일자 비우기 (현재 데이터 조회로 전환)"
                     style="display:none;height:34px;padding:0 10px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer;color:var(--text-muted);">✕ 비우기</button>
             <span id="viewModeBadge"
-                  style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#ecfccb;color:#365314;border:1px solid #d9f99d;">라이브 DB</span>
+                  style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#ecfccb;color:#365314;border:1px solid #d9f99d;">현재 데이터</span>
           </div>
         </label>
         <button class="btn btn-blue" id="loadBtn" onclick="loadApis()">조회</button>
@@ -590,11 +610,12 @@
         <span class="c-label"></span>
         <span class="c-arrow">▾</span>
       </span>
+      <span class="stats-card-hint">안내: 삭제 상태 행은 상태카드의 ‘전체’ 등 주요 집계에서 제외됩니다. 삭제만 보려면 ‘삭제’ 카드를 눌러주세요.</span>
     </summary>
     <div class="card-body">
-      <!-- 통계 (상태 필터 겸용) — 행 단위 그룹화 -->
+      <!-- 통계 (상태 필터 겸용) — 2줄 고정 구성 -->
       <div class="stats-bar" id="statsBar" style="display:none;margin:0 0 10px 0;">
-    <!-- ── 1행: 일반 상태 / 차단완료 그룹 / 현업검토 / 변경이력 ────────── -->
+    <!-- ── 1행: 일반/완료/이력/테스트·패턴·@Deprecated/현업검토완료 ────── -->
     <div class="stat-group tight">
       <div class="stat-pill" id="pill-all" onclick="setFilter('')"><span>전체</span><strong id="statTotal">0</strong></div>
       <div class="stat-pill s-use sg-status" id="pill-사용" onclick="setFilter('사용')"><span>사용</span><strong id="stat-사용">0</strong></div>
@@ -602,18 +623,21 @@
     <div class="stat-group tight sg-done">
       <div class="stat-pill sg-done" id="pill-차단완료" onclick="setFilter('차단완료')"><span>차단완료</span><strong id="stat-차단완료">0</strong></div>
       <div class="stat-pill sg-done" id="pill-marking-incomplete" onclick="setFilter('marking-incomplete')" title="차단완료이지만 @Deprecated 또는 [URL차단작업] 주석 누락"><span>📝 차단처리미흡</span><strong id="stat-marking-incomplete">0</strong></div>
-      <div class="stat-pill sg-done" id="pill-test-suspect" onclick="setFilter('testSuspect')" title="URL/메소드/주석 등에 test, sample, mock 등 키워드가 포함된 의심 URL"><span>🧪 테스트용 의심</span><strong id="stat-test-suspect">0</strong></div>
+    </div>
+    <div class="stat-group tight sg-hist">
+      <div class="stat-pill sg-hist" id="pill-new"     onclick="setFilter('new')"    ><span>신규</span><strong id="stat-new">0</strong></div>
+      <div class="stat-pill sg-hist" id="pill-changed" onclick="setFilter('changed')"><span>상태변경</span><strong id="stat-changed">0</strong></div>
+      <div class="stat-pill sg-hist" id="pill-deleted" onclick="setFilter('deleted')"><span>삭제</span><strong id="stat-deleted">0</strong></div>
+    </div>
+    <div class="stat-group tight sg-suspect">
+      <div class="stat-pill sg-suspect" id="pill-test-suspect" onclick="setFilter('testSuspect')" title="URL/메소드/주석 등에 test, sample, mock 등 키워드가 포함된 의심 URL"><span>🧪 테스트용 의심</span><strong id="stat-test-suspect">0</strong></div>
+      <div class="stat-pill sg-suspect" id="pill-path-params" onclick="setFilter('pathParams')" title="경로에 {변수} 가 포함된 URL — 호출 이력 URL과 불일치할 수 있음"><span>🔗 파라미터URL 패턴</span><strong id="stat-path-params">0</strong></div>
+      <div class="stat-pill sg-suspect" id="pill-deprecated" onclick="setFilter('deprecated')"><span>@Deprecated</span><strong id="stat-deprecated">0</strong></div>
     </div>
     <div class="stat-group tight sg-review">
       <div class="stat-pill sg-review" id="pill-reviewed" onclick="setFilter('reviewed')"><span>현업검토완료</span><strong id="stat-reviewed" style="color:#1e40af;">0</strong></div>
     </div>
-    <div class="stat-group tight sg-hist">
-      <div class="stat-pill sg-hist" id="pill-new"     onclick="setFilter('new')"    ><span>신규</span><strong id="stat-new"     style="color:#6d28d9;">0</strong></div>
-      <div class="stat-pill sg-hist" id="pill-changed" onclick="setFilter('changed')"><span>상태변경</span><strong id="stat-changed" style="color:#6d28d9;">0</strong></div>
-      <div class="stat-pill sg-hist" id="pill-deleted" onclick="setFilter('deleted')"><span>삭제</span><strong id="stat-deleted" style="color:#6d28d9;">0</strong></div>
-    </div>
 
-    <!-- ── 2행: ① 차단대상 그룹 (빨강 통일) ──────────────────────────── -->
     <div class="stat-row-break"></div>
     <div class="stat-group sg-pri1">
       <div class="stat-pill sg-pri1 sg-pri1-sum" id="pill-block" onclick="setFilter('group:block')" title="①-①~①-④ 합계"><span>① 차단대상</span><strong id="stat-block">0</strong></div>
@@ -623,23 +647,11 @@
       <div class="stat-pill sg-pri1" id="pill-leaf-1-4" onclick="setFilter('①-④ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>①-④ 사용으로 변경</span><strong id="stat-leaf-1-4">0</strong></div>
     </div>
 
-    <!-- ── 3행: ② 추가검토대상 그룹 (노랑 통일) ─────────────────────── -->
-    <div class="stat-row-break"></div>
     <div class="stat-group sg-pri3">
       <div class="stat-pill sg-pri3 sg-pri3-sum" id="pill-review" onclick="setFilter('group:review')" title="②-①~②-③ 합계"><span>② 추가검토대상</span><strong id="stat-review">0</strong></div>
       <div class="stat-pill sg-pri3" id="pill-leaf-2-1" onclick="setFilter('②-① 호출0건+변경있음')" title="호출 0건 + 1년 미만 변경"><span>②-① 호출0건+변경있음</span><strong id="stat-leaf-2-1">0</strong></div>
       <div class="stat-pill sg-pri3" id="pill-leaf-2-2" onclick="setFilter('②-② 호출 3건 이하+변경없음')" title="호출 1~N건 + 1년 경과"><span>②-② 호출 3건 이하</span><strong id="stat-leaf-2-2">0</strong></div>
       <div class="stat-pill sg-pri3" id="pill-leaf-2-3" onclick="setFilter('②-③ 사용으로 변경')" title="담당자 검토결과 사용중으로 확정"><span>②-③ 사용으로 변경</span><strong id="stat-leaf-2-3">0</strong></div>
-    </div>
-
-    <!-- ── 4행: 메소드 / @Deprecated — 관리자 전용 ───────────────────── -->
-    <div class="stat-row-break" data-admin-only></div>
-    <div class="stat-group tight" data-admin-only>
-      <div class="stat-chip" id="pill-GET"        data-admin-only onclick="setFilter('method:GET')"   ><span>GET</span><strong id="statGet">0</strong></div>
-      <div class="stat-chip" id="pill-POST"       data-admin-only onclick="setFilter('method:POST')"  ><span>POST</span><strong id="statPost">0</strong></div>
-      <div class="stat-chip" id="pill-PUT"        data-admin-only onclick="setFilter('method:PUT')"   ><span>PUT</span><strong id="statPut">0</strong></div>
-      <div class="stat-chip" id="pill-DELETE"     data-admin-only onclick="setFilter('method:DELETE')"><span>DELETE</span><strong id="statDelete">0</strong></div>
-      <div class="stat-chip" id="pill-deprecated" data-admin-only onclick="setFilter('deprecated')"   ><span>@Deprecated</span><strong id="stat-deprecated" style="color:#9333ea;">0</strong></div>
     </div>
   </div>
 
@@ -829,6 +841,7 @@
           <th class="hg-info" onclick="sortBy('status')">상태 <span class="sort-icon">↕</span></th>
           <th class="hg-info no-sort">상태확정</th>
           <th class="hg-info no-sort" style="min-width:140px;">테스트용 의심</th>
+          <th class="hg-info" onclick="sortBy('pathParamPattern')" style="min-width:140px;">파라미터URL 패턴 <span class="sort-icon">↕</span></th>
           <!-- 개발 메타 -->
           <th class="hg-dev" onclick="sortBy('controllerName')">컨트롤러 <span class="sort-icon">↕</span></th>
           <th class="hg-dev" style="min-width:160px;" onclick="sortBy('methodName')">메소드명 <span class="sort-icon">↕</span></th>
@@ -854,7 +867,7 @@
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="31"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
+        <tr><td colspan="32"><div class="state-box">레포지토리를 선택하고 <b>조회</b>를 클릭하세요.</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -1245,10 +1258,19 @@
     return arr.length === 1 ? arr[0] : '';
   }
 
+  /** 필터 영역 + 상단 네비(globalQueryCount) 조회 건수 동기화 */
+  function syncQueryCountDisplay(total) {
+    const label = total == null || total === '' ? '—' : `${Number(total).toLocaleString()}건`;
+    const fc = document.getElementById('filterCount');
+    if (fc) fc.textContent = label;
+    const g = document.getElementById('globalQueryCount');
+    if (g) g.textContent = total == null || total === '' ? '조회 —' : `조회 ${Number(total).toLocaleString()}건`;
+  }
+
   async function loadApis() {
     document.getElementById('loadBtn').disabled = true;
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="31"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+      '<tr><td colspan="32"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     clearSelection();
     vCurrentPage = 0;
 
@@ -1283,7 +1305,7 @@
     try {
       // 기준일자(스냅샷) 모드 결정 및 resolve
       const basisRaw = (document.getElementById('basisDate')?.value || '').trim();
-      // 유효한 YYYY-MM-DD 형식 + 합리적 연도(>=1900) 만 스냅샷 모드로 취급. 그 외(빈값/부분입력 등)는 라이브 DB로 조회.
+      // 유효한 YYYY-MM-DD 형식 + 합리적 연도(>=1900) 만 스냅샷 데이터로 취급. 그 외(빈값/부분입력 등)는 현재 데이터로 조회.
       const basisValid = /^\d{4}-\d{2}-\d{2}$/.test(basisRaw) && Number(basisRaw.substring(0, 4)) >= 1900;
       const basis = basisValid ? basisRaw : '';
       if (basisRaw && !basisValid) {
@@ -1327,7 +1349,7 @@
             }
           } catch (ignored) {}
         }
-        // 끝까지 스냅샷을 찾지 못하면 → 에러 throw 대신 라이브 DB 모드로 폴백 (사용자가 빈 화면을 보지 않도록)
+        // 끝까지 스냅샷을 찾지 못하면 → 에러 throw 대신 현재 데이터로 폴백 (사용자가 빈 화면을 보지 않도록)
         if (!rr.ok) {
           showToast('등록된 스냅샷이 없어 현재 DB로 조회합니다.', 'info');
           snapshotMode = false;
@@ -1393,7 +1415,7 @@
     } catch(e) {
       showToast(e.message || '조회 실패', 'error');
       document.getElementById('tbody').innerHTML =
-        `<tr><td colspan="31"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
+        `<tr><td colspan="32"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
     } finally {
       document.getElementById('loadBtn').disabled = false;
     }
@@ -1665,8 +1687,8 @@
   }
 
   /**
-   * 기준일자 입력 상태 + 마지막 조회 결과(snapshotMode)에 따라
-   * 모드 배지와 ✕ 비우기 버튼의 표시 상태를 갱신한다.
+   * 스냅샷이 resolve되어 snapshotId가 잡힌 경우에만 보라색「스냅샷 데이터」배지.
+   * 그 외(기준일자만 입력·조회 전·현재 데이터 폴백 등)는「현재 데이터」. ✕ 비우기는 기준일자 입력 여부로 표시.
    * 기준일자 입력 변경 시(즉시) / 조회 직후 모두 호출된다.
    */
   function updateViewModeBadge() {
@@ -1675,10 +1697,8 @@
     const clearBtn = document.getElementById('basisDateClearBtn');
     if (!badge) return;
     const hasValue = !!(bd && (bd.value || '').trim());
-    // 입력값이 있으면(=조회 시 스냅샷 시도) "스냅샷 모드"로 미리 표기.
-    // 조회 후 폴백으로 라이브 DB로 전환된 경우엔 snapshotMode=false 가 되므로 그때 다시 라이브로 바뀐다.
-    const isSnapshot = hasValue || snapshotMode;
-    if (isSnapshot) {
+    const inSnapshotView = !!(snapshotMode && snapshotId);
+    if (inSnapshotView) {
       // 시각 드롭다운에서 특정 시각이 선택되어 있으면 같이 표시
       let pickedTm = '';
       try {
@@ -1690,14 +1710,14 @@
           pickedTm = at.length >= 19 ? at.substring(11, 19) : at.substring(11);
         }
       } catch(e) {}
-      const baseLabel = snapshotMode ? '스냅샷 모드' : '스냅샷 모드(예정)';
+      const baseLabel = '스냅샷 데이터';
       badge.textContent = pickedTm ? `${baseLabel} · ${pickedTm}` : baseLabel;
       badge.style.background = '#ede9fe';
       badge.style.color = '#6d28d9';
       badge.style.borderColor = '#c4b5fd';
       badge.title = '선택한 기준일자(+시각) 이전 중 가장 최신 스냅샷을 조회합니다. 그 시점 이후의 변경/추가 데이터는 표시되지 않습니다.';
     } else {
-      badge.textContent = '라이브 DB';
+      badge.textContent = '현재 데이터';
       badge.style.background = '#ecfccb';
       badge.style.color = '#365314';
       badge.style.borderColor = '#d9f99d';
@@ -1819,7 +1839,7 @@
     if (window._deployUnscheduledFilter) params.set('deployUnscheduled', 'true');
 
     // activeFilter → status 또는 alert 또는 method/deprecated
-    // (스냅샷 모드에서는 alert(new/changed/reviewed/deleted) 기능이 없으므로, 가능하면 status/statusGroup 등으로만 조회)
+    // (스냅샷 데이터 조회에서는 alert(new/changed/reviewed/deleted) 기능이 없으므로, 가능하면 status/statusGroup 등으로만 조회)
     if (!snapshotMode) {
       if (activeFilter === 'new')           params.set('alert', 'new');
       else if (activeFilter === 'changed')  params.set('alert', 'changed');
@@ -1831,6 +1851,7 @@
     }
 
     if (activeFilter === 'testSuspect') params.set('testSuspect', 'true');
+    else if (activeFilter === 'pathParams') params.set('pathParams', 'true');
     else if (activeFilter === 'deprecated') params.set('isDeprecated', 'Y');
     else if (activeFilter.startsWith('method:')) params.set('httpMethod', activeFilter.slice(7));
     else if (activeFilter === 'group:block')  params.set('statusGroup', 'block');
@@ -1850,7 +1871,7 @@
     }
 
     // 정렬 — 서버에서 매핑 가능한 필드만 전송 (클라이언트 파생 필드는 스킵)
-    const serverSortable = new Set(['id','apiPath','httpMethod','status','callCount','callCountMonth','callCountWeek','lastAnalyzedAt','modifiedAt','blockedDate','repositoryName','teamOverride','managerOverride']);
+    const serverSortable = new Set(['id','apiPath','httpMethod','status','callCount','callCountMonth','callCountWeek','lastAnalyzedAt','modifiedAt','blockedDate','repositoryName','teamOverride','managerOverride','cboScheduledDate','deployScheduledDate','pathParamPattern','methodName','controllerName']);
     let sk = sortKey;
     if (sk === 'teamName')     sk = 'teamOverride';
     else if (sk === 'managerName') sk = 'managerOverride';
@@ -1864,19 +1885,22 @@
 
   // ── 단일 페이지 로드 ───────────────────────────────────────
   async function loadPage(pageIdx, preloadFirst) {
+    const tableWrap = document.querySelector('.table-wrap');
+    const prevScrollLeft = tableWrap ? tableWrap.scrollLeft : 0;
+    const prevScrollTop = tableWrap ? tableWrap.scrollTop : 0;
     // 이전 요청 취소
     if (pageLoadCtrl) { try { pageLoadCtrl.abort(); } catch(e) {} }
     pageLoadCtrl = new AbortController();
     const timeoutId = setTimeout(() => pageLoadCtrl.abort(), 30000);
     if (!preloadFirst) {
       document.getElementById('tbody').innerHTML =
-        '<tr><td colspan="31"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
+        '<tr><td colspan="32"><div class="state-box"><div class="spinner"></div><br>조회 중...</div></td></tr>';
     }
     try {
       let res;
       if (uploadedIdsFilter && uploadedIdsFilter.length > 0) {
         // 엑셀 업로드 필터 — POST로 ID 배열 전달 (URL 길이 제한 없음)
-        const serverSortable = new Set(['id','apiPath','httpMethod','status','callCount','callCountMonth','callCountWeek','lastAnalyzedAt','modifiedAt','blockedDate','repositoryName','teamOverride','managerOverride']);
+        const serverSortable = new Set(['id','apiPath','httpMethod','status','callCount','callCountMonth','callCountWeek','lastAnalyzedAt','modifiedAt','blockedDate','repositoryName','teamOverride','managerOverride','cboScheduledDate','deployScheduledDate','pathParamPattern','methodName','controllerName']);
         let sk = sortKey;
         if (sk === 'teamName') sk = 'teamOverride';
         else if (sk === 'managerName') sk = 'managerOverride';
@@ -1902,7 +1926,7 @@
         const totalFmt = (data.total || 0).toLocaleString();
         showToast(`데이터가 너무 많습니다 (${totalFmt}건). 레포지토리를 선택해 주세요.`, 'error');
         document.getElementById('tbody').innerHTML =
-          `<tr><td colspan="31"><div class="state-box">⚠ 전체 조회 제한<br><small>${totalFmt}건<br>레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>`;
+          `<tr><td colspan="32"><div class="state-box">⚠ 전체 조회 제한<br><small>${totalFmt}건<br>레포지토리를 선택하여 조회해 주세요.</small></div></td></tr>`;
         return false;
       }
       if (!res.ok) {
@@ -1943,7 +1967,7 @@
       }
 
       const totalPages = Math.max(1, data.totalPages || Math.ceil(serverTotal / vPageSize));
-      document.getElementById('filterCount').textContent = `${serverTotal.toLocaleString()}건`;
+      syncQueryCountDisplay(serverTotal);
       renderRows(filteredApis, vCurrentPage * vPageSize);
       renderViewerPagination(serverTotal, totalPages);
       syncCheckAll();
@@ -1952,10 +1976,17 @@
       if (e.name === 'AbortError') return false;
       showToast(e.message || '페이지 조회 실패', 'error');
       document.getElementById('tbody').innerHTML =
-        `<tr><td colspan="31"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
+        `<tr><td colspan="32"><div class="state-box">조회 오류: ${esc(e.message || '')}</div></td></tr>`;
+      syncQueryCountDisplay(null);
       return false;
     } finally {
       clearTimeout(timeoutId);
+      if (tableWrap) {
+        requestAnimationFrame(() => {
+          tableWrap.scrollLeft = prevScrollLeft;
+          tableWrap.scrollTop = prevScrollTop;
+        });
+      }
     }
   }
 
@@ -2093,11 +2124,12 @@
     document.getElementById('stat-deleted').textContent   = c.deletedCount || 0;
     { const el = document.getElementById('stat-marking-incomplete'); if (el) el.textContent = c.markingIncompleteCount || 0; }
     { const el = document.getElementById('stat-test-suspect'); if (el) el.textContent = c.testSuspectCount || 0; }
-    document.getElementById('statGet').textContent        = byMethod['GET']    || 0;
-    document.getElementById('statPost').textContent       = byMethod['POST']   || 0;
-    document.getElementById('statPut').textContent        = byMethod['PUT']    || 0;
-    document.getElementById('statDelete').textContent     = byMethod['DELETE'] || 0;
-    document.getElementById('stat-deprecated').textContent = c.deprecated || 0;
+    { const el = document.getElementById('stat-path-params'); if (el) el.textContent = c.pathParamPatternCount || 0; }
+    { const el = document.getElementById('statGet');    if (el) el.textContent = byMethod['GET']    || 0; }
+    { const el = document.getElementById('statPost');   if (el) el.textContent = byMethod['POST']   || 0; }
+    { const el = document.getElementById('statPut');    if (el) el.textContent = byMethod['PUT']    || 0; }
+    { const el = document.getElementById('statDelete'); if (el) el.textContent = byMethod['DELETE'] || 0; }
+    { const el = document.getElementById('stat-deprecated'); if (el) el.textContent = c.deprecated || 0; }
   }
 
   let activeFilter = '';
@@ -2169,6 +2201,7 @@
     else if (val === 'deleted') { document.getElementById('pill-deleted').classList.add('active-filter'); }
     else if (val === 'marking-incomplete') { document.getElementById('pill-marking-incomplete').classList.add('active-filter'); }
     else if (val === 'testSuspect') { const e = document.getElementById('pill-test-suspect'); if (e) e.classList.add('active-filter'); }
+    else if (val === 'pathParams') { const e = document.getElementById('pill-path-params'); if (e) e.classList.add('active-filter'); }
     else if (val === 'method:GET')    { document.getElementById('pill-GET').classList.add('active-filter'); }
     else if (val === 'method:POST')   { document.getElementById('pill-POST').classList.add('active-filter'); }
     else if (val === 'method:PUT')    { document.getElementById('pill-PUT').classList.add('active-filter'); }
@@ -2248,7 +2281,7 @@
     const off = startOffset || 0;
     const tbody = document.getElementById('tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="31"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="32"><div class="state-box">검색 결과가 없습니다.</div></td></tr>';
       return;
     }
     tbody.innerHTML = list.map((a, idx) => {
@@ -2275,6 +2308,7 @@
         <td>${statusBadge(a.status, a.logWorkExcluded)}${a.isNew ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;color:#1e40af;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearNewFlag(event,${a.id})" title="클릭하여 확인 완료">🆕 신규추가</span>` : ''}${(() => { if (!a.statusChanged) return ''; const logs = parseChangeLog(a.statusChangeLog); const last = logs.length ? logs[logs.length-1] : '변경감지'; const extra = logs.length > 1 ? ` <span style="color:#f87171;">(외 ${logs.length-1}건)</span>` : ''; return `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:3px;color:#dc2626;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="clearStatusFlag(event,${a.id})" title="클릭: 확인 완료 | 상세보기에서 전체 이력 확인">⚠️ ${esc(last)}${extra}</span>`; })()}${a.blockMarkingIncomplete ? `<br><span style="display:inline-block;margin-top:2px;padding:1px 5px;background:#fff7ed;border:1px solid #fed7aa;border-radius:3px;color:#b45309;font-size:9px;font-weight:600;white-space:nowrap;cursor:help;" title="차단완료 상태이나 @Deprecated 또는 [URL차단작업] 주석이 누락됨 — 주석 보완 후 다음 추출 시 자동 해제.">📝 차단처리미흡</span>` : ''}</td>
         <td style="text-align:center;">${lockIcon}</td>
         <td style="font-size:11px;">${testSuspectBadge(a.testSuspectReason)}</td>
+        <td style="font-size:11px;">${pathParamTags(a.pathParamPattern, a.apiPath)}</td>
         <!-- 개발 메타 -->
         <td class="ctrl-name"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyText(event,'${esc(a.controllerName)}')" title="컨트롤러명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(a.controllerName)}</div></td>
         <td style="font-size:12px;min-width:160px;"><div style="display:flex;align-items:center;gap:4px;"><button class="copy-btn" onclick="copyText(event,'${esc(a.methodName)}')" title="메소드명 복사"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(a.methodName)}</div></td>
@@ -2349,6 +2383,20 @@
     // 사용 / 차단완료 / 삭제 — 기존 단일 배지
     const sty = statusInlineStyle(status);
     return `<span class="status-badge" style="${sty}" title="${esc(tip)}">${esc(status || '사용')}</span>`;
+  }
+
+  function pathParamPatternFromUrl(path) {
+    if (!path) return '';
+    const re = /\{([^{}]+)\}/g;
+    const parts = [];
+    let m;
+    while ((m = re.exec(path)) !== null) parts.push('{' + m[1] + '}');
+    return parts.length ? parts.join(', ') : '';
+  }
+  function pathParamTags(stored, apiPath) {
+    const s = (stored && String(stored).trim()) ? String(stored).trim() : pathParamPatternFromUrl(apiPath);
+    if (!s) return '<span style="color:#cbd5e1;">·</span>';
+    return testSuspectBadge(s);
   }
 
   function testSuspectBadge(reason) {
@@ -2597,25 +2645,26 @@
   }
 
   // ── 정렬 ──────────────────────────────────────────────────
-  // colIndexMap: 1-based 컬럼 인덱스 (헤더 th 순서 기준)
-  // 1:cb, 2:레포, 3:업무명, 4:팀, 5:담당자, 6:URL경로, 7:URL호출, 8:상태, 9:상태확정
-  // 10:컨트롤러, 11:메소드명, 12:최근변경, 13:관련메뉴, 14:1년, 15:1달, 16:1주
-  // 17:차단일자, 18:차단근거, 19:비고, 20:현업검토결과, 21:현업검토의견
-  // 22:CBO예정일자, 23:배포예정일자, 24:배포CSR, 25:배포담당자, 26:분석일시, 27:변경일시
-  const colIndexMap = { repositoryName:2, businessName:3, teamName:4, managerName:5, apiPath:6,
-                        status:8, controllerName:10, methodName:11,
+  // colIndexMap: thead th 의 0-based 인덱스 (checkbox=0 … 변경일시=28)
+  // 6:URL호출(no-sort), 9:테스트의심, 18~19·21~22·25~26: no-sort 열 포함해 이후 인덱스가 밀림
+  const colIndexMap = { repositoryName:1, businessName:2, teamName:3, managerName:4, apiPath:5,
+                        status:7, controllerName:10, methodName:11,
                         apiOperationValue:13, callCount:14, callCountMonth:15, callCountWeek:16,
                         blockedDate:17, reviewResult:20,
-                        cboScheduledDate:22, deployScheduledDate:23, deployManager:25,
-                        lastAnalyzedAt:26, modifiedAt:27 };
+                        cboScheduledDate:23, deployScheduledDate:24,
+                        lastAnalyzedAt:27, modifiedAt:28 };
   function sortBy(key) {
     if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+    document.querySelectorAll('thead th .sort-icon').forEach(el => { el.textContent = '↕'; });
     const idx = colIndexMap[key];
     if (idx !== undefined) {
       const th = document.querySelectorAll('thead th')[idx];
-      th.classList.add('sorted');
-      th.querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
+      const icon = th && th.querySelector('.sort-icon');
+      if (th && icon) {
+        th.classList.add('sorted');
+        icon.textContent = sortAsc ? '↑' : '↓';
+      }
     }
     filterTable({immediate:true, page:0});
   }
@@ -2794,7 +2843,7 @@
       'HTTP Method','컨트롤러파일경로','컨트롤러','메소드명','프로그램ID',
       'ApiOperation','Description주석','메소드주석','컨트롤러주석','RequestProperty','컨트롤러RequestProperty',
       '관련 메뉴(또는 기능)','Deprecated','1년 호출건','1달 호출건','1주 호출건',
-      '상태','상태확정','테스트용 의심 여부','테스트용 의심 사유','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
+      '상태','상태확정','테스트용 의심 여부','테스트용 의심 사유','파라미터URL 패턴','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
       '비고','현업검토결과','현업검토의견',
       'SmartWay 티켓번호','검토단계',
       'CBO예정일자','배포예정일자','배포CSR','배포담당자',
@@ -2811,23 +2860,22 @@
       yellow,yellow,yellow,yellow,yellow,yellow, // 11~16: 참고용 6개
       purple,purple,purple,purple,purple, // 17~21: 메뉴~1주호출건
       pink,pink,                         // 22~23: 상태,상태확정 ★유효성검증컬럼
-      testPurple,testPurple,             // 24~25: 테스트용 의심 여부/사유
-      pink,pink,pink,pink,               // 26~29: 침해사고,차단기준,차단일자,차단근거
-      pink,pink,pink,                    // 30~32: 비고,검토결과,검토의견
-      jiraPurple,jiraPurple,             // 33~34: Jira 티켓, 검토단계
-      pink,pink,pink,pink,               // 35~38: CBO예정일자,배포예정일자,배포CSR,배포담당자
-      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 39~53: 변경이력1~5
-      blue,blue                          // 54~55: 분석/변경일시
+      testPurple,testPurple,testPurple, // 24~26: 테스트용 의심 여부/사유 + 파라미터URL 패턴
+      pink,pink,pink,pink,               // 27~30: 침해사고,차단기준,차단일자,차단근거
+      pink,pink,pink,                    // 31~33: 비고,검토결과,검토의견
+      jiraPurple,jiraPurple,             // 34~35: Jira 티켓, 검토단계
+      pink,pink,pink,pink,               // 36~39: CBO예정일자,배포예정일자,배포CSR,배포담당자
+      g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5, // 40~54: 변경이력1~5
+      blue,blue                          // 55~56: 분석/변경일시
     ];
-    // 색 변경 경계 (테스트용 컬럼 추가로 +2 시프트)
-    const groupBorders = new Set([6, 16, 21, 23, 25, 32, 34, 38, 41, 44, 47, 50, 53]);
+    const groupBorders = new Set([6, 16, 21, 23, 26, 33, 35, 39, 42, 45, 48, 51, 54]);
     // 데이터 유효성 검증: 0-based 컬럼 인덱스 → 허용 값 목록
     const validations = [
       { colIdx:18, values:['Y','N'] },                                                                       // Deprecated
       { colIdx:22, values:['사용','차단완료','①-① 차단대상','①-② 담당자 판단','①-③ 현업요청 제외대상','①-④ 사용으로 변경','②-① 호출0건+변경있음','②-② 호출 3건 이하+변경없음','②-③ 사용으로 변경'] }, // 상태 — 9 leaf v2
       { colIdx:23, values:['확정','미확정'] },                                                               // 상태확정
       { colIdx:24, values:['Y','N'] },                                                                       // 테스트용 의심 여부
-      { colIdx:31, values:['차단대상 제외','차단확정','판단불가'] },                                         // 현업검토결과 (28 → 31)
+      { colIdx:32, values:['차단대상 제외','차단확정','판단불가'] },                                         // 현업검토결과
     ];
     const rows = details.map(a => {
       const cfg = repoConfigMap[a.repositoryName] || {};
@@ -2861,6 +2909,7 @@
         a.statusOverridden ? '확정' : '미확정',
         a.testSuspectReason ? 'Y' : 'N',
         a.testSuspectReason || '',
+        ((a.pathParamPattern && String(a.pathParamPattern).trim()) ? String(a.pathParamPattern).trim() : pathParamPatternFromUrl(a.apiPath)),
         (a.status === '①-① 차단대상' && a.logWorkExcluded) ? '대상' : '',
         a.blockCriteria || '',
         a.blockedDate || '',
@@ -2894,7 +2943,7 @@
       'HTTP Method','컨트롤러파일경로','컨트롤러','메소드명','프로그램ID',
       'ApiOperation','Description주석','메소드주석','컨트롤러주석','RequestProperty','컨트롤러RequestProperty',
       '관련 메뉴(또는 기능)','Deprecated','1년 호출건','1달 호출건','1주 호출건',
-      '상태','상태확정','테스트용 의심 여부','테스트용 의심 사유','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
+      '상태','상태확정','테스트용 의심 여부','테스트용 의심 사유','파라미터URL 패턴','침해사고 로그 제외대상','차단기준','차단일자','차단근거',
       '비고','현업검토결과','현업검토의견',
       'SmartWay 티켓번호','검토단계',
       'CBO예정일자','배포예정일자','배포CSR','배포담당자',
@@ -2908,7 +2957,7 @@
       yellow,yellow,yellow,yellow,yellow,yellow,
       purple,purple,purple,purple,purple,
       pink,pink,
-      testPurple,testPurple,
+      testPurple,testPurple,testPurple,
       pink,pink,pink,pink,
       pink,pink,pink,
       jiraPurple,jiraPurple,
@@ -2916,13 +2965,13 @@
       g1,g1,g1, g2,g2,g2, g3,g3,g3, g4,g4,g4, g5,g5,g5,
       blue,blue
     ];
-    const groupBorders = new Set([6, 16, 21, 23, 25, 32, 34, 37, 40, 43, 46, 49, 52]);
+    const groupBorders = new Set([6, 16, 21, 23, 26, 33, 35, 38, 41, 44, 47, 50, 53]);
     const validations = [
       { colIdx:18, values:['Y','N'] },
       { colIdx:22, values:['사용','차단완료','①-① 차단대상','①-② 담당자 판단','①-③ 현업요청 제외대상','①-④ 사용으로 변경','②-① 호출0건+변경있음','②-② 호출 3건 이하+변경없음','②-③ 사용으로 변경'] }, // 9 leaf v2
       { colIdx:23, values:['확정','미확정'] },
       { colIdx:24, values:['Y','N'] },
-      { colIdx:31, values:['차단대상 제외','차단확정','판단불가'] },
+      { colIdx:32, values:['차단대상 제외','차단확정','판단불가'] },
     ];
     // 샘플 데이터 3행
     const today = new Date().toISOString().slice(0,10);
@@ -2931,7 +2980,7 @@
        'GET','/my-repo/src/main/java/com/example/ExampleController.java','ExampleController','getExample','example01',
        '예제 API','','','','','',
        '메인화면','N',100,50,10,
-       '사용','미확정','N','','','','','',
+       '사용','미확정','N','','','','','','',
        '','','',
        '','',
        '','','',
@@ -2941,7 +2990,7 @@
        'POST','/my-repo/src/main/java/com/example/OldController.java','OldController','oldAction','old01',
        '','','','','','',
        '','N',0,0,0,
-       '①-① 차단대상','미확정','N','','','호출 0건 + 커밋 1년 경과','','',
+       '①-① 차단대상','미확정','N','','', '','','호출 0건 + 커밋 1년 경과','','',
        '','','',
        '','',
        '','','',
@@ -2951,7 +3000,7 @@
        'DELETE','/my-repo/src/main/java/com/example/TestController.java','TestController','deleteItem','test01',
        '','','','','','',
        '','N',5,2,1,
-       '②-② 호출 3건 이하+변경없음','미확정','Y','URL-test, 컨트롤러-Test','','','','',
+       '②-② 호출 3건 이하+변경없음','미확정','Y','URL-test, 컨트롤러-Test','{version}','','','','',
        '','차단확정','불필요한 API로 확인',
        '','',
        '','','',
@@ -3438,6 +3487,8 @@
           </div>
           <div class="detail-label">테스트용 의심</div>
           <div class="detail-value">${r.testSuspectReason ? testSuspectBadge(r.testSuspectReason) : '<span style="color:var(--text-muted);">없음</span>'}</div>
+          <div class="detail-label">파라미터URL 패턴</div>
+          <div class="detail-value">${((r.pathParamPattern && r.pathParamPattern.trim()) || pathParamPatternFromUrl(r.apiPath)) ? pathParamTags(r.pathParamPattern, r.apiPath) : '<span style="color:var(--text-muted);">없음</span>'}</div>
           <div class="detail-label">비고 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value"><textarea id="df-memo" class="df-textarea" rows="2" ${dis}>${esc(r.memo || '')}</textarea></div>
         </div>

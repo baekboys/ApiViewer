@@ -2,6 +2,7 @@ package com.baek.viewer.service;
 
 import com.baek.viewer.model.ApiInfo;
 import com.baek.viewer.model.ApiRecord;
+import com.baek.viewer.util.PathParamPatternUtil;
 import com.baek.viewer.model.GlobalConfig;
 import com.baek.viewer.model.RepoConfig;
 import com.baek.viewer.repository.ApiRecordRepository;
@@ -235,6 +236,7 @@ public class ApiStorageService {
         }
         // 테스트용 의심 매칭 — null 이면 비의심
         r.setTestSuspectReason(testSuspectMatcher.matchFromApiInfo(a));
+        r.setPathParamPattern(PathParamPatternUtil.fromApiPath(r.getApiPath()));
     }
 
     /** fullComment에서 [URL차단작업][YYYY-MM-DD] 패턴의 날짜 파싱 */

@@ -94,6 +94,12 @@ public class ApiRecord {
     @Column(name = "test_suspect_reason", columnDefinition = "TEXT")
     private String testSuspectReason;
 
+    /**
+     * 경로 변수 플레이스홀더 요약 — "{version}, {id}" (콤마+공백 구분). 분석·mock 시 자동 설정.
+     */
+    @Column(name = "path_param_pattern", columnDefinition = "TEXT")
+    private String pathParamPattern;
+
     /** 차단대상: 최우선 차단대상 / 후순위 차단대상 / null(미지정) — 수동 설정 전용 */
     @Column(name = "block_target", length = 30)
     private String blockTarget;
@@ -322,6 +328,9 @@ public class ApiRecord {
     public String getTestSuspectReason() { return testSuspectReason; }
     public void setTestSuspectReason(String v) { this.testSuspectReason = v; }
     public boolean isTestSuspect() { return testSuspectReason != null && !testSuspectReason.isBlank(); }
+
+    public String getPathParamPattern() { return pathParamPattern; }
+    public void setPathParamPattern(String v) { this.pathParamPattern = v; }
     public Long getCallCount() { return callCount; }
     public void setCallCount(Long callCount) { this.callCount = callCount; }
     public Long getCallCountMonth() { return callCountMonth; }

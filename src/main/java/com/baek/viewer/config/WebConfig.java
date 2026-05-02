@@ -74,7 +74,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/mail/**",            // 메일 발송/서식 관리
                         "/api/jira/**",            // Jira 연동 관리
                         "/api/clone/**",            // Bitbucket 클론 관리
-                        "/api/recalculate-test-suspect"  // 테스트 의심 키워드 재평가
+                        "/api/recalculate-test-suspect",  // 테스트 의심 키워드 재평가
+                        "/api/recalculate-path-param-pattern"  // 경로변수 패턴 컬럼 일괄 갱신
                 )
                 .excludePathPatterns(
                         "/api/apm/chart",          // 차트 조회는 공개 (viewer.html)

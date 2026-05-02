@@ -59,7 +59,7 @@ public class SnapshotService {
         log.info("[SNAPSHOT] 생성 시작: id={}, type={}, triggerRepo={}, sourceRepo=null(정책: 항상 전체)",
                 snapshotId, snapshotType, triggerRepo);
 
-        // 1) row 복제 — 항상 모든 레포 복제 (삭제 상태만 제외)
+        // 1) row 복제 — api_record 전 행(status='삭제' 포함)
         int inserted = insertRowsFromApiRecord(snapshotId, null);
 
         // 2) 메타 업데이트
@@ -78,7 +78,7 @@ public class SnapshotService {
 
     /**
      * snapshot_row에 api_record를 행 단위로 복제.
-     * [정책] 항상 전체 풀 복제(repoFilter는 더 이상 사용하지 않음 — 시그니처는 하위 호환을 위해 보존).
+     * [정책] 항상 전체 풀 복제 — status='삭제' 포함(repoFilter는 더 이상 사용하지 않음 — 시그니처는 하위 호환을 위해 보존).
      */
     private int insertRowsFromApiRecord(long snapshotId, String repoFilter) {
         // 컬럼은 api_record와 동일(거의 전체) + snapshot_id/source_id만 추가
@@ -87,7 +87,7 @@ public class SnapshotService {
               snapshot_id, source_id,
               repository_name, api_path, http_method,
               last_analyzed_at, created_ip, modified_at, modified_ip, reviewed_ip,
-              status, status_overridden, log_work_excluded, recent_log_only, test_suspect_reason,
+              status, status_overridden, log_work_excluded, recent_log_only, test_suspect_reason, path_param_pattern,
               block_target, block_criteria, call_count, call_count_month, call_count_week,
               method_name, controller_name, repo_path, is_deprecated, has_url_block, block_marking_incomplete,
               program_id, api_operation_value, description_tag, full_comment, controller_comment,
@@ -103,7 +103,7 @@ public class SnapshotService {
               :snapshotId, r.id,
               r.repository_name, r.api_path, r.http_method,
               r.last_analyzed_at, r.created_ip, r.modified_at, r.modified_ip, r.reviewed_ip,
-              r.status, r.status_overridden, r.log_work_excluded, r.recent_log_only, r.test_suspect_reason,
+              r.status, r.status_overridden, r.log_work_excluded, r.recent_log_only, r.test_suspect_reason, r.path_param_pattern,
               r.block_target, r.block_criteria, r.call_count, r.call_count_month, r.call_count_week,
               r.method_name, r.controller_name, r.repo_path, r.is_deprecated, r.has_url_block, r.block_marking_incomplete,
               r.program_id, r.api_operation_value, r.description_tag, r.full_comment, r.controller_comment,
@@ -115,7 +115,6 @@ public class SnapshotService {
               r.review_stage, r.internal_reviewer, r.internal_reviewed_at, r.internal_memo,
               r.jira_epic_key, r.jira_issue_key, r.jira_issue_url, r.jira_synced_at
             FROM api_record r
-            WHERE (r.status IS NULL OR r.status <> '삭제')
             """;
 
         Query q = em.createNativeQuery(sql);
@@ -290,6 +289,77 @@ public class SnapshotService {
         return res;
     }
 
+    /**
+     * 선택한 풀 스냅샷으로 라이브 {@code api_record}를 덮어쓴다.
+     * 기존 {@code api_record} 전 행을 삭제한 뒤, 스냅샷 행을 그대로 INSERT 한다.
+     * {@code apm_call_data} 등 호출이력·집계 테이블은 변경하지 않는다.
+     */
+    @Transactional
+    public Map<String, Object> restoreLiveFromSnapshot(long snapshotId) {
+        if (snapshotId <= 0) {
+            throw new IllegalArgumentException("snapshotId가 유효하지 않습니다.");
+        }
+        if (snapshotRepository.findById(snapshotId).isEmpty()) {
+            throw new IllegalArgumentException("스냅샷을 찾을 수 없습니다: id=" + snapshotId);
+        }
+        Number cnt = (Number) em.createNativeQuery(
+                        "SELECT COUNT(*) FROM api_record_snapshot_row WHERE snapshot_id = :sid")
+                .setParameter("sid", snapshotId)
+                .getSingleResult();
+        long rowCount = cnt.longValue();
+        if (rowCount == 0) {
+            throw new IllegalArgumentException("스냅샷에 복구할 행이 없습니다: id=" + snapshotId);
+        }
+
+        log.warn("[SNAPSHOT] 라이브 DB(api_record) 복구 시작: snapshotId={}, snapshotRows={}", snapshotId, rowCount);
+        log.debug("[SNAPSHOT] restore-live: DELETE api_record 전체 후 snapshot_id={} 행 INSERT", snapshotId);
+        int deletedLive = em.createNativeQuery("DELETE FROM api_record").executeUpdate();
+
+        String insertSql = """
+                INSERT INTO api_record (
+                  repository_name, api_path, http_method,
+                  last_analyzed_at, created_ip, modified_at, modified_ip, reviewed_ip,
+                  status, status_overridden, log_work_excluded, recent_log_only, test_suspect_reason, path_param_pattern,
+                  block_target, block_criteria, call_count, call_count_month, call_count_week,
+                  method_name, controller_name, repo_path, is_deprecated, has_url_block, block_marking_incomplete,
+                  program_id, api_operation_value, description_tag, full_comment, controller_comment,
+                  request_property_value, controller_request_property_value, full_url, controller_file_path,
+                  memo, review_result, review_opinion, cbo_scheduled_date, deploy_scheduled_date,
+                  deploy_csr, deploy_manager, review_team, review_manager, reviewed_at,
+                  blocked_date, blocked_reason, status_changed, status_change_log, is_new, data_source,
+                  team_override, manager_override, manager_overridden, description_override, git_history,
+                  review_stage, internal_reviewer, internal_reviewed_at, internal_memo,
+                  jira_epic_key, jira_issue_key, jira_issue_url, jira_synced_at
+                )
+                SELECT
+                  repository_name, api_path, http_method,
+                  last_analyzed_at, created_ip, modified_at, modified_ip, reviewed_ip,
+                  status, status_overridden, log_work_excluded, recent_log_only, test_suspect_reason, path_param_pattern,
+                  block_target, block_criteria, call_count, call_count_month, call_count_week,
+                  method_name, controller_name, repo_path, is_deprecated, has_url_block, block_marking_incomplete,
+                  program_id, api_operation_value, description_tag, full_comment, controller_comment,
+                  request_property_value, controller_request_property_value, full_url, controller_file_path,
+                  memo, review_result, review_opinion, cbo_scheduled_date, deploy_scheduled_date,
+                  deploy_csr, deploy_manager, review_team, review_manager, reviewed_at,
+                  blocked_date, blocked_reason, status_changed, status_change_log, is_new, data_source,
+                  team_override, manager_override, manager_overridden, description_override, git_history,
+                  review_stage, internal_reviewer, internal_reviewed_at, internal_memo,
+                  jira_epic_key, jira_issue_key, jira_issue_url, jira_synced_at
+                FROM api_record_snapshot_row
+                WHERE snapshot_id = :sid
+                """;
+        int inserted = em.createNativeQuery(insertSql).setParameter("sid", snapshotId).executeUpdate();
+        log.warn("[SNAPSHOT] 라이브 DB(api_record) 복구 완료: snapshotId={}, deletedLive={}, inserted={}",
+                snapshotId, deletedLive, inserted);
+
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("snapshotId", snapshotId);
+        res.put("previousLiveRowsDeleted", deletedLive);
+        res.put("insertedRows", inserted);
+        res.put("note", "apm_call_data·apm_url_stat 등 호출이력/집계는 변경하지 않았습니다. 시점 불일치 시 집계·호출 화면을 별도 확인하세요.");
+        return res;
+    }
+
     private Map<Key, Lite> loadLiteMap(long snapshotId) {
         String sql = """
             SELECT repository_name, api_path, http_method,
@@ -299,7 +369,7 @@ public class SnapshotService {
                    review_result, review_opinion,
                    cbo_scheduled_date, deploy_scheduled_date, deploy_csr,
                    team_override, manager_override, manager_overridden,
-                   description_override, memo, test_suspect_reason,
+                   description_override, memo, test_suspect_reason, path_param_pattern,
                    blocked_date, blocked_reason,
                    jira_issue_key, review_stage
             FROM api_record_snapshot_row
@@ -321,8 +391,9 @@ public class SnapshotService {
                     str(r[13]), str(r[14]), str(r[15]),
                     str(r[16]), str(r[17]), bool(r[18]),
                     str(r[19]), str(r[20]), str(r[21]),
-                    str(r[22]), str(r[23]),
-                    str(r[24]), str(r[25])
+                    str(r[22]),
+                    str(r[23]), str(r[24]),
+                    str(r[25]), str(r[26])
             );
             m.put(k, v);
         }
@@ -332,7 +403,7 @@ public class SnapshotService {
     /**
      * 현재 DB(api_record) 기준 Lite 맵 로드.
      * - diff에서 fromId/toId == 0 일 때 사용
-     * - status='삭제'는 스냅샷 생성 정책과 동일하게 제외
+     * - insertRowsFromApiRecord와 동일하게 status='삭제' 행 포함(키 단위 diff 왜곡 방지)
      */
     private Map<Key, Lite> loadLiteMapLive() {
         String sql = """
@@ -343,11 +414,10 @@ public class SnapshotService {
                    review_result, review_opinion,
                    cbo_scheduled_date, deploy_scheduled_date, deploy_csr,
                    team_override, manager_override, manager_overridden,
-                   description_override, memo, test_suspect_reason,
+                   description_override, memo, test_suspect_reason, path_param_pattern,
                    blocked_date, blocked_reason,
                    jira_issue_key, review_stage
             FROM api_record
-            WHERE (status IS NULL OR status <> '삭제')
             """;
         @SuppressWarnings("unchecked")
         List<Object[]> rows = em.createNativeQuery(sql).getResultList();
@@ -363,8 +433,9 @@ public class SnapshotService {
                     str(r[13]), str(r[14]), str(r[15]),
                     str(r[16]), str(r[17]), bool(r[18]),
                     str(r[19]), str(r[20]), str(r[21]),
-                    str(r[22]), str(r[23]),
-                    str(r[24]), str(r[25])
+                    str(r[22]),
+                    str(r[23]), str(r[24]),
+                    str(r[25]), str(r[26])
             );
             m.put(k, v);
         }
@@ -408,6 +479,7 @@ public class SnapshotService {
             String descriptionOverride,
             String memo,
             String testSuspectReason,
+            String pathParamPattern,
             String blockedDate,
             String blockedReason,
             String jiraIssueKey,
@@ -463,6 +535,7 @@ public class SnapshotService {
             add(ch, "descriptionOverride", descriptionOverride, other.descriptionOverride);
             add(ch, "memo", memo, other.memo);
             add(ch, "testSuspectReason", testSuspectReason, other.testSuspectReason);
+            add(ch, "pathParamPattern", pathParamPattern, other.pathParamPattern);
             add(ch, "blockedDate", blockedDate, other.blockedDate);
             add(ch, "blockedReason", blockedReason, other.blockedReason);
             add(ch, "jiraIssueKey", jiraIssueKey, other.jiraIssueKey);

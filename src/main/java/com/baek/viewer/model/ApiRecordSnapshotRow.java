@@ -68,6 +68,9 @@ public class ApiRecordSnapshotRow {
     @Column(name = "test_suspect_reason", columnDefinition = "TEXT")
     private String testSuspectReason;
 
+    @Column(name = "path_param_pattern", columnDefinition = "TEXT")
+    private String pathParamPattern;
+
     @Column(name = "block_target", length = 30)
     private String blockTarget;
 
@@ -228,5 +231,7 @@ public class ApiRecordSnapshotRow {
     public void setHttpMethod(String httpMethod) { this.httpMethod = httpMethod; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getPathParamPattern() { return pathParamPattern; }
+    public void setPathParamPattern(String pathParamPattern) { this.pathParamPattern = pathParamPattern; }
 }
 

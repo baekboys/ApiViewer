@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/snapshots")
@@ -106,15 +108,17 @@ public class SnapshotController {
                                      @RequestParam(required = false) String httpMethod,
                                      @RequestParam(required = false) String isDeprecated,
                                      @RequestParam(required = false) Boolean testSuspect,
+                                     @RequestParam(required = false) Boolean pathParams,
                                      @RequestParam(required = false) Boolean markingIncomplete,
-                                     @RequestParam(required = false) String q) {
-        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size));
+                                     @RequestParam(required = false) String q,
+                                     @RequestParam(required = false) String sort) {
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), parseSnapshotSort(sort));
         List<String> repos = null;
         String r = blankToNull(repo);
         if (r != null) repos = List.of(r);
         Page<?> p = snapshotRowRepository.pageByFilters(id, repos,
                 blankToNull(status), blankToNull(statusGroup), blankToNull(httpMethod), blankToNull(isDeprecated),
-                testSuspect, markingIncomplete, blankToNull(q), pageable);
+                testSuspect, pathParams, markingIncomplete, blankToNull(q), pageable);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("total", p.getTotalElements());
@@ -123,6 +127,22 @@ public class SnapshotController {
         resp.put("totalPages", p.getTotalPages());
         resp.put("records", p.getContent());
         return ResponseEntity.ok(resp);
+    }
+
+    /**
+     * 라이브 {@code api_record}를 선택 스냅샷 시점 내용으로 교체한다.
+     * 기존 분석 데이터 전 행 삭제 후 스냅샷 행 INSERT. 호출이력 테이블은 유지.
+     */
+    @PostMapping("/{id}/restore-live")
+    public ResponseEntity<?> restoreLive(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(snapshotService.restoreLiveFromSnapshot(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("[SNAPSHOT] 라이브 복구 실패: id={}, err={}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
     }
 
     /** 두 스냅샷 diff (new/deleted/changed/all) */
@@ -194,6 +214,25 @@ public class SnapshotController {
         if (s == null) return null;
         s = s.trim();
         return s.isBlank() ? null : s;
+    }
+
+    private static final Set<String> SNAPSHOT_SORT_FIELDS = Set.of(
+            "id", "apiPath", "httpMethod", "status", "callCount", "callCountMonth", "callCountWeek",
+            "lastAnalyzedAt", "modifiedAt", "blockedDate", "repositoryName", "teamOverride", "managerOverride",
+            "cboScheduledDate", "deployScheduledDate", "pathParamPattern", "methodName", "controllerName");
+
+    private static Sort parseSnapshotSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return Sort.unsorted();
+        }
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        if (field.isEmpty() || !SNAPSHOT_SORT_FIELDS.contains(field)) {
+            return Sort.unsorted();
+        }
+        Sort.Direction dir = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()))
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(dir, field);
     }
 }
 

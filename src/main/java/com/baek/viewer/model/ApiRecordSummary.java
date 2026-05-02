@@ -43,6 +43,7 @@ public interface ApiRecordSummary {
     String getDeployManager();
     Boolean getRecentLogOnly();
     String getTestSuspectReason();
+    String getPathParamPattern();
     String getReviewTeam();
     String getReviewManager();
     LocalDateTime getReviewedAt();

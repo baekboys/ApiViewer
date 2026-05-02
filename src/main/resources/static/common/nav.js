@@ -12,7 +12,7 @@
  * ═══════════════════════════════════════════════════════════════ */
 (function () {
   // UI 버전 표기 (캐시/반영 여부 확인용) — 변경 시 이 값만 갱신
-  const APP_UI_VERSION = 'ver1.3.05';
+  const APP_UI_VERSION = 'ver1.4.13';
 
   const SEGMENTS = [
     {
@@ -108,6 +108,7 @@
         </a>
         <span class="brand-sub">${esc(brandSub)}</span>
         <div class="utils">
+          <span id="globalQueryCount" class="nav-query-count" title="현재 필터·페이지네이션 기준 총 조회 건수">조회 —</span>
           <button class="dark-toggle" onclick="toggleDarkMode && toggleDarkMode()">🌙 다크모드</button>
           <span id="nav-admin-slot"></span>
         </div>

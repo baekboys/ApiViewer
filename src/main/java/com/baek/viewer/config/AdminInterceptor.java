@@ -29,6 +29,7 @@ public class AdminInterceptor implements HandlerInterceptor {
         if ("GET".equalsIgnoreCase(request.getMethod()) &&
                 (uri.equals("/api/config/global") || uri.equals("/api/config/repos")
                         || uri.equals("/api/config/repos/sync-warnings")
+                        || uri.equals("/api/config/ops-digest-summary")
                         || uri.equals("/api/apm/data") || uri.equals("/api/jira/config"))) {
             return true;
         }

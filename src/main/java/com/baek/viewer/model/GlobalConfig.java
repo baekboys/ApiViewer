@@ -1,6 +1,7 @@
 package com.baek.viewer.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "global_config")
@@ -156,6 +157,38 @@ public class GlobalConfig {
     @Column(name = "snapshot_retention_days")
     private Integer snapshotRetentionDays;
 
+    // ── 사내 AI OpenAPI (OpenAI 호환 chat) ──
+    /** 베이스 URL (예: https://ai.company.com) — 경로 제외 */
+    @Column(name = "ai_open_api_base_url", length = 500)
+    private String aiOpenApiBaseUrl;
+
+    @Column(name = "ai_open_api_token", columnDefinition = "TEXT")
+    private String aiOpenApiToken;
+
+    /**
+     * Chat completions 경로 (베이스 뒤에 붙음). 기본 /v1/chat/completions
+     */
+    @Column(name = "ai_open_api_chat_path", length = 200)
+    private String aiOpenApiChatPath;
+
+    /** 요청 모델명 (사내 API 스펙에 맞게) */
+    @Column(name = "ai_open_api_model", length = 200)
+    private String aiOpenApiModel;
+
+    /**
+     * ops_digest AI 요약을 트리거할 배치 jobType 목록 (콤마 구분).
+     * null/빈값이면 코드 기본 집합 사용.
+     */
+    @Column(name = "ai_ops_digest_job_types", columnDefinition = "TEXT")
+    private String aiOpsDigestJobTypes;
+
+    /** 마지막 ops_digest AI 응답 (설정 화면 확인용) */
+    @Column(name = "ai_last_ops_digest", columnDefinition = "TEXT")
+    private String aiLastOpsDigest;
+
+    @Column(name = "ai_last_ops_digest_at")
+    private LocalDateTime aiLastOpsDigestAt;
+
 
     public Long getId() { return id; }
     public String getStartDate() { return startDate; }
@@ -253,4 +286,30 @@ public class GlobalConfig {
 
     public Integer getSnapshotRetentionDays() { return snapshotRetentionDays; }
     public void setSnapshotRetentionDays(Integer v) { this.snapshotRetentionDays = v; }
+
+    public String getAiOpenApiBaseUrl() { return aiOpenApiBaseUrl; }
+    public void setAiOpenApiBaseUrl(String v) { this.aiOpenApiBaseUrl = v; }
+    public String getAiOpenApiToken() { return aiOpenApiToken; }
+    public void setAiOpenApiToken(String v) { this.aiOpenApiToken = v; }
+    public String getAiOpenApiChatPath() { return aiOpenApiChatPath; }
+    public void setAiOpenApiChatPath(String v) { this.aiOpenApiChatPath = v; }
+    public String getAiOpenApiModel() { return aiOpenApiModel; }
+    public void setAiOpenApiModel(String v) { this.aiOpenApiModel = v; }
+    public String getAiOpsDigestJobTypes() { return aiOpsDigestJobTypes; }
+    public void setAiOpsDigestJobTypes(String v) { this.aiOpsDigestJobTypes = v; }
+    public String getAiLastOpsDigest() { return aiLastOpsDigest; }
+    public void setAiLastOpsDigest(String v) { this.aiLastOpsDigest = v; }
+    public LocalDateTime getAiLastOpsDigestAt() { return aiLastOpsDigestAt; }
+    public void setAiLastOpsDigestAt(LocalDateTime v) { this.aiLastOpsDigestAt = v; }
+
+    /** 채팅 API 전체 URL */
+    public String resolveAiChatEndpoint() {
+        String base = aiOpenApiBaseUrl != null ? aiOpenApiBaseUrl.trim() : "";
+        if (base.isEmpty()) return "";
+        String path = aiOpenApiChatPath != null && !aiOpenApiChatPath.isBlank()
+                ? aiOpenApiChatPath.trim() : "/v1/chat/completions";
+        if (!path.startsWith("/")) path = "/" + path;
+        if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+        return base + path;
+    }
 }

@@ -281,6 +281,7 @@ function updateAdminBadge(valid) {
       <button class="settings-tab" data-tab="data">📊 데이터관리</button>
       <button class="settings-tab" data-tab="notify">📧 알림</button>
       <button class="settings-tab" data-tab="jira">🔗 SmartWay 연동</button>
+      <button class="settings-tab" data-tab="ai">🤖 사내 AI</button>
       <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
       <button class="settings-tab" data-tab="extract">🔍 URL분석/검토</button>
     </aside>
@@ -952,6 +953,61 @@ function updateAdminBadge(valid) {
     </div>
   </div>
 
+</section>
+
+<!-- ═══ 🤖 사내 AI ═══ -->
+<section class="settings-section" data-section="ai">
+  <div class="card" style="border:1px solid #a78bfa;">
+    <div class="card-title" style="margin-bottom:12px;">
+      <span class="dot" style="background:#7c3aed;"></span>API 연결
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">OpenAI 호환 chat completions — 토큰은 서버에만 저장됩니다</span>
+      <button type="button" class="btn btn-blue" style="margin-left:auto;height:28px;padding:4px 14px;font-size:12px;" onclick="saveAiConnection()">연결 설정 저장</button>
+    </div>
+    <div class="field-row col2">
+      <label class="field">베이스 URL
+        <input id="aiBaseUrl" type="text" placeholder="https://llm-gateway.company.com">
+        <span class="field-hint">스킴+호스트(+포트). 경로는 제외 (아래 Chat 경로에 입력)</span>
+      </label>
+      <label class="field">Bearer 토큰
+        <input id="aiToken" type="password" placeholder="비워 두면 기존 값 유지">
+        <span class="field-hint">저장 시 비우면 YAML/DB 기존 토큰을 유지합니다</span>
+      </label>
+    </div>
+    <div class="field-row col3">
+      <label class="field">Chat 경로
+        <input id="aiChatPath" type="text" placeholder="/v1/chat/completions">
+      </label>
+      <label class="field">모델명
+        <input id="aiModel" type="text" placeholder="게이트웨이에서 요구 시">
+        <span class="field-hint">비우면 application.properties의 api.viewer.ai.default-model 사용</span>
+      </label>
+      <label class="field">ops_digest 트리거 배치
+        <input id="aiOpsDigestJobTypes" type="text" placeholder="GIT_PULL_EXTRACT,APM_COLLECT,DATA_BACKUP">
+        <span class="field-hint">콤마 구분 jobType. 비우면 위 기본과 동일</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;border:1px solid #e2e8f0;">
+    <div class="card-title"><span class="dot" style="background:#64748b;"></span>최근 배치 요약 (ops_digest)</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">선택 배치가 <b>성공</b> 종료된 뒤, 템플릿 <code>ops_digest</code>가 켜져 있으면 비동기로 갱신됩니다. 동일 내용이 <b>대시보드·모든 화면 상단</b> 노란 배너(운영·배치 요약)로도 표시됩니다.</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">갱신 시각: <span id="aiLastDigestAt">-</span></div>
+    <pre id="aiLastDigest" style="margin:0;padding:12px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">(없음)</pre>
+  </div>
+
+  <div class="card" style="margin-top:14px;border:1px solid #c4b5fd;">
+    <div class="card-title"><span class="dot" style="background:#6d28d9;"></span>프롬프트 템플릿</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;">
+      본문에 <code>{{변수명}}</code> 을 사용합니다.
+      <b>menu_inference</b>:
+      <code>business_name</code>, <code>repository_name</code>, <code>api_path</code>, <code>http_method</code>, <code>full_url</code>,
+      <code>source_api_operation</code>, <code>source_description_tag</code>, <code>source_method_javadoc</code>,
+      <code>source_controller_javadoc</code>, <code>source_request_property</code>, <code>source_controller_request_property</code>
+      · <b>ops_digest</b>: <code>recent_batch_logs_json</code>
+      <br><span style="color:var(--text-muted);">각 템플릿의 <b>테스트 요청</b>은 위 변수에 고정 샘플 값을 넣어 사내 AI를 호출합니다. 편집 중인 본문으로 시험할 수 있습니다(저장 불필요).</span>
+    </div>
+    <div id="aiTemplateList"><div style="color:var(--text-muted);font-size:12px;">탭을 열면 로드됩니다.</div></div>
+  </div>
 </section>
 
 <!-- ═══ 🔍 URL분석/검토 ═══ -->
@@ -2056,6 +2112,188 @@ function updateAdminBadge(valid) {
     } finally {
       btn.disabled = false;
       btn.textContent = origText;
+    }
+  }
+
+  // ── 사내 AI ───────────────────────────────────────────────
+  async function loadAiTab() {
+    await loadAiConnectionFields();
+    await reloadAiTemplates();
+  }
+
+  async function loadAiConnectionFields() {
+    try {
+      const res = await fetch('/api/config/global');
+      const g = await res.json();
+      document.getElementById('aiBaseUrl').value = g.aiOpenApiBaseUrl || '';
+      document.getElementById('aiChatPath').value = g.aiOpenApiChatPath || '/v1/chat/completions';
+      document.getElementById('aiModel').value = g.aiOpenApiModel || '';
+      document.getElementById('aiOpsDigestJobTypes').value = g.aiOpsDigestJobTypes || '';
+      document.getElementById('aiToken').value = '';
+      document.getElementById('aiLastDigest').textContent = g.aiLastOpsDigest || '(없음)';
+      const at = g.aiLastOpsDigestAt;
+      document.getElementById('aiLastDigestAt').textContent = at
+        ? String(at).replace('T', ' ').substring(0, 19) : '-';
+    } catch (e) {
+      showToast('사내 AI 설정 로드 실패', 'error');
+    }
+  }
+
+  async function saveAiConnection() {
+    try {
+      const cur = await (await fetch('/api/config/global')).json();
+      cur.aiOpenApiBaseUrl = document.getElementById('aiBaseUrl').value.trim() || null;
+      const tok = document.getElementById('aiToken').value.trim();
+      if (tok) cur.aiOpenApiToken = tok;
+      const cp = document.getElementById('aiChatPath').value.trim();
+      cur.aiOpenApiChatPath = cp || null;
+      const m = document.getElementById('aiModel').value.trim();
+      cur.aiOpenApiModel = m || null;
+      const jt = document.getElementById('aiOpsDigestJobTypes').value.trim();
+      cur.aiOpsDigestJobTypes = jt || null;
+      const res = await adminFetch('/api/config/global', { method: 'PUT', body: JSON.stringify(cur) });
+      if (!res.ok) throw new Error();
+      document.getElementById('aiToken').value = '';
+      showToast('사내 AI 연결 설정 저장 완료', 'success');
+    } catch (e) {
+      showToast('저장 실패', 'error');
+    }
+  }
+
+  async function reloadAiTemplates() {
+    const wrap = document.getElementById('aiTemplateList');
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">로드 중…</div>';
+    try {
+      const res = await adminFetch('/api/config/ai/templates');
+      if (!res.ok) throw new Error();
+      const list = await res.json();
+      wrap.innerHTML = '';
+      if (!list.length) {
+        wrap.innerHTML = '<div style="color:var(--text-muted);">템플릿 없음</div>';
+        return;
+      }
+      list.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.cssText = 'margin-bottom:12px;background:var(--bg);';
+        card.dataset.aiTplId = String(t.id);
+
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;';
+        head.innerHTML = `<span style="font-weight:700;font-size:13px;">${esc(t.title)}</span><code style="font-size:10px;background:#e2e8f0;padding:2px 6px;border-radius:4px;">${esc(t.slug)}</code>`;
+        const enLab = document.createElement('label');
+        enLab.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:12px;margin-left:auto;';
+        const en = document.createElement('input');
+        en.type = 'checkbox';
+        en.className = 'ai-tpl-enabled';
+        if (t.enabled) en.checked = true;
+        enLab.appendChild(en);
+        enLab.appendChild(document.createTextNode(' 활성'));
+        head.appendChild(enLab);
+        card.appendChild(head);
+
+        const lt = document.createElement('label');
+        lt.className = 'field';
+        lt.appendChild(document.createTextNode('표시 제목'));
+        const titInp = document.createElement('input');
+        titInp.type = 'text';
+        titInp.className = 'ai-tpl-title';
+        titInp.value = t.title || '';
+        lt.appendChild(titInp);
+        card.appendChild(lt);
+
+        const lb = document.createElement('label');
+        lb.className = 'field';
+        lb.textContent = '본문';
+        const ta = document.createElement('textarea');
+        ta.className = 'ai-tpl-body';
+        ta.rows = 14;
+        ta.style.cssText = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:ui-monospace,monospace;resize:vertical;';
+        ta.value = t.body || '';
+        lb.appendChild(ta);
+        card.appendChild(lb);
+
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-blue';
+        btn.textContent = '이 템플릿 저장';
+        const tid = t.id;
+        btn.onclick = () => saveAiTemplate(tid);
+        btnRow.appendChild(btn);
+
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'btn btn-ghost';
+        testBtn.style.cssText = 'border:1px solid #7c3aed;color:#5b21b6;font-weight:600;';
+        testBtn.textContent = '🔗 테스트 요청 (샘플 변수)';
+        testBtn.onclick = () => testAiPrompt(tid);
+        btnRow.appendChild(testBtn);
+
+        card.appendChild(btnRow);
+
+        const testOut = document.createElement('pre');
+        testOut.className = 'ai-tpl-test-out';
+        testOut.style.cssText = 'display:none;margin-top:10px;padding:10px;background:#1e1e2e;color:#e2e8f0;border-radius:8px;font-size:11px;white-space:pre-wrap;max-height:320px;overflow-y:auto;font-family:ui-monospace,monospace;';
+        card.appendChild(testOut);
+
+        wrap.appendChild(card);
+      });
+    } catch (e) {
+      wrap.innerHTML = '<div style="color:var(--danger);font-size:12px;">템플릿을 불러오지 못했습니다. 관리자 로그인을 확인하세요.</div>';
+    }
+  }
+
+  async function saveAiTemplate(id) {
+    const card = document.querySelector(`[data-ai-tpl-id="${id}"]`);
+    if (!card) return;
+    const title = card.querySelector('.ai-tpl-title').value.trim();
+    const body = card.querySelector('.ai-tpl-body').value;
+    const enabled = card.querySelector('.ai-tpl-enabled').checked;
+    try {
+      const res = await adminFetch('/api/config/ai/templates/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({ title, body, enabled })
+      });
+      if (!res.ok) throw new Error();
+      showToast('템플릿 저장 완료', 'success');
+    } catch (e) {
+      showToast('템플릿 저장 실패', 'error');
+    }
+  }
+
+  /** SmartWay 연결 테스트와 유사 — 샘플 플레이스홀더로 치환 후 사내 AI 호출 */
+  async function testAiPrompt(id) {
+    const card = document.querySelector(`[data-ai-tpl-id="${id}"]`);
+    if (!card) return;
+    const body = card.querySelector('.ai-tpl-body').value;
+    const out = card.querySelector('.ai-tpl-test-out');
+    if (out) {
+      out.style.display = 'block';
+      out.textContent = '요청 중… (수 초 걸릴 수 있습니다)';
+    }
+    try {
+      const res = await adminFetch('/api/config/ai/templates/' + id + '/test', {
+        method: 'POST',
+        body: JSON.stringify({ body })
+      });
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) {
+        if (out) out.textContent = '오류: ' + (data.error || ('HTTP ' + res.status));
+        showToast(data.error || '테스트 실패', 'error');
+        return;
+      }
+      const fp = data.filledPrompt || '';
+      const head = fp.length > 4500 ? fp.substring(0, 4500) + '\n…(이하 생략)' : fp;
+      const text = '— 치환된 프롬프트 —\n' + head + '\n\n— AI 응답 —\n' + (data.reply != null ? data.reply : '(비어 있음)');
+      if (out) out.textContent = text;
+      showToast('테스트 완료', 'success');
+    } catch (e) {
+      if (out) out.textContent = '요청 오류';
+      showToast('테스트 요청 오류', 'error');
     }
   }
 
@@ -3313,6 +3551,7 @@ function updateAdminBadge(valid) {
       // extract 탭 lazy-load (fetch → DOM 직접 삽입, iframe 미사용)
       if (target === 'extract') loadExtractContent();
       if (target === 'jira') loadJiraConfig();
+      if (target === 'ai') loadAiTab();
       history.replaceState({}, '', '#' + target);
     });
   });

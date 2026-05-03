@@ -56,6 +56,25 @@
       padding: 3px 10px;
     }
     .collapser.inline { margin-left: 6px; }
+    /* 조회 건수 (조회 조건 헤더 — 펼치기 옆) */
+    #queryCard > summary.card-title #globalQueryCount {
+      margin-left: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1d4ed8;
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] #queryCard > summary.card-title #globalQueryCount {
+      background: #1e3a5f;
+      border-color: #3b82f6;
+      color: #93c5fd;
+    }
     details[open] .collapser .c-label::after { content: "접기"; }
     details:not([open]) .collapser .c-label::after { content: "펼치기"; }
     .stats-card-hint {
@@ -521,6 +540,7 @@
         <span class="c-label"></span>
         <span class="c-arrow">▾</span>
       </span>
+      <span id="globalQueryCount" title="현재 필터·페이지네이션 기준 총 조회 건수">조회 —</span>
     </summary>
     <div class="card-body">
       <div class="query-layout">
@@ -1006,14 +1026,18 @@
   // 9 leaf v2: 사용 / 차단완료 /
   //            ①-① 차단대상 / ①-② 담당자 판단 / ①-③ 현업요청 제외대상 / ①-④ 사용으로 변경 /
   //            ②-① 호출0건+변경있음 / ②-② 호출 3건 이하+변경없음 / ②-③ 사용으로 변경 / 삭제
-  const STATUS_LEAF_BLOCK = [
+  /** ① 차단대상 상단 합계 배지 — ①-①~①-④ (차단완료 제외, DB leaf 기준) */
+  const STATUS_UMBRELLA_BLOCK_LEAVES = [
     '①-① 차단대상',
     '①-② 담당자 판단',
-    '①-③ 현업요청 제외대상'
+    '①-③ 현업요청 제외대상',
+    '①-④ 사용으로 변경'
   ];
-  const STATUS_LEAF_REVIEW = [
+  /** ② 추가검토대상 상단 합계 — ②-①~②-③ */
+  const STATUS_UMBRELLA_REVIEW_LEAVES = [
     '②-① 호출0건+변경있음',
-    '②-② 호출 3건 이하+변경없음'
+    '②-② 호출 3건 이하+변경없음',
+    '②-③ 사용으로 변경'
   ];
   // 상위 카테고리 라벨 (테이블 status 셀 윗줄용)
   function upperOf(status) {
@@ -1232,6 +1256,7 @@
       shouldAutoLoad = true;
     } else if (urlStatusGroup) {
       window._initialActiveFilter = (urlStatusGroup === 'block') ? 'group:block'
+        : (urlStatusGroup === 'blockWithDone') ? 'group:blockWithDone'
         : (urlStatusGroup === 'review') ? 'group:review'
         : (urlStatusGroup === 'blockResidual') ? 'group:blockResidual'
         : (urlStatusGroup === 'blockExcluded') ? 'group:blockExcluded'
@@ -1258,7 +1283,7 @@
     return arr.length === 1 ? arr[0] : '';
   }
 
-  /** 필터 영역 + 상단 네비(globalQueryCount) 조회 건수 동기화 */
+  /** 필터 영역 + 조회 조건 헤더(globalQueryCount) 조회 건수 동기화 */
   function syncQueryCountDisplay(total) {
     const label = total == null || total === '' ? '—' : `${Number(total).toLocaleString()}건`;
     const fc = document.getElementById('filterCount');
@@ -1855,6 +1880,7 @@
     else if (activeFilter === 'deprecated') params.set('isDeprecated', 'Y');
     else if (activeFilter.startsWith('method:')) params.set('httpMethod', activeFilter.slice(7));
     else if (activeFilter === 'group:block')  params.set('statusGroup', 'block');
+    else if (activeFilter === 'group:blockWithDone') params.set('statusGroup', 'blockWithDone');
     else if (activeFilter === 'group:review') params.set('statusGroup', 'review');
     else if (activeFilter === 'group:blockResidual') params.set('statusGroup', 'blockResidual');
     else if (activeFilter === 'group:blockExcluded') params.set('statusGroup', 'blockExcluded');
@@ -2102,9 +2128,9 @@
     const byMethod = c.byMethod || {};
     const get = (k) => byStatus[k] || 0;
 
-    // ① 차단대상 / ② 추가검토대상 합계 — DB에는 leaf 라벨로 들어옴 (9 leaf v2).
-    const blockSum  = STATUS_LEAF_BLOCK.reduce((s, k) => s + (byStatus[k] || 0), 0);
-    const reviewSum = STATUS_LEAF_REVIEW.reduce((s, k) => s + (byStatus[k] || 0), 0);
+    // ① 차단대상 / ② 추가검토대상 합계 — leaf 4+3 전부 (하위 배지 합과 일치)
+    const blockSum  = STATUS_UMBRELLA_BLOCK_LEAVES.reduce((s, k) => s + (byStatus[k] || 0), 0);
+    const reviewSum = STATUS_UMBRELLA_REVIEW_LEAVES.reduce((s, k) => s + (byStatus[k] || 0), 0);
     document.getElementById('statTotal').textContent     = c.total || 0;
     document.getElementById('stat-사용').textContent      = get('사용');
     document.getElementById('stat-차단완료').textContent   = get('차단완료');
@@ -3428,6 +3454,10 @@
           <div class="detail-label">관련메뉴 <span style="color:var(--primary);font-size:10px;">✎</span></div>
           <div class="detail-value" style="white-space:normal;">
             <input id="df-descriptionOverride" class="df-input" value="${esc(r.descriptionOverride || '')}" placeholder="관련 메뉴 또는 기능을 입력하세요" style="width:100%;" ${dis} oninput="showDetailSave()">
+            ${lk ? '' : `<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm btn-ghost" onclick="requestAiMenuSuggestion()" style="font-size:11px;border:1px solid #c4b5fd;color:#5b21b6;">🤖 사내 AI 제안</button>
+              <span id="aiSuggestStatus" style="font-size:10px;color:var(--text-muted);"></span>
+            </div>`}
             <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">※ 상단 [저장] 버튼으로 확정됩니다. 참고용 주석은 하단 필드를 확인하세요.</div>
           </div>
           <div class="detail-label">ApiOperation</div><div class="detail-value">${esc(v(r.apiOperationValue)) || '-'}</div>
@@ -3564,6 +3594,47 @@
       'X-Admin-Token': sessionStorage.getItem('adminToken') || ''
     }, options.headers || {});
     return fetch(url, options);
+  }
+
+  /** 사내 AI — 관련 메뉴 한 줄 제안 (서버에서 프롬프트 조합·호출) */
+  async function requestAiMenuSuggestion() {
+    const idEl = document.getElementById('df-id');
+    const input = document.getElementById('df-descriptionOverride');
+    const statusEl = document.getElementById('aiSuggestStatus');
+    if (!idEl || !input) return;
+    const id = parseInt(idEl.value, 10);
+    if (!id) return;
+    if (statusEl) statusEl.textContent = '요청 중…';
+    try {
+      const res = await adminFetch('/api/ai/menu-suggestion', {
+        method: 'POST',
+        body: JSON.stringify({ recordId: id })
+      });
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) {
+        if (statusEl) statusEl.textContent = '';
+        showToast(data.error || 'AI 제안 실패', 'error');
+        return;
+      }
+      const s = (data.suggestion || '').trim();
+      if (!s) {
+        if (statusEl) statusEl.textContent = '응답 없음';
+        return;
+      }
+      if (!await customConfirm('AI 제안:\n\n' + s + '\n\n관련 메뉴 입력란에 반영할까요?')) {
+        if (statusEl) statusEl.textContent = '반영 취소';
+        return;
+      }
+      input.value = s;
+      showDetailSave();
+      if (statusEl) statusEl.textContent = '반영됨 — [저장]으로 확정하세요';
+      showToast('입력란에 반영했습니다. 저장을 눌러 확정하세요.', 'success');
+    } catch (e) {
+      if (e && e.message === 'readonly') return;
+      if (statusEl) statusEl.textContent = '';
+      showToast('AI 요청 오류', 'error');
+    }
   }
 
   // ── Jira 연동 ───────────────────────────────────────────────

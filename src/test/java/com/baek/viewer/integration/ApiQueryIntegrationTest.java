@@ -26,7 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   - 1개 레포 조회 (?repository=A)
  *   - 다수 레포 동시 조회 (?repositories=A,B)
  *   - status 단건 필터
- *   - statusGroup=block (①-* leaf) prefix 필터
+ *   - statusGroup=block (①-* leaf, 차단완료 제외)
+ *   - statusGroup=blockWithDone (차단완료 + ①-*)
  *   - statusGroup=review (②-* leaf) prefix 필터
  */
 @SpringBootTest
@@ -143,16 +144,33 @@ class ApiQueryIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         String b = body(res);
-        // ①- prefix leaf 3건 (REPO_A /a/3 + REPO_B /b/1, /b/2)
-        assertThat(b).contains("/a/3");  // ①-②
-        assertThat(b).contains("/b/1");  // ①-①
-        assertThat(b).contains("/b/2");  // ①-④
+        // ①- prefix leaf 2건 (REPO_A /a/3, REPO_B /b/2) — 차단완료(/b/1) 제외
+        assertThat(b).contains("/a/3");
+        assertThat(b).contains("/b/2");
+        assertThat(b).doesNotContain("/b/1");
         // ②- leaf 는 제외
-        assertThat(b).doesNotContain("/a/4");  // ②-③
-        assertThat(b).doesNotContain("/b/3");  // ②-②
+        assertThat(b).doesNotContain("/a/4");
+        assertThat(b).doesNotContain("/b/3");
         // 사용 도 제외
         assertThat(b).doesNotContain("/a/1");
         assertThat(b).doesNotContain("/c/1");
+    }
+
+    @Test
+    @DisplayName("statusGroup=blockWithDone — 차단완료 + ①-* leaf")
+    void queryStatusGroupBlockWithDone() throws Exception {
+        MvcResult res = mockMvc.perform(get("/api/db/apis")
+                        .param("statusGroup", "blockWithDone")
+                        .param("page", "0")
+                        .param("size", "100"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String b = body(res);
+        assertThat(b).contains("/a/3");
+        assertThat(b).contains("/b/1");
+        assertThat(b).contains("/b/2");
+        assertThat(b).doesNotContain("/a/4");
+        assertThat(b).doesNotContain("/b/3");
     }
 
     @Test

@@ -162,6 +162,11 @@ public class YamlConfigService {
                         .map(String::trim).filter(s -> !s.isEmpty()).toList());
                 if (!joined.isEmpty()) gc.setTestSuspectKeywords(joined);
             }
+            if (g.getAiOpenApiBaseUrl() != null) gc.setAiOpenApiBaseUrl(g.getAiOpenApiBaseUrl());
+            if (g.getAiOpenApiToken() != null) gc.setAiOpenApiToken(g.getAiOpenApiToken());
+            if (g.getAiOpenApiChatPath() != null) gc.setAiOpenApiChatPath(g.getAiOpenApiChatPath());
+            if (g.getAiOpenApiModel() != null) gc.setAiOpenApiModel(g.getAiOpenApiModel());
+            if (g.getAiOpsDigestJobTypes() != null) gc.setAiOpsDigestJobTypes(g.getAiOpsDigestJobTypes());
 
             // teams, 와탭/제니퍼 공통 프로필 JSON 저장
             try {

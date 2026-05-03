@@ -19,6 +19,7 @@ public interface ApiRecordSnapshotRowRepository extends JpaRepository<ApiRecordS
               AND (
                 :statusGroup IS NULL OR :statusGroup = ''
                 OR (:statusGroup = 'block' AND r.status LIKE '①-%')
+                OR (:statusGroup = 'blockWithDone' AND (r.status = '차단완료' OR r.status LIKE '①-%'))
                 OR (:statusGroup = 'review' AND r.status LIKE '②-%')
                 OR (:statusGroup = 'blockResidual' AND r.status IN ('①-① 차단대상','①-② 담당자 판단'))
                 OR (:statusGroup = 'blockExcluded' AND r.status IN ('①-③ 현업요청 제외대상','①-④ 사용으로 변경'))

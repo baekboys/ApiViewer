@@ -12,7 +12,7 @@
  * ═══════════════════════════════════════════════════════════════ */
 (function () {
   // UI 버전 표기 (캐시/반영 여부 확인용) — 변경 시 이 값만 갱신
-  const APP_UI_VERSION = 'ver1.4.13';
+  const APP_UI_VERSION = 'ver1.4.19';
 
   const SEGMENTS = [
     {
@@ -108,7 +108,6 @@
         </a>
         <span class="brand-sub">${esc(brandSub)}</span>
         <div class="utils">
-          <span id="globalQueryCount" class="nav-query-count" title="현재 필터·페이지네이션 기준 총 조회 건수">조회 —</span>
           <button class="dark-toggle" onclick="toggleDarkMode && toggleDarkMode()">🌙 다크모드</button>
           <span id="nav-admin-slot"></span>
         </div>
@@ -135,7 +134,10 @@
       ${top}
       <div class="app-nav-segments">${segs}</div>
       ${hasSubPages ? `<div class="app-nav-pages">${pages}</div>` : ''}
-      <div id="sync-warning-container"></div>
+      <div id="nav-alert-stack" class="nav-alert-stack">
+        <div id="sync-warning-slot"></div>
+        <div id="ops-digest-slot"></div>
+      </div>
     `;
 
     renderAdminSlot();
@@ -156,9 +158,10 @@
       .filter(Boolean).sort().join('|');
   }
   const SYNC_WARN_DISMISS_KEY = 'syncWarnDismiss';
+  const OPS_DIGEST_DISMISS_KEY = 'opsDigestDismissAt';
 
   function renderSyncWarnings(list) {
-    const slot = document.getElementById('sync-warning-container');
+    const slot = document.getElementById('sync-warning-slot');
     if (!slot) return;
     if (!Array.isArray(list) || list.length === 0) {
       slot.innerHTML = '';
@@ -224,6 +227,89 @@
       .catch(() => {});
   }
 
+  function fmtDigestTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).replace('T', ' ').substring(0, 19);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function renderOpsDigestBanner(text, atIso) {
+    const slot = document.getElementById('ops-digest-slot');
+    if (!slot || !text || !String(text).trim()) {
+      if (slot) slot.innerHTML = '';
+      return;
+    }
+    const body = String(text).trim();
+    const preview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+    const timeStr = fmtDigestTime(atIso);
+    slot.innerHTML = `
+      <div class="sync-warning-banner ops-digest-banner" role="status">
+        <div class="sync-warning-summary">
+          <span class="sync-warning-icon" aria-hidden="true">💡</span>
+          <div class="sync-warning-text ops-digest-text-wrap">
+            <div><strong>운영·배치 요약</strong> <span class="ops-digest-badge">AI</span></div>
+            ${timeStr ? `<div class="ops-digest-time">갱신: ${esc(timeStr)}</div>` : ''}
+            <div class="ops-digest-preview">${esc(preview)}</div>
+          </div>
+          <button type="button" class="sync-warning-toggle" aria-expanded="false">자세히 ▼</button>
+          <button type="button" class="sync-warning-close" aria-label="이 요약 닫기 (다음 갱신 시 다시 표시)" title="닫기">✕</button>
+        </div>
+        <div class="sync-warning-details ops-digest-details" hidden>
+          <pre class="ops-digest-pre">${esc(body)}</pre>
+        </div>
+      </div>`;
+
+    const root = slot.querySelector('.ops-digest-banner');
+    const btn = root.querySelector('.sync-warning-toggle');
+    const details = root.querySelector('.ops-digest-details');
+    if (btn && details) {
+      btn.addEventListener('click', () => {
+        const open = !details.hasAttribute('hidden');
+        if (open) {
+          details.setAttribute('hidden', '');
+          btn.setAttribute('aria-expanded', 'false');
+          btn.textContent = '자세히 ▼';
+        } else {
+          details.removeAttribute('hidden');
+          btn.setAttribute('aria-expanded', 'true');
+          btn.textContent = '접기 ▲';
+        }
+      });
+    }
+    const closeBtn = root.querySelector('.sync-warning-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        try { sessionStorage.setItem(OPS_DIGEST_DISMISS_KEY, atIso || '1'); } catch (e) {}
+        slot.innerHTML = '';
+      });
+    }
+  }
+
+  function loadOpsDigestBanner() {
+    fetch('/api/config/ops-digest-summary', { credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        const slot = document.getElementById('ops-digest-slot');
+        if (!slot) return;
+        if (!data || !data.text || !String(data.text).trim()) {
+          slot.innerHTML = '';
+          return;
+        }
+        const at = data.at || '';
+        try {
+          const dismissed = sessionStorage.getItem(OPS_DIGEST_DISMISS_KEY);
+          if (dismissed && at && dismissed === at) {
+            slot.innerHTML = '';
+            return;
+          }
+        } catch (e) {}
+        renderOpsDigestBanner(data.text, at);
+      })
+      .catch(() => {});
+  }
+
   // ─── 관리자 인디케이터/버튼 렌더 ─────────────────────────
   function renderAdminSlot() {
     const slot = document.getElementById('nav-admin-slot');
@@ -254,6 +340,7 @@
     render();
     applyAdminVisibility();
     loadSyncWarnings();
+    loadOpsDigestBanner();
     window.addEventListener('auth:change', () => {
       renderAdminSlot();
       applyAdminVisibility();
@@ -266,5 +353,5 @@
   }
 
   // 전역 노출 (필요 시 페이지가 재렌더 호출 가능)
-  window.AppNav = { SEGMENTS, render, renderAdminSlot, loadSyncWarnings, renderSyncWarnings };
+  window.AppNav = { SEGMENTS, render, renderAdminSlot, loadSyncWarnings, renderSyncWarnings, loadOpsDigestBanner, renderOpsDigestBanner };
 })();

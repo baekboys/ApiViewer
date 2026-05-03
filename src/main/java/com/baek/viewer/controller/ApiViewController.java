@@ -412,13 +412,13 @@ public class ApiViewController {
             if (status != null && !status.isBlank()) {
                 ps.add(cb.equal(root.get("status"), status));
             }
-            // statusGroup: 'block' = ①-* leaf 모두, 'review' = ②-* leaf 모두
+            // statusGroup: 'block' = ①-* leaf만 (차단완료 제외). 'blockWithDone' = 대시보드 소계(차단완료+①-*).
             if (statusGroup != null && !statusGroup.isBlank()) {
                 switch (statusGroup) {
-                    case "block" -> // 차단완료 + ①-* leaf 모두 (① 차단대상 카테고리)
-                        ps.add(cb.or(
-                                cb.equal(root.get("status"), "차단완료"),
-                                cb.like(root.get("status"), "①-%")));
+                    case "block" -> ps.add(cb.like(root.get("status"), "①-%"));
+                    case "blockWithDone" -> ps.add(cb.or(
+                            cb.equal(root.get("status"), "차단완료"),
+                            cb.like(root.get("status"), "①-%")));
                     case "review" -> ps.add(cb.like(root.get("status"), "②-%"));
                     case "blockResidual" -> // 잔여(=①-① 차단대상 + ①-② 담당자 판단)
                         ps.add(root.get("status").in("①-① 차단대상", "①-② 담당자 판단"));

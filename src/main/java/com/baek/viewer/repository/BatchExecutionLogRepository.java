@@ -29,4 +29,7 @@ public interface BatchExecutionLogRepository extends JpaRepository<BatchExecutio
             """)
     List<BatchExecutionLog> findAllInRangeOrderByStartTimeDesc(@Param("from") LocalDateTime from,
                                                                @Param("to") LocalDateTime to);
+
+    /** ops_digest AI 입력용 — 최근 이력 */
+    List<BatchExecutionLog> findTop15ByOrderByIdDesc();
 }

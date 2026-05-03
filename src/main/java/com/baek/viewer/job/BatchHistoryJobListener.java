@@ -1,5 +1,6 @@
 package com.baek.viewer.job;
 
+import com.baek.viewer.ai.AiOpsDigestService;
 import com.baek.viewer.model.BatchExecutionLog;
 import com.baek.viewer.repository.BatchExecutionLogRepository;
 import com.baek.viewer.repository.ScheduleConfigRepository;
@@ -15,6 +16,7 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 모든 Quartz Job의 시작/종료 시점을 감지하여 batch_execution_log 테이블에 한 건씩 기록.
@@ -38,11 +40,14 @@ public class BatchHistoryJobListener implements JobListener {
 
     private final BatchExecutionLogRepository repository;
     private final ScheduleConfigRepository scheduleRepo;
+    private final AiOpsDigestService aiOpsDigestService;
 
     public BatchHistoryJobListener(BatchExecutionLogRepository repository,
-                                   ScheduleConfigRepository scheduleRepo) {
+                                   ScheduleConfigRepository scheduleRepo,
+                                   AiOpsDigestService aiOpsDigestService) {
         this.repository = repository;
         this.scheduleRepo = scheduleRepo;
+        this.aiOpsDigestService = aiOpsDigestService;
     }
 
     @Override public String getName() { return NAME; }
@@ -105,6 +110,16 @@ public class BatchHistoryJobListener implements JobListener {
             row.setMessage(truncate(message, 4000));
 
             repository.save(row);
+
+            final String jt = jobType;
+            final String st = status;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    aiOpsDigestService.runDigestIfConfigured(jt, st);
+                } catch (Exception ex) {
+                    log.warn("[AI] ops_digest 비동기 실행 실패: {}", ex.getMessage());
+                }
+            });
         } catch (Exception e) {
             log.warn("[BatchHistoryJobListener] 이력 기록 실패: {}", e.getMessage());
         }

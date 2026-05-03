@@ -72,22 +72,6 @@
   gap: 6px;
   flex-wrap: wrap;
 }
-.app-nav-top .nav-query-count {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: #f1f5f9;
-  border: 1px solid var(--border);
-  padding: 4px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-  line-height: 1.2;
-}
-[data-theme="dark"] .app-nav-top .nav-query-count {
-  background: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
-}
 .app-nav-top .utils .dark-toggle,
 .app-nav-top .utils .nav-btn {
   font-family: inherit;
@@ -255,6 +239,58 @@
   color: #92400e;
   margin-left: 2px;
 }
+
+/* ops_digest — 네비 상단 요약 (Git 동기화 배너와 동일 톤) */
+.nav-alert-stack { display: flex; flex-direction: column; gap: 0; }
+.ops-digest-banner .ops-digest-text-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ops-digest-banner .ops-digest-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  background: #fde68a;
+  color: #78350f;
+  vertical-align: middle;
+}
+.ops-digest-banner .ops-digest-time {
+  font-size: 11px;
+  color: #b45309;
+  margin-top: 3px;
+  font-weight: 600;
+}
+.ops-digest-banner .ops-digest-preview {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78350f;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ops-digest-details {
+  padding: 8px 24px 12px 52px !important;
+}
+.ops-digest-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #78350f;
+}
+[data-theme="dark"] .ops-digest-banner .ops-digest-badge {
+  background: #78350f;
+  color: #fef3c7;
+}
+[data-theme="dark"] .ops-digest-banner .ops-digest-time { color: #fcd34d; }
+[data-theme="dark"] .ops-digest-banner .ops-digest-preview { color: #fde68a; }
+[data-theme="dark"] .ops-digest-pre { color: #fde68a; }
 
 /* ── 반응형 ──────────────────────────────────────────────── */
 @media (max-width: 1200px) {

@@ -38,6 +38,13 @@ global:
   logTailLines: 1000
 
   # Bitbucket 클론 설정
+  # 사내 AI OpenAPI (OpenAI 호환 chat completions — 비어있으면 미사용)
+  aiOpenApiBaseUrl: ""            # 예: https://llm-gateway.company.com
+  aiOpenApiToken: ""              # Bearer 토큰
+  aiOpenApiChatPath: "/v1/chat/completions"  # 베이스 URL 뒤 경로
+  aiOpenApiModel: ""              # 사내 게이트웨이에서 요구하는 모델명
+  aiOpsDigestJobTypes: ""         # 비우면 기본: GIT_PULL_EXTRACT,APM_COLLECT,DATA_BACKUP (콤마 구분)
+
   bitbucketUrl: ""                # Bitbucket 서버 URL (예: https://bitbucket.company.com)
   bitbucketToken: ""              # Bitbucket Bearer 토큰 (Personal Access Token)
   listRepoLimit: 25               # 레포 목록 조회 시 페이지당 건수

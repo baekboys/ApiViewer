@@ -40,6 +40,24 @@ public class ConfigController {
         return ResponseEntity.ok(globalRepo.findById(1L).orElse(new GlobalConfig()));
     }
 
+    /**
+     * 대시보드·전역 네비 노란 배너용 — ops_digest AI 요약만 공개 (토큰·기타 설정 제외)
+     */
+    @GetMapping("/ops-digest-summary")
+    public ResponseEntity<Map<String, String>> getOpsDigestSummary() {
+        return globalRepo.findById(1L)
+                .map(gc -> {
+                    String text = gc.getAiLastOpsDigest();
+                    if (text == null || text.isBlank()) {
+                        return ResponseEntity.ok(Map.of("text", "", "at", ""));
+                    }
+                    String at = gc.getAiLastOpsDigestAt() != null
+                            ? gc.getAiLastOpsDigestAt().toString() : "";
+                    return ResponseEntity.ok(Map.of("text", text.trim(), "at", at));
+                })
+                .orElse(ResponseEntity.ok(Map.of("text", "", "at", "")));
+    }
+
     @PutMapping("/global")
     public ResponseEntity<?> saveGlobal(@RequestBody GlobalConfig config) {
         log.info("[공통설정 저장] PUT /api/config/global");

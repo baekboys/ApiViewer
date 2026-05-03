@@ -72,14 +72,29 @@
     /* ── 2단 그리드 ── */
     .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
     @media(max-width:900px){.two-col{grid-template-columns:1fr;}}
-    /* 상태분포(좌) 높이 기준으로 배치카드(우) 높이 맞춤 + 표만 스크롤 */
-    .two-col-equal-height{align-items:start;}
+    /* 동일 행에서 좌·우 카드 높이/폭 정렬(전체 상태 분포 ↔ 배치 결과) */
+    .two-col-equal-height{
+      align-items:stretch;
+      margin-bottom:16px;
+    }
+    .two-col-equal-height > .card{
+      min-width:0;
+      height:100%;
+      margin-bottom:0;
+      display:flex;
+      flex-direction:column;
+    }
     .two-col-equal-height .dash-batch-card{
-      display:flex;flex-direction:column;min-height:0;overflow:hidden;
-      width:100%;box-sizing:border-box;
+      min-height:0;
+      overflow:hidden;
+      width:100%;
+      box-sizing:border-box;
     }
     .two-col-equal-height .dash-batch-scroll{
-      flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;
+      flex:1 1 auto;
+      min-height:0;
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
     }
 
     /* ── 상태 분포 바 ── */
@@ -631,35 +646,12 @@
     el.textContent = '(' + text + ')';
   }
 
-  let _dashBatchSyncTimer;
-  /** 좌측「전체 상태 분포」카드 높이에 맞춰 우측 배치 카드 max-height 설정 (2열 레이아웃일 때만) */
-  function syncDashBatchCardHeight() {
-    const row = document.getElementById('dashDistBatchRow');
-    const left = row?.querySelector('.dash-dist-card');
-    const right = row?.querySelector('.dash-batch-card');
-    if (!row || !left || !right) return;
-    if (window.innerWidth <= 900) {
-      right.style.maxHeight = '';
-      return;
-    }
-    const lh = left.offsetHeight;
-    if (lh < 80) return;
-    right.style.maxHeight = lh + 'px';
-  }
-  function scheduleSyncDashBatchCardHeight() {
-    clearTimeout(_dashBatchSyncTimer);
-    _dashBatchSyncTimer = setTimeout(() => {
-      requestAnimationFrame(syncDashBatchCardHeight);
-    }, 60);
-  }
-
   /** 당일 배치 요약 (대시보드 우측 카드) — API days=1. 실패 행을 위로 정렬 */
   function renderBatchDashboard(rows) {
     const tbody = document.getElementById('batchDashTbody');
     if (!tbody) return;
     if (!rows || !rows.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px;">당일 배치 이력이 없습니다.</td></tr>';
-      scheduleSyncDashBatchCardHeight();
       return;
     }
     const isOk = (r) => (r.status || '').toUpperCase() === 'SUCCESS';
@@ -684,7 +676,6 @@
         <td style="padding:6px 8px;max-width:280px;word-break:break-word;font-size:11px;color:var(--text-muted);" title="${esc(msg)}">${esc(msg)}</td>
       </tr>`;
     }).join('');
-    scheduleSyncDashBatchCardHeight();
   }
 
   function setDeployRange(mode, btnEl) {
@@ -804,7 +795,6 @@
         '최종 갱신: ' + new Date().toLocaleTimeString('ko-KR');
       document.getElementById('loadingArea').style.display = 'none';
       document.getElementById('dashContent').style.display = 'block';
-      scheduleSyncDashBatchCardHeight();
     } catch(e) {
       document.getElementById('loadingArea').innerHTML =
         `<div class="empty" style="color:var(--danger);">통계 불러오기 실패: ${e.message}</div>`;
@@ -1167,7 +1157,7 @@
       return `<tr style="${trStyle}">${firstCells}
         ${totalCell}
         ${useCell}
-        ${cellLink(blockTotal, `/url-viewer/viewer.html?${sp}&statusGroup=block`, {className:'ov-block ov-block-start ov-block-sum'})}
+        ${cellLink(blockTotal, `/url-viewer/viewer.html?${sp}&statusGroup=blockWithDone`, {className:'ov-block ov-block-start ov-block-sum'})}
         <td class="ov-block" style="text-align:right;color:var(--text-muted);font-weight:600;">${pctF(blockTotal, total)}</td>
         ${cellLink(row.blockDone||0, `/url-viewer/viewer.html?${sp}&status=${encodeURIComponent('차단완료')}`, {className:'ov-block', color:'#64748b'})}
         ${cellLink(blockResidualSum, `/url-viewer/viewer.html?${sp}&statusGroup=blockResidual`, {className:'ov-block ov-res ov-res-start ov-block-sum', bold:true})}
@@ -1438,7 +1428,6 @@
   fetch('/api/config/global').then(r => r.ok ? r.json() : null).then(g => {
     if (g && g.reviewThreshold) document.getElementById('guideReviewThreshold').textContent = g.reviewThreshold;
   }).catch(()=>{});
-  window.addEventListener('resize', () => scheduleSyncDashBatchCardHeight());
   loadStats();
   loadTopApis();
   loadTopRepos();

@@ -48,6 +48,11 @@ public class ReposYamlConfig {
         private String blockMonitorExcludeEnd;
         private List<String> excludeKeywords;
         private List<String> testSuspectKeywords;
+        private String aiOpenApiBaseUrl;
+        private String aiOpenApiToken;
+        private String aiOpenApiChatPath;
+        private String aiOpenApiModel;
+        private String aiOpsDigestJobTypes;
 
         public PeriodGlobal getPeriod() { return period; }
         public void setPeriod(PeriodGlobal period) { this.period = period; }
@@ -109,6 +114,16 @@ public class ReposYamlConfig {
         public void setExcludeKeywords(List<String> v) { this.excludeKeywords = v; }
         public List<String> getTestSuspectKeywords() { return testSuspectKeywords; }
         public void setTestSuspectKeywords(List<String> v) { this.testSuspectKeywords = v; }
+        public String getAiOpenApiBaseUrl() { return aiOpenApiBaseUrl; }
+        public void setAiOpenApiBaseUrl(String v) { this.aiOpenApiBaseUrl = v; }
+        public String getAiOpenApiToken() { return aiOpenApiToken; }
+        public void setAiOpenApiToken(String v) { this.aiOpenApiToken = v; }
+        public String getAiOpenApiChatPath() { return aiOpenApiChatPath; }
+        public void setAiOpenApiChatPath(String v) { this.aiOpenApiChatPath = v; }
+        public String getAiOpenApiModel() { return aiOpenApiModel; }
+        public void setAiOpenApiModel(String v) { this.aiOpenApiModel = v; }
+        public String getAiOpsDigestJobTypes() { return aiOpsDigestJobTypes; }
+        public void setAiOpsDigestJobTypes(String v) { this.aiOpsDigestJobTypes = v; }
     }
 
     public static class PeriodGlobal {
